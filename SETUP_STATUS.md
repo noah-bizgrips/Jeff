@@ -1,0 +1,106 @@
+# Jeff — setup status
+
+Legend: **DONE** · **USER ACTION REQUIRED** · **BLOCKED** · **NOT STARTED**
+No credential values appear in this file. Env var NAMES only.
+
+Last updated: 2026-09-11
+
+## Phase 1 — Starter audit
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Repository inspected, build run | DONE | Starter built cleanly on Next 16.3.5 / Node 26. |
+| `.gitignore` (was missing) | DONE | Covers `.env*`, `.vercel`, keys, credential JSON, `supabase/.temp`. |
+| `next lint` (removed in Next 16) | DONE | Replaced with ESLint 9 flat config (`eslint.config.mjs`). |
+| Obsolete `UPLOAD-TO-GITHUB.md` | DONE | Removed. |
+| `.env.example` | DONE | All variable names documented. |
+| Prototype HTML served at `/` via iframe | DONE | Moved to `docs/prototype/` (not served). UI migrated to React. |
+
+## Phase 2–3 — App structure, Supabase SSR auth, login, MFA
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Next.js structure (`app/(auth)`, `app/(jeff)`, `components/*`, `lib/*`) | DONE | |
+| `lib/supabase/{client,server,admin}.ts` + `proxy.ts` (Next 16 Proxy) | DONE | `getClaims()` signature-verified sessions. |
+| `/login` (owner-only, no signup) | DONE | Server-side `/api/auth/login`, audited failures. |
+| `/unauthorized` for non-owner accounts | DONE | |
+| `/mfa` — TOTP enroll (QR), challenge, verify, re-challenge | DONE | |
+| aal2 enforced in proxy, layout, every API guard | DONE | |
+| Create the owner user in Supabase Auth | USER ACTION REQUIRED | Dashboard → Authentication → Users → Add user (email + password). Signup is disabled. |
+| Set `OWNER_USER_ID` (the owner's auth UUID) in Vercel | USER ACTION REQUIRED | Copy the UUID from the user row. Not a secret, but required. |
+
+## Phase 4 — Database
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Supabase CLI config (`supabase/config.toml`, signup disabled, TOTP on) | DONE | |
+| Migration `20260911000000_jeff_core.sql` | DONE | app_owner, connections, connection_secrets, sync_runs, source_items, missions, approvals, findings, audit_events, service_requests, saved_answers, notes. RLS on all. |
+| Owner binding (`POST /api/admin/bind-owner`, `npm run owner:bind`) | DONE | Requires caller to be the exact owner. |
+| Supabase CLI login | USER ACTION REQUIRED | Run `npx supabase login` in the repo (interactive, browser). |
+| Link project + apply migration | BLOCKED | Needs the login above + the project ref. |
+
+## Phase 5–6 — Encryption & security
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| AES-256-GCM `encryptSecret/decryptSecret` (server-only) | DONE | |
+| CSP with nonces, HSTS, XFO, nosniff, referrer, permissions policy | DONE | `lib/security/headers.ts`, `proxy.ts`, `next.config.ts`. |
+| Zod validation + same-origin check on state-changing APIs | DONE | |
+| OAuth state (signed cookie) + PKCE (Google) | DONE | |
+| Redaction utility + redacted structured logging | DONE | |
+| Audit events table + `audit()` helper | DONE | login, login_failed, mfa_*, connection_*, oauth_*, mission_*, approval_*, webhook_*, jeff_chat |
+| Generate `JEFF_CREDENTIAL_ENCRYPTION_KEY` and add to Vercel (Sensitive) | USER ACTION REQUIRED | `npm run key:generate` prints one key; paste into Vercel only. |
+
+## Phase 7–16 — Connections
+
+| Provider | Code | Status | Owner action |
+| --- | --- | --- | --- |
+| Registry + status model + Connections UI | DONE | | |
+| Google (Gmail/Drive/Calendar, read-only, PKCE) | DONE | USER ACTION REQUIRED | Create OAuth client; add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
+| Slack (user search/read scopes) | DONE | USER ACTION REQUIRED | Create Slack app; add `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` |
+| Notion (read-only) | DONE | USER ACTION REQUIRED | Create public integration; add `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET` |
+| HighLevel (read-only, per-location) | DONE | USER ACTION REQUIRED | Create Marketplace app; add `HIGHLEVEL_CLIENT_ID`, `HIGHLEVEL_CLIENT_SECRET` |
+| Stripe (restricted key form + webhook) | DONE | USER ACTION REQUIRED | Create restricted read-only key (enter in Jeff UI); add `STRIPE_WEBHOOK_SECRET` |
+| Plaid / Financial Accounts (Link, exchange, webhook verify) | DONE | USER ACTION REQUIRED | Add `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ENV=sandbox` |
+| Meta (Ads/Pages/Instagram, v26.0, asset selection) | DONE | USER ACTION REQUIRED | Create Meta app; add `META_APP_ID`, `META_APP_SECRET` |
+| GitHub App (JWT/installation tokens, repo selection, webhook) | DONE | USER ACTION REQUIRED | Create GitHub App; add `GITHUB_APP_*` vars |
+| n8n adapter (read all; write only `jeff-test` tagged) | DONE | USER ACTION REQUIRED | Add `N8N_BASE_URL`, `N8N_API_KEY` |
+
+## Phase 17–22 — Ask Jeff, worker, add-a-service, data model, findings, sample data
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| `/api/jeff/chat` (Claude Opus 5, tools, untrusted-evidence handling) | DONE | Needs `ANTHROPIC_API_KEY` in Vercel — USER ACTION REQUIRED |
+| Tool architecture (`lib/jeff/tools.ts`) | DONE | get_connection_status, search_sources, get_calendar_context, get_crm_pipeline, get_financial_summary, get_ad_performance, get_findings, list_missions, create_mission |
+| Claude technical worker (Vercel Sandbox) | NOT STARTED | Scaffolded via missions/approvals model; execution intentionally disabled in V1. |
+| "Add a service" (`service_requests`, classifier, UI) | DONE | No installs / remote code. |
+| `source_items` ingestion schema (search-ready, embedding column reserved) | DONE | Ingestion jobs NOT STARTED (post-authorization). |
+| `findings` model + Insights UI (facts / metrics / interpretation) | DONE | Monitors NOT STARTED. |
+| Demo/Live mode switch; sample data isolated | DONE | |
+
+## Phase 23–24 — Vercel & Supabase
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Vercel CLI authenticated | DONE | |
+| Vercel project `jeff` linked | NOT STARTED | Next step. |
+| Preview deployment | NOT STARTED | |
+| Domain `jeff.bizgrips.com` | NOT STARTED | Needs Cloudflare DNS record (USER ACTION when ready). |
+| Supabase project ref | USER ACTION REQUIRED | Provide the non-secret project ref. |
+
+## Phase 25–26 — Tests, CI, security review
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Vitest security suite (72 tests) | DONE | routing, claims, crypto, redaction, CSP, OAuth state, guards, webhooks, credential endpoints, classification |
+| Typecheck, ESLint, production build | DONE | `npm run verify` |
+| GitHub Actions CI on PRs | DONE | `.github/workflows/ci.yml` incl. secret-pattern scan |
+| Secret scan of repo | DONE | No credential patterns present. |
+
+## Phase 27–30
+
+| Item | Status |
+| --- | --- |
+| Preview URL tests | NOT STARTED |
+| Production deployment | NOT STARTED (gated on owner user + env vars + migration) |
+| Connect services one by one | NOT STARTED |

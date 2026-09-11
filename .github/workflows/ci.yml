@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, "claude/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Placeholders so the build can evaluate config. No real secrets in CI.
+      NEXT_PUBLIC_APP_URL: https://jeff.bizgrips.com
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+      OWNER_EMAIL: noah@bizgrips.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Unit & security tests
+        run: npm test
+      - name: Production build
+        run: npm run build
+      - name: Secret pattern scan
+        run: |
+          set -e
+          # Fail if anything that looks like a live credential is committed.
+          if git grep -nE '(sk-ant-[A-Za-z0-9_-]{20,}|sk_live_[A-Za-z0-9]{16,}|rk_live_[A-Za-z0-9]{16,}|whsec_[A-Za-z0-9]{24,}|ghp_[A-Za-z0-9]{36}|xox[bp]-[0-9]{8,}-[A-Za-z0-9-]{20,}|sb_secret_[A-Za-z0-9_-]{20,}|-----BEGIN (RSA |EC )?PRIVATE KEY-----)' -- ':!tests/**' ':!.github/**' ':!lib/security/redact.ts' ':!lib/security/client-redact.ts'; then
+            echo "Possible committed secret found"; exit 1
+          fi
+          echo "No secret patterns found"

@@ -1,23 +1,43 @@
 {
   "name": "jeff",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
+    "owner:bind": "node --env-file=.env.local scripts/bind-owner.mjs",
+    "db:diff": "supabase db diff",
+    "db:push:dry": "supabase db push --dry-run",
+    "db:push": "supabase db push",
+    "key:generate": "node scripts/generate-key.mjs"
   },
   "dependencies": {
-    "next": "^16.0.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "@anthropic-ai/sdk": "^0.125.0",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.116.0",
+    "next": "^16.3.5",
+    "plaid": "^47.0.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "server-only": "^0.0.1",
+    "stripe": "^22.6.2",
+    "zod": "^4.6.2"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "typescript": "^5.7.0"
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.5",
+    "supabase": "^2.117.0",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.0"
   },
   "engines": {
     "node": ">=20.9.0"

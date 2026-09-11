@@ -1,0 +1,51 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# next.js
+.next/
+out/
+build/
+dist/
+
+# vercel
+.vercel
+
+# environment / secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p8
+*.p12
+*.pfx
+*.crt.key
+*credentials*.json
+*service-account*.json
+client_secret*.json
+oauth*.json
+.secrets/
+secrets/
+
+# supabase local
+supabase/.branches
+supabase/.temp
+supabase/.env
+
+# testing / coverage
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+
+# misc
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.tsbuildinfo
+next-env.d.ts
+.eslintcache

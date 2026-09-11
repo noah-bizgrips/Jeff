@@ -1,22 +1,17 @@
 import type { NextConfig } from "next";
-
-const securityHeaders = [
-  { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "Referrer-Policy", value: "no-referrer" },
-  { key: "X-Frame-Options", value: "SAMEORIGIN" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
-];
+import { STATIC_SECURITY_HEADERS } from "./lib/security/headers";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  reactStrictMode: true,
+  // Never bundle the Node SDKs into edge/client output.
+  serverExternalPackages: ["@anthropic-ai/sdk", "stripe", "plaid"],
   async headers() {
-    return [
-      {
-        source: "/:path*",
-        headers: securityHeaders,
-      },
-    ];
+    const headers = STATIC_SECURITY_HEADERS.filter(
+      // HSTS only makes sense over HTTPS; Vercel serves production over HTTPS.
+      (h) => h.key !== "Strict-Transport-Security" || process.env.NODE_ENV === "production",
+    );
+    return [{ source: "/:path*", headers }];
   },
 };
 

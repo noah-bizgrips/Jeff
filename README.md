@@ -1,37 +1,57 @@
 # Jeff
 
-Private BizGrips second-brain / operations command center.
+Private BizGrips second brain and operations command center. Single owner, MFA-only, server-enforced.
 
-## What this starter contains
+Production: https://jeff.bizgrips.com
 
-- A real Next.js project structure that Vercel can import and build.
-- The current Jeff Mission Control UI, including Financial Accounts / Plaid in the Connections experience.
-- A simple backend health endpoint at `/api/health`.
-- Security headers and a strict `.gitignore`.
-- No real credentials and no live data connections.
+## Stack
 
-## Important current limitation
+Next.js 16 (App Router, Proxy), React 19, TypeScript, Supabase (Postgres + Auth + RLS, `@supabase/ssr`),
+Vercel, Anthropic SDK (Claude Opus 5), Stripe, Plaid, Zod, Vitest.
 
-The UI displayed at `/` is the current standalone Jeff prototype embedded from `public/jeff-command-center-plaid.html`. It intentionally uses sample data and does not yet implement Supabase authentication, OAuth callbacks, encrypted connector storage, Claude execution, or background synchronization.
+## Layout
 
-Do not enter real credentials into the prototype UI.
-
-## Next deployment stages
-
-1. Import this repository into Vercel.
-2. Add the Supabase public/server environment variables directly in Vercel.
-3. Replace the prototype shell with owner-only Supabase authentication and mandatory MFA.
-4. Add the protected credential broker.
-5. Connect Google, Slack, Notion, HighLevel, Stripe, Plaid, Meta, GitHub, and n8n one at a time.
-6. Enable Claude/Sandbox execution only after the access controls are verified.
+```
+app/
+  (auth)/login, mfa, unauthorized     public auth screens
+  (jeff)/                             protected workspace (Mission control, Missions, Insights, Approvals,
+                                      Search, Memories, Saved answers, Connections, Security)
+  api/                                route handlers (auth/mfa, oauth, integrations, plaid, webhooks, jeff/chat, ...)
+components/  jeff | brain | assistant | connections | mission-control | security | auth
+lib/         auth | supabase | crypto | integrations | audit | security | jeff
+supabase/migrations/                  versioned SQL (schema + RLS)
+docs/prototype/                       the original standalone HTML prototype (reference only, not served)
+tests/                                Vitest security/unit tests
+```
 
 ## Local development
 
 ```bash
+cp .env.example .env.local        # fill in values privately; never commit
 npm install
+npm run key:generate              # → paste into JEFF_CREDENTIAL_ENCRYPTION_KEY
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Verify everything: `npm run verify` (typecheck + lint + tests + build).
 
-Health check: `http://localhost:3000/api/health`
+## Database
+
+Migrations live in `supabase/migrations`. Apply with the Supabase CLI after linking:
+
+```bash
+npx supabase login
+npx supabase link --project-ref <PROJECT_REF>
+npm run db:push:dry               # review
+npm run db:push
+```
+
+Then bind the owner once (after creating the owner user in Supabase Auth and setting `OWNER_USER_ID`):
+sign in to Jeff and `POST /api/admin/bind-owner`, or locally `npm run owner:bind`.
+
+## Modes
+
+- **Demo** — sample data only, clearly labelled, never mixed into analysis.
+- **Live** — synced records from connected sources only. Toggle in the header (owner only).
+
+See `SECURITY.md` for the security model and `SETUP_STATUS.md` for rollout status.
