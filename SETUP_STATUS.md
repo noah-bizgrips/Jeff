@@ -24,7 +24,7 @@ Last updated: 2026-09-11
 | `lib/supabase/{client,server,admin}.ts` + `proxy.ts` (Next 16 Proxy) | DONE | `getClaims()` signature-verified sessions. |
 | `/login` (owner-only, no signup) | DONE | Server-side `/api/auth/login`, audited failures. |
 | `/unauthorized` for non-owner accounts | DONE | |
-| `/mfa` — TOTP enroll (QR), challenge, verify, re-challenge | DONE | |
+| `/mfa` — TOTP enroll (QR), challenge, verify, re-challenge | DONE | Owner enrolled + verified 2026-09-11 (audit trail confirmed). |
 | aal2 enforced in proxy, layout, every API guard | DONE | |
 | Create the owner user in Supabase Auth | DONE | Confirmed user exists in project `jpqwxyctzkokhrbizjxn` ("Jeff Production"). |
 | Set `OWNER_USER_ID` in Vercel (prod/preview/dev) | DONE | |
@@ -90,7 +90,8 @@ Last updated: 2026-09-11
 
 | Non-secret Vercel env: `OWNER_EMAIL`, `JEFF_MODE`, `PLAID_ENV`, `NEXT_PUBLIC_APP_URL` (prod) | DONE | |
 | Vercel env `NEXT_PUBLIC_SUPABASE_URL`, `OWNER_USER_ID` | DONE | |
-| Vercel env `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (Sensitive), `JEFF_CREDENTIAL_ENCRYPTION_KEY` (Sensitive), `ANTHROPIC_API_KEY` (Sensitive) | USER ACTION REQUIRED | Vercel → jeff → Settings → Environment Variables |
+| Vercel env `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `JEFF_CREDENTIAL_ENCRYPTION_KEY` | DONE | |
+| Vercel env `ANTHROPIC_API_KEY` (Sensitive) | USER ACTION REQUIRED | Ask Jeff runs in extractive-preview mode until added. |
 
 ## Phase 25–26 — Tests, CI, security review
 
@@ -106,5 +107,5 @@ Last updated: 2026-09-11
 | Item | Status |
 | --- | --- |
 | Preview URL tests | DONE |
-| Production deployment | NOT STARTED (gated on owner user + env vars + migration) |
+| Production deployment | DONE — 2026-09-11, alias jeff-noah-1259s-projects.vercel.app; owner login + TOTP enrollment verified on preview; health/gating/CSP/HSTS verified on production |
 | Connect services one by one | NOT STARTED |
