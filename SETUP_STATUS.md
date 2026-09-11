@@ -85,7 +85,7 @@ Last updated: 2026-09-11
 | Vercel CLI authenticated | DONE | |
 | Vercel project `jeff` linked + GitHub repo connected | DONE | Team noah-1259s-projects. |
 | Preview deployment | DONE | Deployment Protection (SSO) on; unauthenticated probes verified: `/`→`/login`, APIs 401, health 200, CSP present. |
-| Domain `jeff.bizgrips.com` added to project | DONE | Cloudflare record: `CNAME jeff → 7128508b49e78e3c.vercel-dns-016.com` (DNS only, proxy OFF) — USER ACTION REQUIRED |
+| Domain `jeff.bizgrips.com` | DONE | Cloudflare CNAME added 2026-09-11; Vercel cert issued; HTTPS + gating verified. |
 | Supabase project ref | DONE | `jpqwxyctzkokhrbizjxn` |
 
 | Non-secret Vercel env: `OWNER_EMAIL`, `JEFF_MODE`, `PLAID_ENV`, `NEXT_PUBLIC_APP_URL` (prod) | DONE | |
@@ -108,4 +108,4 @@ Last updated: 2026-09-11
 | --- | --- |
 | Preview URL tests | DONE |
 | Production deployment | DONE — 2026-09-11, alias jeff-noah-1259s-projects.vercel.app; owner login + TOTP enrollment verified on preview; health/gating/CSP/HSTS verified on production |
-| Connect services one by one | NOT STARTED |
+| Connect services one by one | IN PROGRESS — 1. Google (USER ACTION: create OAuth client) |
