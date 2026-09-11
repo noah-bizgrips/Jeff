@@ -26,8 +26,8 @@ Last updated: 2026-09-11
 | `/unauthorized` for non-owner accounts | DONE | |
 | `/mfa` — TOTP enroll (QR), challenge, verify, re-challenge | DONE | |
 | aal2 enforced in proxy, layout, every API guard | DONE | |
-| Create the owner user in Supabase Auth | USER ACTION REQUIRED | Dashboard → Authentication → Users → Add user (email + password). Signup is disabled. |
-| Set `OWNER_USER_ID` (the owner's auth UUID) in Vercel | USER ACTION REQUIRED | Copy the UUID from the user row. Not a secret, but required. |
+| Create the owner user in Supabase Auth | DONE | Confirmed user exists in project `jpqwxyctzkokhrbizjxn` ("Jeff Production"). |
+| Set `OWNER_USER_ID` in Vercel (prod/preview/dev) | DONE | |
 
 ## Phase 4 — Database
 
@@ -35,9 +35,9 @@ Last updated: 2026-09-11
 | --- | --- | --- |
 | Supabase CLI config (`supabase/config.toml`, signup disabled, TOTP on) | DONE | |
 | Migration `20260911000000_jeff_core.sql` | DONE | app_owner, connections, connection_secrets, sync_runs, source_items, missions, approvals, findings, audit_events, service_requests, saved_answers, notes. RLS on all. |
-| Owner binding (`POST /api/admin/bind-owner`, `npm run owner:bind`) | DONE | Requires caller to be the exact owner. |
-| Supabase CLI login | USER ACTION REQUIRED | Run `npx supabase login` in the repo (interactive, browser). |
-| Link project + apply migration | BLOCKED | Needs the login above + the project ref. |
+| Owner binding (`app_owner` row) | DONE | Bound to the owner UUID via CLI on 2026-09-11. Bootstrap route/script remain for re-binding. |
+| Supabase CLI login | DONE | |
+| Link project + apply migration | DONE | Dry-run reviewed (no destructive statements), pushed 2026-09-11. RLS verified on all 12 tables; `connection_secrets` has 0 client policies. |
 
 ## Phase 5–6 — Encryption & security
 
@@ -86,10 +86,11 @@ Last updated: 2026-09-11
 | Vercel project `jeff` linked + GitHub repo connected | DONE | Team noah-1259s-projects. |
 | Preview deployment | DONE | Deployment Protection (SSO) on; unauthenticated probes verified: `/`→`/login`, APIs 401, health 200, CSP present. |
 | Domain `jeff.bizgrips.com` added to project | DONE | Cloudflare record: `CNAME jeff → 7128508b49e78e3c.vercel-dns-016.com` (DNS only, proxy OFF) — USER ACTION REQUIRED |
-| Supabase project ref | USER ACTION REQUIRED | Provide the non-secret project ref. |
+| Supabase project ref | DONE | `jpqwxyctzkokhrbizjxn` |
 
 | Non-secret Vercel env: `OWNER_EMAIL`, `JEFF_MODE`, `PLAID_ENV`, `NEXT_PUBLIC_APP_URL` (prod) | DONE | |
-| Secret Vercel env: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `OWNER_USER_ID`, `JEFF_CREDENTIAL_ENCRYPTION_KEY`, `ANTHROPIC_API_KEY` | USER ACTION REQUIRED | Vercel → jeff → Settings → Environment Variables |
+| Vercel env `NEXT_PUBLIC_SUPABASE_URL`, `OWNER_USER_ID` | DONE | |
+| Vercel env `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (Sensitive), `JEFF_CREDENTIAL_ENCRYPTION_KEY` (Sensitive), `ANTHROPIC_API_KEY` (Sensitive) | USER ACTION REQUIRED | Vercel → jeff → Settings → Environment Variables |
 
 ## Phase 25–26 — Tests, CI, security review
 
