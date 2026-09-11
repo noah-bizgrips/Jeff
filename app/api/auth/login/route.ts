@@ -32,8 +32,10 @@ export async function POST(req: Request) {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword({ email: body.data.email, password: body.data.password });
   if (error || !data.user) {
-    await audit({ event: "login_failed", request: req, metadata: { reason: "bad_credentials" } });
-    log.warn("login_failed");
+    // Error code/status only (e.g. invalid_credentials, invalid_api_key) — never the password.
+    const code = error?.code ?? "unknown";
+    await audit({ event: "login_failed", request: req, metadata: { reason: "bad_credentials", code, status: error?.status ?? null } });
+    log.warn("login_failed", { code, status: error?.status ?? null });
     return apiError("invalid_credentials", 401);
   }
   if (owner.userId && data.user.id !== owner.userId) {
