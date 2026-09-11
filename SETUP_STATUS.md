@@ -83,10 +83,13 @@ Last updated: 2026-09-11
 | Item | Status | Notes |
 | --- | --- | --- |
 | Vercel CLI authenticated | DONE | |
-| Vercel project `jeff` linked | NOT STARTED | Next step. |
-| Preview deployment | NOT STARTED | |
-| Domain `jeff.bizgrips.com` | NOT STARTED | Needs Cloudflare DNS record (USER ACTION when ready). |
+| Vercel project `jeff` linked + GitHub repo connected | DONE | Team noah-1259s-projects. |
+| Preview deployment | DONE | Deployment Protection (SSO) on; unauthenticated probes verified: `/`→`/login`, APIs 401, health 200, CSP present. |
+| Domain `jeff.bizgrips.com` added to project | DONE | Cloudflare record: `CNAME jeff → 7128508b49e78e3c.vercel-dns-016.com` (DNS only, proxy OFF) — USER ACTION REQUIRED |
 | Supabase project ref | USER ACTION REQUIRED | Provide the non-secret project ref. |
+
+| Non-secret Vercel env: `OWNER_EMAIL`, `JEFF_MODE`, `PLAID_ENV`, `NEXT_PUBLIC_APP_URL` (prod) | DONE | |
+| Secret Vercel env: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `OWNER_USER_ID`, `JEFF_CREDENTIAL_ENCRYPTION_KEY`, `ANTHROPIC_API_KEY` | USER ACTION REQUIRED | Vercel → jeff → Settings → Environment Variables |
 
 ## Phase 25–26 — Tests, CI, security review
 
@@ -101,6 +104,6 @@ Last updated: 2026-09-11
 
 | Item | Status |
 | --- | --- |
-| Preview URL tests | NOT STARTED |
+| Preview URL tests | DONE |
 | Production deployment | NOT STARTED (gated on owner user + env vars + migration) |
 | Connect services one by one | NOT STARTED |
