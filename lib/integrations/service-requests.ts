@@ -51,6 +51,14 @@ const KNOWN_OFFICIAL_APIS: Record<string, { aliases: string[]; method: string }>
 
 export function classifyServiceRequest(serviceName: string, desiredCapability: string): ClassificationResult {
   const q = `${serviceName} ${desiredCapability}`.toLowerCase();
+  // Refusals first: a request can name an existing connector and still ask for something Jeff never does.
+  if (/scrape|crawl|browser automation|headless|login as me|password/i.test(q)) {
+    return {
+      status: "unsupported",
+      matchedProvider: null,
+      notes: "Requests that require scraping, browser automation, or sharing passwords are not supported. Jeff only uses official APIs with explicit authorization.",
+    };
+  }
   const existing = PROVIDERS.find(
     (p) =>
       q.includes(p.id) ||
@@ -76,13 +84,6 @@ export function classifyServiceRequest(serviceName: string, desiredCapability: s
       status: "connector_can_be_prepared",
       matchedProvider: null,
       notes: `Official method: ${v.method}. A connector can be prepared through a reviewed Git branch using the OAuth/API-key adapter pattern in lib/integrations/providers.`,
-    };
-  }
-  if (/scrape|crawl|browser automation|headless|login as me|password/i.test(q)) {
-    return {
-      status: "unsupported",
-      matchedProvider: null,
-      notes: "Requests that require scraping, browser automation, or sharing passwords are not supported. Jeff only uses official APIs with explicit authorization.",
     };
   }
   return {

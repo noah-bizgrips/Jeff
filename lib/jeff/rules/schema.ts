@@ -20,6 +20,12 @@ export const MONITOR_IDS = [
   "ad_spend_change",
   "underperforming_acquisition",
   "automation_opportunity",
+  "portal_task_overdue",
+  "portal_stage_stalled",
+  "portal_notification_failure",
+  "lead_not_contacted",
+  "client_unpaid_invoice",
+  "client_ad_spend_no_leads",
 ] as const;
 export type MonitorId = (typeof MONITOR_IDS)[number];
 
@@ -43,6 +49,19 @@ export const MONITOR_ALIASES: Record<string, MonitorId> = {
   underperforming_ads: "underperforming_acquisition",
   acquisition: "underperforming_acquisition",
   cost_per_lead: "underperforming_acquisition",
+  overdue_tasks: "portal_task_overdue",
+  portal_tasks: "portal_task_overdue",
+  task_overdue: "portal_task_overdue",
+  stalled_stages: "portal_stage_stalled",
+  stage_stalled: "portal_stage_stalled",
+  notification_failures: "portal_notification_failure",
+  portal_notifications: "portal_notification_failure",
+  uncontacted_leads: "lead_not_contacted",
+  speed_to_lead: "lead_not_contacted",
+  client_invoices: "client_unpaid_invoice",
+  unpaid_invoices: "client_unpaid_invoice",
+  client_ads: "client_ad_spend_no_leads",
+  ad_spend_no_leads: "client_ad_spend_no_leads",
 };
 
 export const MONITOR_LABELS: Record<MonitorId, string> = {
@@ -58,6 +77,12 @@ export const MONITOR_LABELS: Record<MonitorId, string> = {
   ad_spend_change: "Ad spend changes",
   underperforming_acquisition: "Underperforming acquisition",
   automation_opportunity: "Automation opportunities",
+  portal_task_overdue: "Overdue portal tasks",
+  portal_stage_stalled: "Stalled onboarding stages",
+  portal_notification_failure: "Portal notification failures",
+  lead_not_contacted: "Uncontacted leads",
+  client_unpaid_invoice: "Client unpaid invoices",
+  client_ad_spend_no_leads: "Client ad spend without leads",
 };
 
 export function resolveMonitorId(id: string | null | undefined): MonitorId | null {

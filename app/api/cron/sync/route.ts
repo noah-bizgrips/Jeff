@@ -8,6 +8,8 @@ import { runMonitorsForOwner } from "@/lib/jeff/monitors";
 import { refreshGoals } from "@/lib/jeff/goals/refresh";
 import { runCommitmentsForOwner } from "@/lib/jeff/commitments/store";
 import { runAlertsForOwner } from "@/lib/jeff/alerts/store";
+import { rebuildClientMap } from "@/lib/jeff/clients/map";
+import { attributeSourceItems } from "@/lib/jeff/clients/attribution";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -29,6 +31,21 @@ export const GET = withErrorBoundary(async (req) => {
 
   const summaries = await syncAllForOwner(owner.user_id, "schedule");
   log.info("cron_sync", { connections: summaries.length });
+  // Client identity map + cross-provider attribution before monitors, so per-client
+  // findings see fresh client_ids. Failures never fail the cron.
+  let clients: Awaited<ReturnType<typeof rebuildClientMap>> | { error: string } = { error: "skipped" };
+  let attribution: Awaited<ReturnType<typeof attributeSourceItems>> | { error: string } = { error: "skipped" };
+  if (summaries.length) {
+    try {
+      clients = await rebuildClientMap(owner.user_id);
+      attribution = await attributeSourceItems(owner.user_id);
+    } catch (err) {
+      const message = errorMessage(err);
+      if ("clients" in (clients as object) === false) clients = { error: message };
+      attribution = { error: message };
+      log.warn("cron_client_map_failed", { message });
+    }
+  }
   // Re-evaluate findings once the data is fresh. Monitor failures never fail the sync response.
   let monitors: Awaited<ReturnType<typeof runMonitorsForOwner>> | { error: string } = { error: "skipped" };
   if (summaries.length) {
@@ -65,6 +82,8 @@ export const GET = withErrorBoundary(async (req) => {
   }
   return json({
     ok: true,
+    clients,
+    attribution,
     goals,
     commitments,
     alerts,

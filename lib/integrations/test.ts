@@ -7,6 +7,7 @@ import { testStripe } from "./providers/stripe";
 import { testPlaid } from "./providers/plaid";
 import { testN8n } from "./providers/n8n";
 import { testGithubApp } from "./providers/github";
+import { testPortal } from "./providers/portal";
 import { googleAccessToken, type GoogleSecret } from "./providers/google";
 import { highlevelAccessToken, type HighLevelSecret } from "./providers/highlevel";
 import { errorMessage, log } from "@/lib/security/log";
@@ -79,6 +80,8 @@ async function testByProvider(conn: ConnectionSummary): Promise<TestResult> {
       return testN8n();
     case "github":
       return testGithubApp(conn);
+    case "portal":
+      return testPortal();
     default:
       return { ok: false, error: "provider_not_testable" };
   }

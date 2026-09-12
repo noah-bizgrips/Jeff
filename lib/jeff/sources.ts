@@ -28,6 +28,7 @@ export const SOURCES: SourceDef[] = [
   { id: "instagram", name: "Instagram", color: "#a788ff", desc: "Professional account content, engagement, conversations, and insights where authorized.", type: "Social data", provider: "meta", capability: "instagram" },
   { id: "stripe", name: "Stripe", color: "#8aa4ff", desc: "Payments, invoices, subscriptions, customers, disputes, and billing signals.", type: "Billing data", provider: "stripe" },
   { id: "plaid", name: "Financial Accounts", color: "#45c9ff", desc: "Read-only bank and credit-card balances, transactions, recurring expenses, and cash-flow signals via Plaid.", type: "Financial data", provider: "plaid" },
+  { id: "portal", name: "Client Portal", color: "#7fd1b9", desc: "Client roster, onboarding tasks, leads and notification health from the BizGrips portal.", type: "Client record", provider: "portal" },
   { id: "notes", name: "Personal notes", color: "#80bdff", desc: "Your own thoughts, uploaded text, and saved inspiration.", type: "Note", provider: "notes" },
 ];
 

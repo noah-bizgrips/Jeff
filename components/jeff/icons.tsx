@@ -70,6 +70,7 @@ export function Icon({ name, className, style }: { name: string; className?: str
 
 const SOURCE_SVGS: Record<string, string> = {
   github: '<path d="M8 4 3 12l5 8m8-16 5 8-5 8M14 3l-4 18" stroke="#acd3ff" stroke-width="1.8" stroke-linecap="round"/>',
+  portal: '<rect x="3" y="4" width="18" height="16" rx="3" fill="none" stroke="#7fd1b9" stroke-width="1.8"/><path d="M7 9h10M7 13h6M7 17h4" stroke="#7fd1b9" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="15.5" r="1.5" fill="#7fd1b9"/>',
   n8n: '<path d="M5 12h6m0 0 5-6m-5 6 5 6" stroke="#67d4ef" stroke-width="1.8"/><g fill="#112440" stroke="#67d4ef" stroke-width="1.8"><circle cx="4" cy="12" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="19" cy="5" r="2.5"/><circle cx="19" cy="19" r="2.5"/></g>',
   metaads: '<path d="M3 17 8 7l4 7 4-9 5 12" fill="none" stroke="#5b9dff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
   facebook: '<path d="M14 4h4V1h-4c-4 0-6 2-6 6v3H5v4h3v9h4v-9h5l1-4h-6V7c0-2 1-3 2-3Z" fill="#79a9ff"/>',

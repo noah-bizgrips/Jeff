@@ -44,7 +44,7 @@ function StatusPill({ s }: { s: ConnectionStatus }) {
 
 const PROVIDER_ICON: Record<string, string> = { google: "gmail", highlevel: "leadconnector", meta: "metaads" };
 /** Providers with a server-side sync adapter (lib/integrations/sync/runner.ts). */
-const SYNCABLE = ["google", "highlevel", "stripe", "plaid", "meta", "slack", "notion"];
+const SYNCABLE = ["google", "highlevel", "stripe", "plaid", "meta", "slack", "notion", "portal"];
 
 function tokenDaysLeft(c: ConnectionSummary): number | null {
   const v = c.metadata.token_expires_at;
@@ -379,7 +379,7 @@ function SetupModal({ p, conns }: { p: CatalogEntry; conns: ConnectionSummary[] 
               </button>
             )
           ) : null}
-          {p.id === "n8n" || p.id === "github" ? (
+          {p.id === "n8n" || p.id === "github" || p.id === "portal" ? (
             <button className="button primary" type="button" disabled={!p.configured || testing !== null} onClick={() => test()}>
               {testing === "new" ? <span className="spinner" /> : <Icon name="check" />}
               Verify connection

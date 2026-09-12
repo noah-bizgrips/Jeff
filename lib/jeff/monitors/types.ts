@@ -36,6 +36,12 @@ export type FindingCategory =
   | "recurring_expense_change"
   | "ad_spend_change"
   | "underperforming_acquisition"
+  | "portal_task_overdue"
+  | "portal_stage_stalled"
+  | "portal_notification_failure"
+  | "lead_not_contacted"
+  | "client_unpaid_invoice"
+  | "client_ad_spend_no_leads"
   | "operational_bottleneck"
   | "automation_opportunity";
 

@@ -14,7 +14,7 @@ const Body = z.object({ connectionId: z.string().uuid().optional() }).default({}
 /**
  * POST /api/integrations/{provider}/test
  * Runs the provider's harmless verification for an existing connection.
- * For env-configured tools (n8n, github) a connection row is created on the fly.
+ * For env-configured tools (n8n, github, portal) a connection row is created on the fly.
  * Response never includes credentials.
  */
 export const POST = withErrorBoundary(async (req, ctx) => {
@@ -30,7 +30,7 @@ export const POST = withErrorBoundary(async (req, ctx) => {
     ? await getConnection(g.session.userId, body.data.connectionId)
     : await findConnectionByProvider(g.session.userId, provider);
 
-  if (!conn && (provider === "n8n" || provider === "github")) {
+  if (!conn && (provider === "n8n" || provider === "github" || provider === "portal")) {
     const missing = def.requiredEnv.filter((n) => !hasEnv(n));
     if (missing.length) return apiError("provider_not_configured", 409, { missingEnv: missing });
     conn = await upsertConnection({

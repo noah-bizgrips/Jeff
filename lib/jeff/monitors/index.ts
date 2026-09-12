@@ -18,6 +18,12 @@ import { cashflowChange } from "./cashflow-change";
 import { recurringExpenseChange } from "./recurring-expense-change";
 import { adSpendChange } from "./ad-spend-change";
 import { underperformingAcquisition } from "./underperforming-acquisition";
+import { portalTaskOverdue } from "./portal-task-overdue";
+import { portalStageStalled } from "./portal-stage-stalled";
+import { portalNotificationFailure } from "./portal-notification-failure";
+import { leadNotContacted } from "./lead-not-contacted";
+import { clientUnpaidInvoice } from "./client-unpaid-invoice";
+import { clientAdSpendNoLeads } from "./client-ad-spend-no-leads";
 
 /**
  * Monitor runner. Loads the owner's live (non-sample) source_items, runs every
@@ -26,7 +32,24 @@ import { underperformingAcquisition } from "./underperforming-acquisition";
  * preserved across runs.
  */
 
-export const MONITORS: Monitor[] = [leadFollowupGap, pipelineAging, missedCommitment, automationFailure, operationalBottleneck, failedPayment, cashflowChange, recurringExpenseChange, adSpendChange, underperformingAcquisition];
+export const MONITORS: Monitor[] = [
+  leadFollowupGap,
+  pipelineAging,
+  missedCommitment,
+  automationFailure,
+  operationalBottleneck,
+  failedPayment,
+  cashflowChange,
+  recurringExpenseChange,
+  adSpendChange,
+  underperformingAcquisition,
+  portalTaskOverdue,
+  portalStageStalled,
+  portalNotificationFailure,
+  leadNotContacted,
+  clientUnpaidInvoice,
+  clientAdSpendNoLeads,
+];
 
 export interface MonitorRunSummary {
   rows: number;

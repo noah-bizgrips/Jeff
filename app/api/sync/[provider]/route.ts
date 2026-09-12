@@ -3,6 +3,9 @@ import { apiError, json, parseBody, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
 import { findConnectionByProvider, getConnection } from "@/lib/integrations/store";
 import { hasSyncAdapter, syncConnection } from "@/lib/integrations/sync/runner";
+import { rebuildClientMap } from "@/lib/jeff/clients/map";
+import { attributeSourceItems } from "@/lib/jeff/clients/attribution";
+import { errorMessage, log } from "@/lib/security/log";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -31,5 +34,15 @@ export const POST = withErrorBoundary(async (req, ctx) => {
   if (conn.provider !== provider) return apiError("provider_mismatch", 400);
   if (!["connected", "limited"].includes(conn.status)) return apiError("connection_not_ready", 409, { status: conn.status });
   const summary = await syncConnection(g.session.userId, conn, { capabilities: body.data.capabilities, trigger: "manual" });
-  return json(summary);
+  // Keep the client map and attribution current after a manual sync of any provider that feeds it.
+  let clients: Awaited<ReturnType<typeof rebuildClientMap>> | null = null;
+  if (["portal", "stripe", "highlevel", "meta"].includes(provider)) {
+    try {
+      clients = await rebuildClientMap(g.session.userId);
+      await attributeSourceItems(g.session.userId);
+    } catch (err) {
+      log.warn("manual_sync_client_map_failed", { provider, message: errorMessage(err) });
+    }
+  }
+  return json({ ...summary, clients });
 });

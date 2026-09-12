@@ -51,6 +51,12 @@ const CATEGORY_LABEL: Record<string, string> = {
   underperforming_acquisition: "ACQUISITION EFFICIENCY",
   operational_bottleneck: "OPERATIONS",
   automation_opportunity: "AUTOMATION OPPORTUNITY",
+  portal_task_overdue: "OVERDUE PORTAL TASKS",
+  portal_stage_stalled: "STALLED ONBOARDING",
+  portal_notification_failure: "PORTAL NOTIFICATIONS",
+  lead_not_contacted: "SPEED TO LEAD",
+  client_unpaid_invoice: "CLIENT BILLING",
+  client_ad_spend_no_leads: "CLIENT AD SPEND",
 };
 
 export function rowToFinding(f: Record<string, unknown>): FindingItem {

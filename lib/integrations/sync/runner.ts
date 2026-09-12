@@ -38,6 +38,7 @@ const ADAPTERS: Record<string, () => Promise<SyncAdapter>> = {
   meta: async () => (await import("./meta")).metaSyncAdapter,
   slack: async () => (await import("./slack")).slackSyncAdapter,
   notion: async () => (await import("./notion")).notionSyncAdapter,
+  portal: async () => (await import("./portal")).portalSyncAdapter,
 };
 
 export function hasSyncAdapter(provider: string) {
