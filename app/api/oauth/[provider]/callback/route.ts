@@ -5,8 +5,15 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveOwnerSession } from "@/lib/auth/session";
 import { getOAuthAdapter } from "@/lib/integrations/providers";
 import { getProvider } from "@/lib/integrations/registry";
-import { clearStateCookie, exchangeCode, verifyState } from "@/lib/integrations/oauth";
-import { upsertConnection, setConnectionStatus } from "@/lib/integrations/store";
+import {
+  clearStateCookie,
+  exchangeCode,
+  verifyState,
+} from "@/lib/integrations/oauth";
+import {
+  upsertConnection,
+  setConnectionStatus,
+} from "@/lib/integrations/store";
 import { audit } from "@/lib/audit";
 import { errorMessage, log } from "@/lib/security/log";
 import { publicEnv } from "@/lib/env";
@@ -36,20 +43,38 @@ export const GET = withErrorBoundary(async (req, ctx) => {
   const supabase = await createClient();
   const session = await resolveOwnerSession(supabase);
   if (session.status !== "owner" || session.aal !== "aal2") {
-    return NextResponse.redirect(new URL("/login", publicEnv().appUrl), { status: 303 });
+    return NextResponse.redirect(new URL("/login", publicEnv().appUrl), {
+      status: 303,
+    });
   }
 
   const url = new URL(req.url);
   const cookieStore = await cookies();
-  const state = verifyState(provider, cookieStore.get(`jeff_oauth_${provider}`)?.value, url.searchParams.get("state"));
+  const state = verifyState(
+    provider,
+    cookieStore.get(`jeff_oauth_${provider}`)?.value,
+    url.searchParams.get("state"),
+  );
   await clearStateCookie(provider);
   if (!state.ok) {
-    await audit({ event: "oauth_failed", ownerId: session.userId, provider, request: req, metadata: { reason: state.reason } });
+    await audit({
+      event: "oauth_failed",
+      ownerId: session.userId,
+      provider,
+      request: req,
+      metadata: { reason: state.reason },
+    });
     return back(state.reason, provider);
   }
   const providerError = url.searchParams.get("error");
   if (providerError) {
-    await audit({ event: "oauth_failed", ownerId: session.userId, provider, request: req, metadata: { reason: "provider_denied" } });
+    await audit({
+      event: "oauth_failed",
+      ownerId: session.userId,
+      provider,
+      request: req,
+      metadata: { reason: "provider_denied" },
+    });
     return back("provider_denied", provider);
   }
   const code = url.searchParams.get("code");
@@ -57,29 +82,57 @@ export const GET = withErrorBoundary(async (req, ctx) => {
 
   let result;
   try {
-    const tokens = adapter.exchange ? await adapter.exchange(code, state.verifier) : await exchangeCode(adapter.config, code, state.verifier);
+    const tokens = adapter.exchange
+      ? await adapter.exchange(code, state.verifier)
+      : await exchangeCode(adapter.config, code, state.verifier);
     result = await adapter.onCallback(tokens);
   } catch (err) {
     log.warn("oauth_exchange_failed", { provider, message: errorMessage(err) });
-    await audit({ event: "oauth_failed", ownerId: session.userId, provider, request: req, metadata: { reason: "exchange_failed" } });
+    await audit({
+      event: "oauth_failed",
+      ownerId: session.userId,
+      provider,
+      request: req,
+      metadata: { reason: "exchange_failed" },
+    });
     return back("exchange_failed", provider);
   }
 
-  const conn = await upsertConnection({
+  let conn;
+  try {
+    conn = await upsertConnection({
+      ownerId: session.userId,
+      provider,
+      displayName: result.displayName ?? def.name,
+      status: "testing",
+      accessMode: def.access,
+      scopes: result.scopes,
+      capabilities: result.capabilities,
+      accountIdentifier: result.accountIdentifier,
+      externalAccountId: result.externalAccountId,
+      metadata: result.metadata ?? {},
+      secret: result.secret,
+      secretExpiresAt: result.expiresAt,
+    });
+  } catch (err) {
+    log.error("oauth_store_failed", { provider, message: errorMessage(err) });
+    await audit({
+      event: "oauth_failed",
+      ownerId: session.userId,
+      provider,
+      request: req,
+      metadata: { reason: "store_failed" },
+    });
+    return back("store_failed", provider);
+  }
+  await audit({
+    event: "connection_created",
     ownerId: session.userId,
     provider,
-    displayName: result.displayName ?? def.name,
-    status: "testing",
-    accessMode: def.access,
-    scopes: result.scopes,
-    capabilities: result.capabilities,
-    accountIdentifier: result.accountIdentifier,
-    externalAccountId: result.externalAccountId,
-    metadata: result.metadata ?? {},
-    secret: result.secret,
-    secretExpiresAt: result.expiresAt,
+    targetId: conn.id,
+    request: req,
+    metadata: { scopes: result.scopes },
   });
-  await audit({ event: "connection_created", ownerId: session.userId, provider, targetId: conn.id, request: req, metadata: { scopes: result.scopes } });
 
   try {
     const test = await adapter.test(result.secret, conn.id);
@@ -87,12 +140,24 @@ export const GET = withErrorBoundary(async (req, ctx) => {
       status: test.ok ? (test.limited ? "limited" : "connected") : "error",
       lastTestOk: test.ok,
       lastError: test.ok ? null : (test.error ?? "test_failed"),
-      accountIdentifier: test.accountIdentifier ?? result.accountIdentifier ?? null,
+      accountIdentifier:
+        test.accountIdentifier ?? result.accountIdentifier ?? null,
     });
-    await audit({ event: "connection_tested", ownerId: session.userId, provider, targetId: conn.id, request: req, metadata: { ok: test.ok, limited: !!test.limited } });
+    await audit({
+      event: "connection_tested",
+      ownerId: session.userId,
+      provider,
+      targetId: conn.id,
+      request: req,
+      metadata: { ok: test.ok, limited: !!test.limited },
+    });
     if (!test.ok) return back("test_failed", provider);
   } catch (err) {
-    await setConnectionStatus(conn.id, { status: "error", lastTestOk: false, lastError: errorMessage(err) });
+    await setConnectionStatus(conn.id, {
+      status: "error",
+      lastTestOk: false,
+      lastError: errorMessage(err),
+    });
     return back("test_failed", provider);
   }
 
