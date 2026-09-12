@@ -4,7 +4,7 @@ import { requireOwnerAal2 } from "@/lib/auth/guard";
 
 export const dynamic = "force-dynamic";
 
-const Patch = z.object({ status: z.enum(["open", "acknowledged", "in_progress", "resolved", "dismissed"]) });
+const Patch = z.object({ status: z.enum(["open", "new", "reviewing", "accepted", "acknowledged", "in_progress", "action_planned", "action_in_progress", "monitoring", "resolved", "dismissed"]) });
 
 export const PATCH = withErrorBoundary(async (req, ctx) => {
   const g = await requireOwnerAal2(req);

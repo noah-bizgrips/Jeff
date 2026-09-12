@@ -25,20 +25,24 @@ Statuses: **DONE** · **IN PROGRESS** · **USER ACTION REQUIRED** · **BLOCKED**
 | UI | `components/{jeff,brain,assistant,connections,mission-control,security}` on the ported Jeff design system (`app/globals.css`) | Extend, preserve design |
 | Tests | Vitest, 141 tests (auth, crypto, redaction, OAuth, webhooks, mappers, monitors) | Extend |
 
-## Phase 2 — Memory + operating rules schema/engine — NOT STARTED
-Tables: `memories`, `operating_rules`, `rule_events` (trigger history), `finding_feedback`. Rule engine: validated condition/action schema (Zod), precedence, conflict detection, Tier 1/2/3 safety, reprocessing with undo. Migration required (additive).
+## Phase 2 — Memory + operating rules schema/engine — DONE
+Migration `20260914000000_memory_rules.sql` (additive; **must be pushed with `supabase db push` by the main session**): `memories`, `operating_rules`, `rule_events`, `finding_feedback`, new `finding_status` values (`new`, `reviewing`, `accepted`, `suppressed_by_rule`, `action_planned`, `action_in_progress`, `monitoring`), `findings.suppressed_by_rule_id / suppressed_at / previous_status`. Engine in `lib/jeff/rules/`: Zod schema (rules are configuration, never code; safe wildcard patterns only), deterministic matcher, precedence (system > owner > goal > monitor > preference, then specificity; specific `include` overrides broad `exclude`), conflict detection, safety tiers (Tier 3 vocabulary → refused), reprocess/undo without deleting evidence.
 
-## Phase 3 — Ask Jeff memory/rule tools — NOT STARTED
-Tools: `remember`, `forget`, `list_memories`, `propose_rule` → `apply_rule` (tier-gated), `list_rules`, `update_rule`, `explain_decision`.
+## Phase 3 — Ask Jeff memory/rule tools — DONE
+`remember_preference`, `forget_memory`, `list_memories`, `list_rules`, `interpret_rule` (deterministic parser for sender/domain/GitHub/bot/amount/monitor/briefing patterns; validated model fallback via `proposed_rule`), `apply_rule` (Tier 1 apply + reprocess; Tier 2 pending confirmation; Tier 3 refused), `update_rule` (enable/disable/confirm/edit/undo), `explain_finding_decision`. System prompt requires feedback to go through these tools and to report exactly what changed.
 
-## Phase 4 — Rules integrated into monitors — NOT STARTED
-Pipeline: normalization → operating rules → deterministic filters → candidates → evidence → (AI interpretation) → finding → alert decision. No LLM call for rule-excluded items.
+## Phase 4 — Rules integrated into monitors — DONE
+`runMonitors(rows, now, monitors, rules)`: rules exclude source rows before any monitor runs (no AI involved), then adjust candidates (severity, confidence floor, include exceptions). Decisions are written to `rule_events`; trigger counts updated. Seeded system rule "Ignore GitHub repo notifications in Open commitments" created idempotently per owner.
 
-## Phase 5 — Open Commitments GitHub-noise fix — NOT STARTED
-Sender/domain/bot/subject-pattern classifier + confidence model (actor/action/future-state/due).
+## Phase 5 — Open Commitments GitHub-noise fix — DONE
+`lib/jeff/monitors/commitment-classifier.ts`: human/bot/system classification from sender address & domain, Gmail category labels, display-name markers and structural subject patterns (`[owner/repo]`, `PR #`, deployment/build/workflow, receipts, unsubscribe). Commitment extraction needs actor + action + future marker; due dates parsed; confidence scored; replies close the loop. Acceptance sample (`[BizGrips-Site-Builds/…]` from notifications@github.com) is excluded with or without a rule.
 
-## Phase 6 — Memory & Rules UI — NOT STARTED
-Route `/memory`, nav entry, edit/disable/delete/provenance/trigger history, conflicts, feedback buttons on findings.
+## Phase 6 — Memory & Rules UI — DONE
+Route `/memory` ("Memory & rules" in nav): memories grouped by category with scope/provenance, inline edit/delete; rules with plain-English summary, enable/disable/confirm, edit (structured form), history (rule_events), reprocess, undo, delete; conflicts panel; Add rule/Add memory. Finding modal has Useful / Not useful / Wrong / Too noisy / Don't show this again (narrowest rule inferred, never a monitor mute) / Change rule (opens editor with proposal). Suppressed findings shown collapsed with the rule name.
+
+APIs: `GET/POST /api/rules`, `GET/PATCH/DELETE /api/rules/[id]`, `POST /api/rules/[id]/reprocess`, `POST /api/rules/[id]/undo`, `GET /api/rules/conflicts`, `GET/POST/PATCH/DELETE /api/memories`, `POST /api/findings/[id]/feedback` — all owner+aal2, audited (`rule_*`, `memory_*`, `findings_reprocessed`, `finding_feedback`).
+
+Tests: 181 total (40 new) — schema rejection of unsafe input, matcher, precedence/§51 exception, conflicts, tiers (Tier 3 refusals), classifier + monitor, rules-before-monitors trace, NL interpretation (§50, §51, §52), narrow feedback rules (§11), route auth, §50 end-to-end at tool level with reprocessing, rule lifecycle, memories de-dup/forget.
 
 ## Phase 7–8 — Goal engine + UI — NOT STARTED
 Tables: `goals`, `goal_metrics`, `goal_milestones`, `goal_source_mappings`, `goal_snapshots`, `goal_events`, `goal_recommendations`. NL parsing with validated `GoalInterpretation` schema; trajectory math deterministic.

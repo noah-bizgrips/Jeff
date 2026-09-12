@@ -18,6 +18,7 @@ const NAV: { href: string; icon: string; label: string; end?: "home" | "missions
   { href: "/memories", icon: "layers", label: "Memories", end: "memories" },
   { href: "/saved", icon: "bookmark", label: "Saved answers", end: "saved" },
   { href: "/connections", icon: "plug", label: "Connections" },
+  { href: "/memory", icon: "brain", label: "Memory & rules" },
   { href: "/security", icon: "lock", label: "Security & access" },
 ];
 
@@ -28,6 +29,7 @@ const TITLES: Record<string, [string, string, string]> = {
   "/approvals": ["The important decisions are yours", "Review the exact change before anything leaves the sandbox.", "Approvals"],
   "/connections": ["Bring your tools together", "Knowledge sources and execution tools, with separate permissions.", "Connections"],
   "/security": ["Private by design", "Your identity. Your boundaries. No pretend security badges.", "Security & access"],
+  "/memory": ["What Jeff knows about you", "Preferences, definitions and rules — learned from you, editable by you.", "Memory & rules"],
   "/search": ["A little less searching", "Find the right thought, no matter where it lives.", "Search everything"],
   "/memories": ["Everything you remember", "Your messages, documents, and ideas. All connected.", "Memories"],
   "/saved": ["Worth coming back to", "The answers and insights you chose to keep.", "Saved answers"],

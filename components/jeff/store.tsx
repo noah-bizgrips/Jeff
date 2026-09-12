@@ -119,7 +119,7 @@ export function JeffProvider({ initial, children }: { initial: JeffInitial; chil
 
   // Apply wide-page layout for operational views.
   useEffect(() => {
-    const wide = ["/missions", "/insights", "/approvals", "/connections", "/security"].some((p) => pathname.startsWith(p));
+    const wide = ["/missions", "/insights", "/approvals", "/connections", "/security", "/memory"].some((p) => pathname.startsWith(p));
     document.body.classList.toggle("wide-page", wide);
   }, [pathname]);
 

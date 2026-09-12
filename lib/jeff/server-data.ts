@@ -76,8 +76,10 @@ export async function loadApprovals(supabase: SupabaseClient): Promise<ApprovalI
 }
 
 export async function loadFindings(supabase: SupabaseClient): Promise<FindingItem[]> {
-  const { data } = await supabase.from("findings").select("*").eq("is_sample", false).order("created_at", { ascending: false }).limit(200);
+  const { data } = await supabase.from("findings").select("*, operating_rules(name)").eq("is_sample", false).order("created_at", { ascending: false }).limit(200);
   return (data ?? []).map((f) => ({
+    suppressedByRuleId: f.suppressed_by_rule_id ?? null,
+    suppressedByRuleName: (f as { operating_rules?: { name?: string } | null }).operating_rules?.name ?? null,
     id: f.id,
     category: f.category,
     title: f.title,

@@ -5,6 +5,8 @@ import { Icon } from "@/components/jeff/icons";
 import { useJeff } from "@/components/jeff/store";
 import { EmptyState, MemoryRow, ModalHeader } from "@/components/jeff/shared";
 import type { DemoInsight } from "@/lib/jeff/demo-data";
+import { RuleEditor } from "@/components/memory/MemoryRulesView";
+import type { RuleAction, RuleCondition } from "@/lib/jeff/rules/schema";
 
 export interface FindingItem {
   id: string;
@@ -23,6 +25,17 @@ export interface FindingItem {
   proposedMission: { title?: string; goal?: string } | null;
   createdAt: string;
   isSample: boolean;
+  suppressedByRuleId?: string | null;
+  suppressedByRuleName?: string | null;
+}
+
+/** Narrow rule proposal returned by the feedback endpoint (matches RuleEditor's `proposed` prop). */
+interface RuleProposal {
+  name: string;
+  description?: string;
+  target_monitor: string | null;
+  conditions: RuleCondition;
+  action: RuleAction;
 }
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -57,6 +70,8 @@ export function rowToFinding(f: Record<string, unknown>): FindingItem {
     proposedMission: (f.proposed_mission as FindingItem["proposedMission"]) ?? null,
     createdAt: String(f.created_at ?? ""),
     isSample: Boolean(f.is_sample),
+    suppressedByRuleId: (f.suppressed_by_rule_id as string | null) ?? null,
+    suppressedByRuleName: ((f.operating_rules as { name?: string } | null | undefined)?.name as string | undefined) ?? null,
   };
 }
 
@@ -144,7 +159,7 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
                 </button>
               </article>
             ))
-          : findings.map((f) => (
+          : findings.filter((f) => f.status !== "suppressed_by_rule").map((f) => (
               <article className="insight-card" key={f.id}>
                 <span className="mini-eyebrow">{CATEGORY_LABEL[f.category] ?? f.category.toUpperCase()}</span>
                 <h3>{f.title}</h3>
@@ -158,7 +173,33 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
               </article>
             ))}
       </div>
-      {!demo && !findings.length ? (
+      {!demo && findings.some((f) => f.status === "suppressed_by_rule") ? (
+        <details className="callout" style={{ marginTop: 16 }}>
+          <summary>
+            Suppressed by your rules ({findings.filter((f) => f.status === "suppressed_by_rule").length}) — kept for history, hidden from the active monitor
+          </summary>
+          <div className="audit-list" style={{ marginTop: 8 }}>
+            {findings
+              .filter((f) => f.status === "suppressed_by_rule")
+              .map((f) => (
+                <div className="audit-row" key={f.id}>
+                  <Icon name="lock" />
+                  <div>
+                    <strong>{f.title}</strong>
+                    <p>
+                      {CATEGORY_LABEL[f.category] ?? f.category}
+                      {f.suppressedByRuleName ? ` · rule: ${f.suppressedByRuleName}` : ""}
+                    </p>
+                  </div>
+                  <button className="button secondary" type="button" onClick={() => jeff.openModal(<FindingModal f={f} onPrepare={prepare} />)}>
+                    View
+                  </button>
+                </div>
+              ))}
+          </div>
+        </details>
+      ) : null}
+      {!demo && !findings.some((f) => f.status !== "suppressed_by_rule") ? (
         <EmptyState icon="sun" title="No findings yet.">
           Findings appear after connected sources sync and monitors run. Connect Google, HighLevel, Stripe, or Financial Accounts to start.
         </EmptyState>
@@ -210,6 +251,39 @@ function FindingModal({ f, onPrepare }: { f: FindingItem; onPrepare: (goal: stri
     setStatus(s);
     jeff.toast("Finding updated.");
   }
+  const [feedbackBusy, setFeedbackBusy] = useState(false);
+  async function feedback(verdict: "useful" | "not_useful" | "wrong" | "too_noisy" | "dont_show" | "change_rule") {
+    setFeedbackBusy(true);
+    try {
+      const res = await fetch(`/api/findings/${f.id}/feedback`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ verdict }) });
+      const d = (await res.json().catch(() => null)) as { rule?: { name: string }; suppressed?: number; proposed?: RuleProposal | null; error?: string } | null;
+      if (!res.ok) return jeff.toast(`Could not record feedback (${d?.error ?? res.status}).`);
+      if (verdict === "dont_show") {
+        if (d?.rule) {
+          setStatus("suppressed_by_rule");
+          jeff.toast(`Rule added: "${d.rule.name}" · ${d.suppressed ?? 0} finding(s) suppressed. Review under Memory & rules.`);
+          jeff.closeModal();
+        } else {
+          setStatus("dismissed");
+          jeff.toast("Dismissed. No safe narrow rule could be inferred from this finding's evidence.");
+        }
+        return;
+      }
+      if (verdict === "change_rule" || verdict === "too_noisy") {
+        if (d?.proposed) {
+          jeff.openModal(<RuleEditor proposed={d.proposed} onSaved={async () => {}} />);
+          return;
+        }
+        jeff.toast("Feedback recorded. No narrow rule could be proposed from this finding's evidence — add one under Memory & rules.");
+        return;
+      }
+      if (verdict === "useful") setStatus("accepted");
+      if (verdict === "wrong" || verdict === "not_useful") setStatus("dismissed");
+      jeff.toast("Thanks — feedback recorded.");
+    } finally {
+      setFeedbackBusy(false);
+    }
+  }
   return (
     <>
       <ModalHeader title={f.title} desc={`${CATEGORY_LABEL[f.category] ?? f.category} · severity ${f.severity}`} eyebrow="OPERATIONS FINDING" />
@@ -253,6 +327,23 @@ function FindingModal({ f, onPrepare }: { f: FindingItem; onPrepare: (goal: stri
             </ul>
           </>
         ) : null}
+        <div className="section-label">WAS THIS USEFUL?</div>
+        <div className="connection-actions" style={{ flexWrap: "wrap" }}>
+          {(
+            [
+              ["useful", "Useful"],
+              ["not_useful", "Not useful"],
+              ["wrong", "Wrong"],
+              ["too_noisy", "Too noisy"],
+              ["dont_show", "Don't show this again"],
+              ["change_rule", "Change rule"],
+            ] as const
+          ).map(([v, label]) => (
+            <button key={v} className="button secondary" type="button" disabled={feedbackBusy} onClick={() => feedback(v)}>
+              {label}
+            </button>
+          ))}
+        </div>
         <div className="modal-actions">
           <button className="button secondary" type="button" onClick={jeff.closeModal}>
             Close
