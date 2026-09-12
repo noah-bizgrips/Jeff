@@ -27,10 +27,20 @@ export const missedCommitment: Monitor = {
   id: "missed_commitment",
   run(rows, ctx) {
     const since = ctx.now.getTime() - LOOKBACK_DAYS * 86_400_000;
-    const emails = rows.filter((r) => r.provider === "google" && r.resource_type === "email" && r.source_timestamp && Date.parse(r.source_timestamp) >= since);
+    const emails = rows.filter(
+      (r) =>
+        ((r.provider === "google" && r.resource_type === "email") || (r.provider === "slack" && r.resource_type === "message")) &&
+        r.source_timestamp &&
+        Date.parse(r.source_timestamp) >= since,
+    );
     const byThread = new Map<string, SourceRow[]>();
     for (const e of emails) {
-      const t = typeof e.metadata.threadId === "string" ? (e.metadata.threadId as string) : e.external_id;
+      const t =
+        e.provider === "slack"
+          ? `slack:${String(e.metadata.channel_id ?? "")}:${String(e.metadata.thread_ts ?? e.metadata.ts ?? e.external_id)}`
+          : typeof e.metadata.threadId === "string"
+            ? (e.metadata.threadId as string)
+            : e.external_id;
       byThread.set(t, [...(byThread.get(t) ?? []), e]);
     }
     const out: CandidateFinding[] = [];
@@ -59,7 +69,7 @@ export const missedCommitment: Monitor = {
         category: "missed_commitment",
         title: `Open commitment: ${signal.sentence.length > 90 ? signal.sentence.slice(0, 87) + "…" : signal.sentence}`,
         observed_facts: [
-          `Email "${msg.title}" from ${msg.author ?? "unknown"} (${signal.sender_class} sender) on ${new Date(cueAt).toISOString().slice(0, 10)} contains: "${signal.sentence}".`,
+          `${msg.provider === "slack" ? "Slack message" : "Email"} "${msg.title}" from ${msg.author ?? "unknown"} (${signal.sender_class} sender) on ${new Date(cueAt).toISOString().slice(0, 10)} contains: "${signal.sentence}".`,
           `Actor: ${signal.actor ?? "unclear"} · action: ${signal.action ?? "unclear"} · timing: ${signal.future_marker ?? "unspecified"}.${dueLine}`,
           `No later reply from another participant is present in synced data (${sorted.length} message${sorted.length === 1 ? "" : "s"} in thread).`,
         ],
@@ -78,7 +88,7 @@ export const missedCommitment: Monitor = {
         range_start: new Date(cueAt).toISOString(),
         range_end: ctx.now.toISOString(),
         confidence: signal.confidence,
-        limitations: "Based on subject and snippet only (no email bodies). Replies sent from other tools, other threads, or in person are invisible. Bot and system notifications are excluded by sender classification.",
+        limitations: "Based on subjects/snippets and Slack message text only (no email bodies). Replies sent from other tools, other threads, or in person are invisible. Bot and system notifications are excluded by sender classification.",
         severity: overdue ? "medium" : "low",
         proposed_mission: null,
       });

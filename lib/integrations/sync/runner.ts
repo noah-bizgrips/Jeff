@@ -36,6 +36,8 @@ const ADAPTERS: Record<string, () => Promise<SyncAdapter>> = {
   stripe: async () => (await import("./stripe")).stripeSyncAdapter,
   plaid: async () => (await import("./plaid")).plaidSyncAdapter,
   meta: async () => (await import("./meta")).metaSyncAdapter,
+  slack: async () => (await import("./slack")).slackSyncAdapter,
+  notion: async () => (await import("./notion")).notionSyncAdapter,
 };
 
 export function hasSyncAdapter(provider: string) {

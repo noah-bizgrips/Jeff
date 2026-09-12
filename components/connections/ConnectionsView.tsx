@@ -44,7 +44,7 @@ function StatusPill({ s }: { s: ConnectionStatus }) {
 
 const PROVIDER_ICON: Record<string, string> = { google: "gmail", highlevel: "leadconnector", meta: "metaads" };
 /** Providers with a server-side sync adapter (lib/integrations/sync/runner.ts). */
-const SYNCABLE = ["google", "highlevel", "stripe", "plaid", "meta"];
+const SYNCABLE = ["google", "highlevel", "stripe", "plaid", "meta", "slack", "notion"];
 
 function tokenDaysLeft(c: ConnectionSummary): number | null {
   const v = c.metadata.token_expires_at;
