@@ -143,6 +143,19 @@ const SECTIONS: Section[] = [
     href: "/memory",
   },
   {
+    id: "clients",
+    icon: "user",
+    title: "Clients (BizGrips Client Portal)",
+    what: "The portal is the source of truth for who your clients are. Once connected, Jeff maps each client to their Meta page ids, HighLevel contact, and Stripe customers (by email), so leads, invoices and ad spend can be attributed per client.",
+    how: [
+      "Connections → BizGrips Client Portal → Verify connection, then Sync now. Syncs continue every 30 minutes.",
+      "Ask Jeff: \"How are my clients doing?\" or \"Give me an overview of <client>\" — stage progress, overdue tasks (yours vs theirs), uncontacted leads, unpaid invoices, recent ad spend.",
+      "Monitors add client-centric findings: overdue portal tasks by owner, stalled stages, notification failures, leads not contacted within 24h, unpaid invoices, and ad spend with no leads.",
+      "Only hashed emails and masked phones leave the portal; task instructions and lead notes are never copied.",
+    ],
+    href: "/connections",
+  },
+  {
     id: "search",
     icon: "search",
     title: "Search, Memories, Saved answers",
