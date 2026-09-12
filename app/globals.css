@@ -3875,3 +3875,107 @@ dialog::backdrop {
     transform: rotate(360deg);
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Goals
+   --------------------------------------------------------------------------- */
+.goal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+.goal-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.goal-card h3 {
+  font-size: 15px;
+  letter-spacing: -0.2px;
+}
+.goal-progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 20px;
+  letter-spacing: -0.4px;
+}
+.goal-progress-head .muted {
+  font-size: 11px;
+}
+.goal-bar {
+  height: 6px;
+  border-radius: 6px;
+  background: var(--accent-dim);
+  overflow: hidden;
+  margin-top: 6px;
+}
+.goal-bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 6px;
+  transition: width 0.4s ease;
+}
+.goal-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.goal-metric-table .policy-row {
+  align-items: flex-start;
+}
+.goal-options {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+}
+.goal-option {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.goal-option.selected {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.goal-history {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 56px;
+  padding: 6px 0;
+}
+.goal-history-bar {
+  flex: 1;
+  border-radius: 3px 3px 0 0;
+  background: var(--accent);
+  opacity: 0.8;
+}
+.goal-history-bar.amber {
+  background: #d9a441;
+}
+.goal-history-bar.danger {
+  background: #e06c7b;
+}
+.goal-history-bar.neutral {
+  background: var(--border);
+}
+.goals-risk-strip {
+  border-color: #5a4a26;
+}
+@media (max-width: 720px) {
+  .goal-two-col {
+    grid-template-columns: 1fr;
+  }
+}

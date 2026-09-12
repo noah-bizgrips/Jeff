@@ -11,6 +11,7 @@ import { sourceDef } from "@/lib/jeff/sources";
 
 const NAV: { href: string; icon: string; label: string; end?: "home" | "missions" | "approvals" | "key" | "memories" | "saved" }[] = [
   { href: "/", icon: "network", label: "Mission control", end: "home" },
+  { href: "/goals", icon: "target", label: "Goals" },
   { href: "/missions", icon: "compose", label: "Missions", end: "missions" },
   { href: "/insights", icon: "sun", label: "Operations & insights" },
   { href: "/approvals", icon: "check", label: "Approvals", end: "approvals" },
@@ -24,6 +25,7 @@ const NAV: { href: string; icon: string; label: string; end?: "home" | "missions
 
 const TITLES: Record<string, [string, string, string]> = {
   "/": ["Your business. In focus", "Connect your knowledge. Turn the next right idea into action.", "Mission control"],
+  "/goals": ["What you're aiming for", "Outcomes, the metrics behind them, and whether you're on pace.", "Goals"],
   "/missions": ["From intent to action", "Draft, review, and track work. No hidden production changes.", "Missions"],
   "/insights": ["Find the next improvement", "Evidence first. A specific action next. Outcomes after.", "Operations & insights"],
   "/approvals": ["The important decisions are yours", "Review the exact change before anything leaves the sandbox.", "Approvals"],

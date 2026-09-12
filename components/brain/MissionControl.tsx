@@ -13,7 +13,17 @@ import type { DemoInsight } from "@/lib/jeff/demo-data";
 
 type CommandMode = "prepare" | "ask" | "run";
 
-export function MissionControl({ topInsight }: { topInsight: DemoInsight | null }) {
+export interface GoalRiskItem {
+  id: string;
+  name: string;
+  trajectory: string;
+  label: string;
+  primary: string | null;
+  constraint: string | null;
+  daysRemaining: number | null;
+}
+
+export function MissionControl({ topInsight, goalsAtRisk = [] }: { topInsight: DemoInsight | null; goalsAtRisk?: GoalRiskItem[] }) {
   const jeff = useJeff();
   const brain = useRef<BrainHandle>(null);
   const [zoom, setZoom] = useState(1);
@@ -197,6 +207,25 @@ export function MissionControl({ topInsight }: { topInsight: DemoInsight | null 
           </div>
         </div>
       </section>
+
+      {goalsAtRisk.length ? (
+        <section className="signal-strip goals-risk-strip" aria-label="Goals at risk">
+          <div>
+            <span className="mini-eyebrow">GOALS AT RISK</span>
+            <h3>{goalsAtRisk.length === 1 ? goalsAtRisk[0]!.name : `${goalsAtRisk.length} goals need attention`}</h3>
+            <p>
+              {goalsAtRisk
+                .slice(0, 2)
+                .map((g) => `${g.name}: ${g.label}${g.primary ? ` · ${g.primary}` : ""}${g.constraint ? ` · constraint: ${g.constraint}` : ""}`)
+                .join("  |  ")}
+            </p>
+          </div>
+          <Link className="button secondary" href="/goals">
+            Open goals
+            <Icon name="arrowUpRight" />
+          </Link>
+        </section>
+      ) : null}
 
       <section className={`brain-card ${expanded ? "expanded" : ""}`} id="brainCard" aria-label="Interactive knowledge network">
         <div className="graph-topbar">
