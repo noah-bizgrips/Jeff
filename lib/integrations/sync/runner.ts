@@ -17,6 +17,8 @@ export interface CapabilityFetchResult {
   items: SourceItemInput[];
   seen: number;
   cursor?: string | null;
+  /** Records the provider reports as deleted (e.g. Plaid `removed`). */
+  remove?: { resource_type: string; external_ids: string[] };
 }
 
 export type CapabilityFetch = (conn: ConnectionSummary, cursor: string | null) => Promise<CapabilityFetchResult>;
@@ -24,11 +26,15 @@ export type CapabilityFetch = (conn: ConnectionSummary, cursor: string | null) =
 export interface SyncAdapter {
   provider: string;
   capabilities: Record<string, CapabilityFetch>;
+  /** Capabilities that run whenever the connection is synced, even if not in its granted list (e.g. Plaid account balances ride on the transactions product). */
+  alwaysRun?: string[];
 }
 
 const ADAPTERS: Record<string, () => Promise<SyncAdapter>> = {
   google: async () => (await import("./google")).googleSyncAdapter,
   highlevel: async () => (await import("./highlevel")).highlevelSyncAdapter,
+  stripe: async () => (await import("./stripe")).stripeSyncAdapter,
+  plaid: async () => (await import("./plaid")).plaidSyncAdapter,
 };
 
 export function hasSyncAdapter(provider: string) {
@@ -69,6 +75,25 @@ async function upsertItems(ownerId: string, connectionId: string, items: SourceI
   return count;
 }
 
+async function removeItems(ownerId: string, provider: string, remove: CapabilityFetchResult["remove"]): Promise<number> {
+  if (!remove?.external_ids.length) return 0;
+  const admin = createAdminClient();
+  let removed = 0;
+  for (let i = 0; i < remove.external_ids.length; i += UPSERT_CHUNK) {
+    const ids = remove.external_ids.slice(i, i + UPSERT_CHUNK);
+    const { error, count } = await admin
+      .from("source_items")
+      .delete({ count: "exact" })
+      .eq("owner_id", ownerId)
+      .eq("provider", provider)
+      .eq("resource_type", remove.resource_type)
+      .in("external_id", ids);
+    if (error) throw new Error(`source_items_delete_failed:${error.code ?? ""}`);
+    removed += count ?? 0;
+  }
+  return removed;
+}
+
 function cursorsOf(conn: ConnectionSummary): Record<string, string | null> {
   const c = conn.metadata.sync_cursors;
   return c && typeof c === "object" ? (c as Record<string, string | null>) : {};
@@ -93,6 +118,8 @@ async function runCapability(
   try {
     const res = await fetchFn(conn, cursor);
     const upserted = await upsertItems(ownerId, conn.id, res.items);
+    const removed = await removeItems(ownerId, conn.provider, res.remove);
+    if (removed) log.info("sync_items_removed", { provider: conn.provider, capability, removed });
     if (runId) {
       await admin
         .from("sync_runs")
@@ -121,9 +148,8 @@ export async function syncConnection(
   if (!load) throw new Error("no_sync_adapter");
   const adapter = await load();
   const trigger = opts.trigger ?? "manual";
-  const wanted = (opts.capabilities?.length ? opts.capabilities : conn.capabilities.length ? conn.capabilities : Object.keys(adapter.capabilities)).filter(
-    (c) => c in adapter.capabilities,
-  );
+  const requested = opts.capabilities?.length ? opts.capabilities : conn.capabilities.length ? conn.capabilities : Object.keys(adapter.capabilities);
+  const wanted = [...new Set([...requested, ...(opts.capabilities?.length ? [] : (adapter.alwaysRun ?? []))])].filter((c) => c in adapter.capabilities);
   await audit({ event: "sync_started", ownerId, provider: conn.provider, targetId: conn.id, actor: trigger === "schedule" ? "system" : "owner", metadata: { capabilities: wanted, trigger } });
 
   const results: CapabilitySyncResult[] = [];

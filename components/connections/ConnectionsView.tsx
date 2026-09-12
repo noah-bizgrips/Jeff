@@ -44,7 +44,7 @@ function StatusPill({ s }: { s: ConnectionStatus }) {
 
 const PROVIDER_ICON: Record<string, string> = { google: "gmail", highlevel: "leadconnector", meta: "metaads" };
 /** Providers with a server-side sync adapter (lib/integrations/sync/runner.ts). */
-const SYNCABLE = ["google", "highlevel"];
+const SYNCABLE = ["google", "highlevel", "stripe", "plaid"];
 
 function statusFor(p: CatalogEntry, conns: ConnectionSummary[]): ConnectionStatus {
   if (conns.length) return conns[0]!.status;

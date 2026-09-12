@@ -3,8 +3,11 @@ import { audit } from "@/lib/audit";
 import { hasEnv } from "@/lib/env";
 import { verifyPlaidWebhook } from "@/lib/integrations/providers/plaid";
 import { log } from "@/lib/security/log";
+import { after } from "next/server";
+import { syncFromWebhook } from "@/lib/integrations/sync/webhook-trigger";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /** POST /api/webhooks/plaid — verified via Plaid-Verification JWT. */
 export async function POST(req: Request) {
@@ -29,6 +32,9 @@ export async function POST(req: Request) {
     targetId: payload.item_id,
     metadata: { type: payload.webhook_type, code: payload.webhook_code },
   });
-  // Transactions sync is triggered by a later scheduled/queued job; V1 records the signal only.
+  // Follow-through: TRANSACTIONS webhooks (SYNC_UPDATES_AVAILABLE, DEFAULT_UPDATE, ...) trigger a bounded sync of that item.
+  if (payload.webhook_type === "TRANSACTIONS" && payload.item_id) {
+    after(() => syncFromWebhook("plaid", { externalAccountId: payload.item_id, capabilities: ["transactions"] }));
+  }
   return json({ received: true });
 }

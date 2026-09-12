@@ -3,6 +3,13 @@ import { createHmac } from "node:crypto";
 
 vi.mock("@/lib/audit", () => ({ audit: vi.fn(async () => {}) }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({}) }));
+// `after()` needs a Next request scope; run the callback inline in tests.
+vi.mock("next/server", async (importOriginal) => {
+  const orig = await importOriginal<typeof import("next/server")>();
+  return { ...orig, after: (fn: () => unknown) => void fn() };
+});
+const syncFromWebhook = vi.fn(async () => {});
+vi.mock("@/lib/integrations/sync/webhook-trigger", () => ({ syncFromWebhook: (...args: unknown[]) => syncFromWebhook(...(args as [])) }));
 
 process.env.STRIPE_WEBHOOK_SECRET = "whsec_" + "t".repeat(32);
 process.env.GITHUB_APP_WEBHOOK_SECRET = "gh-webhook-test-secret";
@@ -34,6 +41,12 @@ describe("Stripe webhook", () => {
     const v1 = createHmac("sha256", process.env.STRIPE_WEBHOOK_SECRET!).update(`${t}.${payload}`).digest("hex");
     const r = await stripe.POST(post("/api/webhooks/stripe", payload, { "stripe-signature": `t=${t},v1=${v1}` }));
     expect(r.status).toBe(200);
+    expect(syncFromWebhook).toHaveBeenCalledWith("stripe");
+  });
+  it("does not trigger a sync for rejected events", async () => {
+    syncFromWebhook.mockClear();
+    await stripe.POST(post("/api/webhooks/stripe", "{}", { "stripe-signature": "t=1,v1=bad" }));
+    expect(syncFromWebhook).not.toHaveBeenCalled();
   });
 });
 

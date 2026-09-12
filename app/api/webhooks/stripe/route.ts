@@ -1,10 +1,13 @@
 import Stripe from "stripe";
+import { after } from "next/server";
+import { syncFromWebhook } from "@/lib/integrations/sync/webhook-trigger";
 import { apiError, json } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { hasEnv, requireEnv } from "@/lib/env";
 import { log } from "@/lib/security/log";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
  * POST /api/webhooks/stripe — signature verified with STRIPE_WEBHOOK_SECRET.
@@ -28,5 +31,7 @@ export async function POST(req: Request) {
   }
   log.info("stripe_webhook", { type: event.type, id: event.id });
   await audit({ event: "webhook_received", actor: "webhook", provider: "stripe", targetId: event.id, metadata: { type: event.type } });
+  // Follow-through: pull the changed objects after the response is sent (bounded, never affects the reply).
+  after(() => syncFromWebhook("stripe"));
   return json({ received: true });
 }

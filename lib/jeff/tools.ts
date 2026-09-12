@@ -115,6 +115,138 @@ export const JEFF_TOOLS: Anthropic.Beta.BetaTool[] = [
 
 type ToolInput = Record<string, unknown>;
 
+interface FinanceRow {
+  provider: string;
+  resource_type: string;
+  title: string | null;
+  metadata: Record<string, unknown>;
+  source_timestamp: string | null;
+}
+
+function n(v: unknown): number {
+  return typeof v === "number" && Number.isFinite(v) ? v : 0;
+}
+
+/**
+ * Aggregates synced Stripe + Plaid records into a bounded, PII-free summary.
+ * All money values are integers in minor units (cents) with a currency code.
+ */
+export function summarizeFinance(rows: FinanceRow[], days: number) {
+  const sinceMs = Date.now() - days * 86400000;
+  const inRange = (r: FinanceRow) => !r.source_timestamp || Date.parse(r.source_timestamp) >= sinceMs;
+  const stripe = { inflow_minor: 0, outflow_minor: 0, net_minor: 0, balance_transactions: 0, charges_succeeded: 0, charges_failed: 0, charges_failed_minor: 0, refunds_minor: 0, disputes_open: 0, currency: "usd" };
+  const invoices = { open_count: 0, open_minor: 0, past_due_count: 0, past_due_minor: 0, paid_count: 0, paid_minor: 0 };
+  const subs = { active: 0, cancelling: 0, past_due: 0, mrr_minor: 0 };
+  const plaid = { inflow_minor: 0, outflow_minor: 0, net_minor: 0, transactions: 0, pending: 0, currency: "USD" };
+  const merchants = new Map<string, { name: string; total_minor: number; count: number }>();
+  const accounts: { name: string; type: string | null; balance_current_minor: number | null; balance_available_minor: number | null; currency: string }[] = [];
+  const now = Date.now();
+
+  for (const r of rows) {
+    const m = r.metadata ?? {};
+    if (r.provider === "stripe") {
+      switch (r.resource_type) {
+        case "balance_transaction": {
+          if (!inRange(r) || m.type === "payout") break;
+          const net = n(m.net);
+          if (net > 0) stripe.inflow_minor += net;
+          else stripe.outflow_minor += -net;
+          stripe.balance_transactions++;
+          if (typeof m.currency === "string") stripe.currency = m.currency;
+          break;
+        }
+        case "charge":
+          if (!inRange(r)) break;
+          if (m.status === "succeeded") stripe.charges_succeeded++;
+          if (m.status === "failed") {
+            stripe.charges_failed++;
+            stripe.charges_failed_minor += n(m.amount);
+          }
+          break;
+        case "refund":
+          if (inRange(r)) stripe.refunds_minor += n(m.amount);
+          break;
+        case "dispute":
+          if (["needs_response", "under_review", "warning_needs_response"].includes(String(m.status))) stripe.disputes_open++;
+          break;
+        case "invoice": {
+          const status = String(m.status ?? "");
+          const remaining = n(m.amount_remaining ?? m.amount_due);
+          const due = typeof m.due_date === "string" ? Date.parse(m.due_date) : NaN;
+          if (status === "open") {
+            invoices.open_count++;
+            invoices.open_minor += remaining;
+            if (Number.isFinite(due) && due < now) {
+              invoices.past_due_count++;
+              invoices.past_due_minor += remaining;
+            }
+          } else if (status === "past_due" || status === "uncollectible") {
+            invoices.open_count++;
+            invoices.open_minor += remaining;
+            invoices.past_due_count++;
+            invoices.past_due_minor += remaining;
+          } else if (status === "paid" && inRange(r)) {
+            invoices.paid_count++;
+            invoices.paid_minor += n(m.amount_paid);
+          }
+          break;
+        }
+        case "subscription": {
+          const status = String(m.status ?? "");
+          if (status === "active" || status === "trialing") {
+            subs.active++;
+            subs.mrr_minor += n(m.mrr_minor);
+            if (m.cancel_at_period_end === true) subs.cancelling++;
+          } else if (status === "past_due" || status === "unpaid") subs.past_due++;
+          break;
+        }
+      }
+    } else if (r.provider === "plaid") {
+      if (r.resource_type === "transaction") {
+        if (!inRange(r)) continue;
+        if (m.pending === true) {
+          plaid.pending++;
+          continue;
+        }
+        const amt = n(m.amount);
+        plaid.transactions++;
+        if (typeof m.currency === "string") plaid.currency = m.currency;
+        if (amt > 0) {
+          plaid.outflow_minor += amt;
+          const key = String(m.merchant_key ?? m.merchant_name ?? r.title ?? "unknown");
+          const cur = merchants.get(key) ?? { name: String(m.merchant_name ?? r.title ?? key), total_minor: 0, count: 0 };
+          cur.total_minor += amt;
+          cur.count++;
+          merchants.set(key, cur);
+        } else plaid.inflow_minor += -amt;
+      } else if (r.resource_type === "account") {
+        accounts.push({
+          name: String(m.name ?? r.title ?? "Account"),
+          type: typeof m.subtype === "string" ? m.subtype : typeof m.type === "string" ? m.type : null,
+          balance_current_minor: typeof m.balance_current === "number" ? m.balance_current : null,
+          balance_available_minor: typeof m.balance_available === "number" ? m.balance_available : null,
+          currency: String(m.currency ?? "USD"),
+        });
+      }
+    }
+  }
+  stripe.net_minor = stripe.inflow_minor - stripe.outflow_minor;
+  plaid.net_minor = plaid.inflow_minor - plaid.outflow_minor;
+  const topMerchants = [...merchants.values()].sort((a, b) => b.total_minor - a.total_minor).slice(0, 10);
+  const hasData = stripe.balance_transactions + stripe.charges_succeeded + stripe.charges_failed + invoices.open_count + subs.active + plaid.transactions + accounts.length > 0;
+  return {
+    days,
+    units: "All *_minor values are integers in minor units (e.g. cents). Divide by 100 for major units.",
+    stripe,
+    invoices,
+    subscriptions: subs,
+    bank: plaid,
+    top_merchants: topMerchants,
+    accounts: accounts.slice(0, 20),
+    note: hasData ? undefined : "No financial records synced for this range yet. Connect Stripe or Financial Accounts and run a sync.",
+  };
+}
+
 export async function runTool(name: string, input: ToolInput, ctx: ToolContext): Promise<unknown> {
   const admin = createAdminClient();
   switch (name) {
@@ -189,17 +321,11 @@ export async function runTool(name: string, input: ToolInput, ctx: ToolContext):
         .select("provider, resource_type, title, metadata, source_timestamp")
         .eq("owner_id", ctx.ownerId)
         .in("provider", ["stripe", "plaid"])
-        .gte("source_timestamp", since)
-        .limit(2000);
+        .or(`source_timestamp.gte.${since},resource_type.in.(invoice,subscription,account)`)
+        .limit(3000);
       if (ctx.mode === "live") q = q.eq("is_sample", false);
       const { data } = await q;
-      const totals: Record<string, { count: number; amount: number }> = {};
-      for (const row of data ?? []) {
-        const key = `${row.provider}:${row.resource_type}`;
-        const amt = Number((row.metadata as Record<string, unknown>)?.amount ?? 0);
-        totals[key] = { count: (totals[key]?.count ?? 0) + 1, amount: (totals[key]?.amount ?? 0) + (Number.isFinite(amt) ? amt : 0) };
-      }
-      return { days, totals, note: (data ?? []).length ? undefined : "No financial records synced for this range yet." };
+      return summarizeFinance((data ?? []) as FinanceRow[], days);
     }
     case "get_ad_performance": {
       const days = Math.min(Number(input.days ?? 30), 90);
