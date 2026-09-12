@@ -69,3 +69,14 @@ describe("OAuth state", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("route slug for providers that forbid their name in redirect URIs", () => {
+  it("HighLevel uses /api/oauth/crm/callback", () => {
+    const start = buildAuthorizationStart({ ...cfg, id: "highlevel", routeSlug: "crm", pkce: false, clientIdEnv: "GOOGLE_CLIENT_ID", clientSecretEnv: "GOOGLE_CLIENT_SECRET" });
+    const url = new URL(start.url);
+    expect(url.searchParams.get("redirect_uri")).toBe("https://jeff.test/api/oauth/crm/callback");
+    expect(url.searchParams.get("redirect_uri")).not.toMatch(/highlevel|leadconnector/i);
+    // state cookie stays bound to the canonical provider id
+    expect(start.cookie.name).toBe("jeff_oauth_highlevel");
+  });
+});

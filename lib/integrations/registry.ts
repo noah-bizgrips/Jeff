@@ -62,6 +62,7 @@ export const PROVIDERS: ProviderDefinition[] = [
     color: "#6fdbff",
     connectionType: "knowledge_source",
     authType: "oauth2",
+    oauthSlug: "crm",
     access: "read",
     capabilities: [
       { id: "contacts", name: "Contacts", description: "Read contacts and tags.", access: "read" },
@@ -71,7 +72,7 @@ export const PROVIDERS: ProviderDefinition[] = [
     ],
     requiredEnv: ["HIGHLEVEL_CLIENT_ID", "HIGHLEVEL_CLIENT_SECRET"],
     docsUrl: "https://marketplace.gohighlevel.com/docs/",
-    setupSummary: "Create a Marketplace app in HighLevel, add the redirect URL, select read-only scopes, and store the client id/secret in Vercel. Multiple sub-account locations can be selected later.",
+    setupSummary: "Create a private Marketplace app in HighLevel, add the redirect URL https://jeff.bizgrips.com/api/oauth/crm/callback, select read-only scopes, and store the client id/secret in Vercel. Multiple sub-account locations can be selected later.",
     permissionBoundary: "Read-only contacts, conversations, opportunities, calendars, locations, users. No outbound messages, contact or appointment changes.",
     accessCaption: "Read-only by default",
   },

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiError, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { getOAuthAdapter } from "@/lib/integrations/providers";
+import { resolveOAuthAdapter } from "@/lib/integrations/providers";
 import { getProvider } from "@/lib/integrations/registry";
 import { buildAuthorizationStart, setStateCookie } from "@/lib/integrations/oauth";
 import { hasEnv } from "@/lib/env";
@@ -15,11 +15,12 @@ export const dynamic = "force-dynamic";
  * and redirects to the provider's consent screen.
  */
 export const GET = withErrorBoundary(async (req, ctx) => {
-  const { provider } = await ctx.params;
+  const { provider: slug = "" } = await ctx.params;
   const g = await requireOwnerAal2(req);
   if (!g.ok) return g.response;
-  const adapter = getOAuthAdapter(provider ?? "");
-  const def = getProvider(provider ?? "");
+  const adapter = resolveOAuthAdapter(slug);
+  const provider = adapter?.id ?? slug;
+  const def = getProvider(provider);
   if (!adapter || !def) return apiError("unknown_provider", 404);
   const missing = def.requiredEnv.filter((n) => !hasEnv(n));
   if (missing.length) return apiError("provider_not_configured", 409, { missingEnv: missing });

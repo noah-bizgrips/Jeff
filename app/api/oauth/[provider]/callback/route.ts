@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { withErrorBoundary } from "@/lib/api";
 import { createClient } from "@/lib/supabase/server";
 import { resolveOwnerSession } from "@/lib/auth/session";
-import { getOAuthAdapter } from "@/lib/integrations/providers";
+import { resolveOAuthAdapter } from "@/lib/integrations/providers";
 import { getProvider } from "@/lib/integrations/registry";
 import {
   clearStateCookie,
@@ -34,8 +34,9 @@ function back(reason: string, provider: string, ok = false) {
  * connection is marked `connected` only if the test passes.
  */
 export const GET = withErrorBoundary(async (req, ctx) => {
-  const { provider = "" } = await ctx.params;
-  const adapter = getOAuthAdapter(provider);
+  const { provider: slug = "" } = await ctx.params;
+  const adapter = resolveOAuthAdapter(slug);
+  const provider = adapter?.id ?? slug;
   const def = getProvider(provider);
   if (!adapter || !def) return back("unknown_provider", provider);
 

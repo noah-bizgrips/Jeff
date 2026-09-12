@@ -27,6 +27,8 @@ export interface ProviderDefinition {
   color: string;
   connectionType: ConnectionType;
   authType: AuthType;
+  /** Route segment for OAuth start/callback when it must differ from id. */
+  oauthSlug?: string;
   capabilities: ProviderCapability[];
   /** Default access classification at V1. */
   access: AccessMode;

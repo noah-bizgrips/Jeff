@@ -17,6 +17,8 @@ const STATE_TTL_SECONDS = 600;
 
 export interface OAuthProviderConfig {
   id: string;
+  /** URL segment used for /api/oauth/<slug>/{start,callback} when the provider forbids its own name in redirect URIs. */
+  routeSlug?: string;
   authorizeUrl: string;
   tokenUrl: string;
   scopes: string[];
@@ -75,7 +77,7 @@ export function buildAuthorizationStart(cfg: OAuthProviderConfig): StartResult {
   const payload: StatePayload = { p: cfg.id, n: nonce, t: Math.floor(Date.now() / 1000) };
   const url = new URL(cfg.authorizeUrl);
   url.searchParams.set("client_id", requireEnv(cfg.clientIdEnv));
-  url.searchParams.set("redirect_uri", redirectUri(cfg.id));
+  url.searchParams.set("redirect_uri", redirectUri(cfg.routeSlug ?? cfg.id));
   url.searchParams.set("response_type", "code");
   url.searchParams.set("state", nonce);
   if (cfg.scopes.length) {
@@ -152,7 +154,7 @@ export async function exchangeCode(cfg: OAuthProviderConfig, code: string, verif
   const params: Record<string, string> = {
     grant_type: "authorization_code",
     code,
-    redirect_uri: redirectUri(cfg.id),
+    redirect_uri: redirectUri(cfg.routeSlug ?? cfg.id),
   };
   if (verifier) params.code_verifier = verifier;
   const headers: Record<string, string> = { Accept: "application/json", ...(cfg.tokenHeaders ?? {}) };

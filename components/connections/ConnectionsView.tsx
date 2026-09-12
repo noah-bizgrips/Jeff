@@ -346,7 +346,7 @@ function SetupModal({ p, conns }: { p: CatalogEntry; conns: ConnectionSummary[] 
           </a>
           {p.authType === "oauth2" ? (
             p.configured ? (
-              <a className="button primary" href={`/api/oauth/${p.id}/start`}>
+              <a className="button primary" href={`/api/oauth/${p.oauthSlug ?? p.id}/start`}>
                 Authorize {p.name} <Icon name="arrowUpRight" />
               </a>
             ) : (

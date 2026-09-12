@@ -37,8 +37,12 @@ interface HLTokens extends TokenResponse {
   userId?: string;
 }
 
+// HighLevel rejects redirect URIs containing "highlevel"/"leadconnector", so the route slug is neutral.
+export const HIGHLEVEL_ROUTE_SLUG = "crm";
+
 const config = {
   id: "highlevel",
+  routeSlug: HIGHLEVEL_ROUTE_SLUG,
   authorizeUrl: "https://marketplace.gohighlevel.com/oauth/chooselocation",
   tokenUrl: "https://services.leadconnectorhq.com/oauth/token",
   scopes: HIGHLEVEL_SCOPES,
@@ -79,7 +83,7 @@ export const highlevelAdapter: OAuthProviderAdapter = {
         grant_type: "authorization_code",
         code,
         user_type: "Location",
-        redirect_uri: `${publicEnv().appUrl.replace(/\/$/, "")}/api/oauth/highlevel/callback`,
+        redirect_uri: `${publicEnv().appUrl.replace(/\/$/, "")}/api/oauth/${HIGHLEVEL_ROUTE_SLUG}/callback`,
       }),
       cache: "no-store",
     });
