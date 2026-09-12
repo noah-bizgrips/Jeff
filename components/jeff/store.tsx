@@ -31,6 +31,7 @@ export interface SavedAnswer {
 export interface JeffInitial {
   mode: Mode;
   aiEnabled: boolean;
+  aiBudgetUsd: number;
   ownerEmail: string;
   aal: "aal1" | "aal2";
   connections: ConnectionSummary[];

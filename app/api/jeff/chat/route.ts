@@ -52,6 +52,9 @@ export const POST = withErrorBoundary(async (req) => {
       };
     }
     const result = await askJeff(turns, { ownerId: g.session.userId, mode }, req);
+    if (result.budgetExhausted) {
+      return apiError("ai_budget_exhausted", 429, { hint: result.text, spentTodayUsd: result.spentTodayUsd ?? null });
+    }
     return json(result);
   } catch (err) {
     if (err instanceof Anthropic.AuthenticationError) return apiError("anthropic_auth_failed", 502);

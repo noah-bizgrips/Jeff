@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveOwnerSession } from "@/lib/auth/session";
 import { effectiveMode } from "@/lib/mode";
 import { hasEnv } from "@/lib/env";
+import { dailyBudgetUsd } from "@/lib/jeff/pricing";
 import { listConnections } from "@/lib/integrations/store";
 import { loadCounts, loadLiveDocs, loadNotes, loadSaved } from "@/lib/jeff/server-data";
 import { DEMO_MISSIONS } from "@/lib/jeff/demo-data";
@@ -35,6 +36,7 @@ export default async function JeffLayout({ children }: { children: React.ReactNo
   const initial: JeffInitial = {
     mode,
     aiEnabled: hasEnv("ANTHROPIC_API_KEY"),
+    aiBudgetUsd: dailyBudgetUsd(),
     ownerEmail: session.email,
     aal: session.aal,
     connections,

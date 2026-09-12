@@ -20,6 +20,8 @@ export interface SecurityFacts {
   encryptionConfigured: boolean;
   ownerBound: boolean;
   anthropicConfigured: boolean;
+  aiSpentTodayUsd: number;
+  aiBudgetUsd: number;
   connectionsCount: number;
   audit: AuditRow[];
 }
@@ -95,6 +97,12 @@ export function SecurityView({ facts }: { facts: SecurityFacts }) {
           <h3>Agent execution boundaries</h3>
           <p>A prompt is not a security policy. These controls exist outside the agent.</p>
           <Row title="Model never sees credentials" desc="Ask Jeff calls narrow server-side tools; provider tokens stay in the broker." label={facts.anthropicConfigured ? "Active" : "Key not set"} tone={facts.anthropicConfigured ? "ok" : "amber"} />
+          <Row
+            title="Daily AI budget"
+            desc={`$${facts.aiSpentTodayUsd.toFixed(2)} of $${facts.aiBudgetUsd.toFixed(2)} used today (UTC). Jeff refuses new AI calls past the cap.`}
+            label={facts.aiSpentTodayUsd >= facts.aiBudgetUsd ? "Exhausted" : "Enforced"}
+            tone={facts.aiSpentTodayUsd >= facts.aiBudgetUsd ? "amber" : "ok"}
+          />
           <Row title="Production actions are disabled" desc="No merge, publish, messages, deployments, or money movement in V1." label="Blocked" tone="ok" />
           <Row title="Version-bound approval + fresh MFA" desc="Approvals record the exact artifact, environment, expiry and AAL." label="Implemented" tone="ok" />
           <Row title="Sandbox worker" desc="Vercel Sandbox execution scaffolded; disabled until missions are approved." label="Scaffolded" tone="amber" />

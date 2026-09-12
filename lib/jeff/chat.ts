@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { JEFF_TOOLS, runTool, type ToolContext } from "./tools";
 import { audit } from "@/lib/audit";
 import { errorMessage, log } from "@/lib/security/log";
+import { budgetStatus, recordUsage } from "./budget";
 
 export const JEFF_MODEL = process.env.JEFF_MODEL || "claude-opus-5";
 
@@ -31,7 +32,12 @@ export interface ChatResult {
   toolsUsed: string[];
   citations: { title: string; provider?: string; url?: string }[];
   model: string;
+  /** True when the daily budget blocked the call (no API request was made). */
+  budgetExhausted?: boolean;
+  spentTodayUsd?: number;
 }
+
+
 
 function collectCitations(results: unknown[]): ChatResult["citations"] {
   const out: ChatResult["citations"] = [];
@@ -47,7 +53,19 @@ function collectCitations(results: unknown[]): ChatResult["citations"] {
 }
 
 export async function askJeff(turns: ChatTurn[], ctx: ToolContext, request?: Request): Promise<ChatResult> {
+  const budget = await budgetStatus(ctx.ownerId);
+  if (budget.exhausted) {
+    return {
+      text: `Jeff has reached today's AI budget ($${budget.budgetUsd.toFixed(2)}). I'll be back tomorrow (UTC), or raise JEFF_DAILY_BUDGET_USD in Vercel. Search and your saved answers still work.`,
+      toolsUsed: [],
+      citations: [],
+      model: JEFF_MODEL,
+      budgetExhausted: true,
+      spentTodayUsd: budget.spentUsd,
+    };
+  }
   const client = new Anthropic({ timeout: 120_000, maxRetries: 2 });
+  let spentThisRequest = 0;
   const messages: Anthropic.Beta.BetaMessageParam[] = turns.map((t) => ({ role: t.role, content: t.content }));
   const toolsUsed: string[] = [];
   const toolResultsRaw: unknown[] = [];
@@ -65,6 +83,13 @@ export async function askJeff(turns: ChatTurn[], ctx: ToolContext, request?: Req
       messages,
     });
 
+    spentThisRequest += await recordUsage(ctx.ownerId, response.model, {
+      input_tokens: response.usage.input_tokens,
+      output_tokens: response.usage.output_tokens,
+      cache_read_tokens: response.usage.cache_read_input_tokens ?? 0,
+      cache_write_tokens: response.usage.cache_creation_input_tokens ?? 0,
+    });
+
     if (response.stop_reason === "refusal") {
       return { text: "I can't help with that request.", toolsUsed, citations: [], model: response.model };
     }
@@ -79,8 +104,8 @@ export async function askJeff(turns: ChatTurn[], ctx: ToolContext, request?: Req
         .map((b) => b.text)
         .join("\n")
         .trim();
-      await audit({ event: "jeff_chat", ownerId: ctx.ownerId, request, metadata: { tools: toolsUsed, model: response.model, turns: turns.length } });
-      return { text, toolsUsed, citations: collectCitations(toolResultsRaw), model: response.model };
+      await audit({ event: "jeff_chat", ownerId: ctx.ownerId, request, metadata: { tools: toolsUsed, model: response.model, turns: turns.length, estimatedUsd: spentThisRequest } });
+      return { text, toolsUsed, citations: collectCitations(toolResultsRaw), model: response.model, spentTodayUsd: budget.spentUsd + spentThisRequest };
     }
 
     messages.push({ role: "assistant", content: response.content });

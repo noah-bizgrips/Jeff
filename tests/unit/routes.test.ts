@@ -3,7 +3,7 @@ import { classifyRoute, decideAccess } from "@/lib/auth/routes";
 
 describe("route classification", () => {
   it("marks public routes", () => {
-    for (const p of ["/login", "/unauthorized", "/api/health", "/api/auth/login", "/api/webhooks/stripe", "/api/webhooks/plaid", "/_next/static/x.js"]) {
+    for (const p of ["/login", "/unauthorized", "/api/health", "/api/auth/login", "/api/webhooks/stripe", "/api/webhooks/plaid", "/api/cron/sync", "/_next/static/x.js"]) {
       expect(classifyRoute(p)).toBe("public");
     }
   });

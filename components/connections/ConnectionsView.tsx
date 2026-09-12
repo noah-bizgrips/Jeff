@@ -43,6 +43,8 @@ function StatusPill({ s }: { s: ConnectionStatus }) {
 }
 
 const PROVIDER_ICON: Record<string, string> = { google: "gmail", highlevel: "leadconnector", meta: "metaads" };
+/** Providers with a server-side sync adapter (lib/integrations/sync/runner.ts). */
+const SYNCABLE = ["google"];
 
 function statusFor(p: CatalogEntry, conns: ConnectionSummary[]): ConnectionStatus {
   if (conns.length) return conns[0]!.status;
@@ -127,6 +129,7 @@ export function ConnectionsView({ catalog, requests: initialRequests }: { catalo
                   <StatusPill s={c.status} />
                   <span>{c.accountIdentifier ?? c.displayName}</span>
                   {c.lastTestAt ? <span>· tested {new Date(c.lastTestAt).toLocaleDateString()}</span> : null}
+                  {c.lastSyncAt ? <span>· synced {new Date(c.lastSyncAt).toLocaleString()}</span> : null}
                   {c.lastError ? <span className="warning-copy">· {c.lastError}</span> : null}
                   {c.metadata.last_test_details && typeof c.metadata.last_test_details === "object" ? (
                     <span>
@@ -221,6 +224,21 @@ function toggleDemoSources(p: CatalogEntry, jeff: ReturnType<typeof useJeff>) {
 function SetupModal({ p, conns }: { p: CatalogEntry; conns: ConnectionSummary[] }) {
   const jeff = useJeff();
   const [testing, setTesting] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState<string | null>(null);
+
+  async function syncNow(c: ConnectionSummary) {
+    setSyncing(c.id);
+    try {
+      const res = await fetch(`/api/sync/${p.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ connectionId: c.id }) });
+      const data = (await res.json().catch(() => null)) as { results?: { capability: string; seen: number; upserted: number; error?: string | null }[]; error?: string } | null;
+      if (!res.ok || !data?.results) return jeff.toast(`Sync failed (${data?.error ?? res.status}).`);
+      const parts = data.results.map((r) => (r.error ? `${r.capability}: error` : `${r.capability}: ${r.upserted} of ${r.seen}`));
+      jeff.toast(`Synced — ${parts.join(", ")}.`);
+      await jeff.refreshConnections();
+    } finally {
+      setSyncing(null);
+    }
+  }
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
 
   async function test(connectionId?: string) {
@@ -287,6 +305,12 @@ function SetupModal({ p, conns }: { p: CatalogEntry; conns: ConnectionSummary[] 
                     {testing === c.id ? <span className="spinner" /> : <Icon name="refresh" />}
                     Test
                   </button>
+                  {SYNCABLE.includes(p.id) && ["connected", "limited"].includes(c.status) ? (
+                    <button className="button secondary" type="button" disabled={syncing !== null} onClick={() => syncNow(c)}>
+                      {syncing === c.id ? <span className="spinner" /> : <Icon name="download" />}
+                      Sync now
+                    </button>
+                  ) : null}
                   {(p.id === "meta" || p.id === "github") && ["connected", "limited"].includes(c.status) ? (
                     <button className="button secondary" type="button" onClick={() => jeff.openModal(<PermissionsModal p={p} c={c} />)}>
                       Select accounts

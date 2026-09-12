@@ -4,7 +4,8 @@
  */
 
 const PUBLIC_EXACT = new Set(["/login", "/unauthorized", "/api/health", "/api/auth/login", "/auth/callback", "/auth/signout"]);
-const PUBLIC_PREFIXES = ["/api/webhooks/", "/_next/", "/favicon", "/icon", "/apple-icon", "/robots.txt"];
+// /api/cron/ is authenticated by CRON_SECRET inside the handler, not by a session.
+const PUBLIC_PREFIXES = ["/api/webhooks/", "/api/cron/", "/_next/", "/favicon", "/icon", "/apple-icon", "/robots.txt"];
 
 // Owner-only but reachable at aal1 (needed to complete MFA).
 const AAL1_EXACT = new Set(["/mfa"]);
