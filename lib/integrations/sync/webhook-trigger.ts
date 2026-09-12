@@ -3,6 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { toSummary } from "@/lib/integrations/store";
 import { syncConnection } from "./runner";
 import { errorMessage, log } from "@/lib/security/log";
+import { runMonitorsForOwner } from "@/lib/jeff/monitors";
+import { runAlertsForOwner } from "@/lib/jeff/alerts/store";
 
 /**
  * Webhook follow-through: a verified provider event triggers a bounded sync
@@ -31,7 +33,17 @@ export async function syncFromWebhook(provider: string, opts: { externalAccountI
     const conn = toSummary(row);
     const timeout = new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), WEBHOOK_SYNC_BUDGET_MS));
     const result = await Promise.race([syncConnection(row.owner_id, conn, { capabilities: opts.capabilities, trigger: "webhook" }), timeout]);
-    if (result === "timeout") log.warn("webhook_sync_budget_exceeded", { provider, connectionId: conn.id });
+    if (result === "timeout") {
+      log.warn("webhook_sync_budget_exceeded", { provider, connectionId: conn.id });
+      return;
+    }
+    // Event-driven evaluation (spec §26): re-run monitors and alerts for this owner right away.
+    try {
+      await runMonitorsForOwner(row.owner_id);
+      await runAlertsForOwner(row.owner_id);
+    } catch (err) {
+      log.warn("webhook_evaluate_failed", { provider, message: errorMessage(err) });
+    }
   } catch (err) {
     log.warn("webhook_sync_failed", { provider, message: errorMessage(err) });
   }

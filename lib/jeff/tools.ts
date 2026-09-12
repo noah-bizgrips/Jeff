@@ -6,6 +6,7 @@ import { PROVIDERS } from "@/lib/integrations/registry";
 import { redact } from "@/lib/security/redact";
 import { MEMORY_RULE_TOOLS, runMemoryRuleTool } from "@/lib/jeff/rules/tools";
 import { GOAL_TOOLS, runGoalTool } from "@/lib/jeff/goals/tools";
+import { OPS_TOOLS, runOpsTool } from "@/lib/jeff/ops/tools";
 
 /**
  * Narrow, server-side tools exposed to the model. Each tool:
@@ -18,6 +19,7 @@ import { GOAL_TOOLS, runGoalTool } from "@/lib/jeff/goals/tools";
 export interface ToolContext {
   ownerId: string;
   mode: "demo" | "live";
+  request?: Request;
 }
 
 const EVIDENCE_PREFIX =
@@ -115,6 +117,7 @@ export const JEFF_TOOLS: Anthropic.Beta.BetaTool[] = [
   },
   ...MEMORY_RULE_TOOLS,
   ...GOAL_TOOLS,
+  ...OPS_TOOLS,
 ];
 
 type ToolInput = Record<string, unknown>;
@@ -386,6 +389,8 @@ export async function runTool(name: string, input: ToolInput, ctx: ToolContext):
       if (handled !== undefined) return handled;
       const goal = await runGoalTool(name, input, ctx);
       if (goal !== undefined) return goal;
+      const ops = await runOpsTool(name, input, ctx);
+      if (ops !== undefined) return ops;
       return { error: `unknown_tool:${name}` };
     }
   }

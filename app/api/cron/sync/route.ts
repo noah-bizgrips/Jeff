@@ -6,6 +6,8 @@ import { syncAllForOwner } from "@/lib/integrations/sync/runner";
 import { errorMessage, log } from "@/lib/security/log";
 import { runMonitorsForOwner } from "@/lib/jeff/monitors";
 import { refreshGoals } from "@/lib/jeff/goals/refresh";
+import { runCommitmentsForOwner } from "@/lib/jeff/commitments/store";
+import { runAlertsForOwner } from "@/lib/jeff/alerts/store";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -46,9 +48,26 @@ export const GET = withErrorBoundary(async (req) => {
     goals = { error: errorMessage(err) };
     log.warn("cron_goals_failed", { message: errorMessage(err) });
   }
+  // Commitments and alerts are derived from the fresh data; failures never fail the cron.
+  let commitments: Awaited<ReturnType<typeof runCommitmentsForOwner>> | { error: string } = { error: "skipped" };
+  try {
+    commitments = await runCommitmentsForOwner(owner.user_id);
+  } catch (err) {
+    commitments = { error: errorMessage(err) };
+    log.warn("cron_commitments_failed", { message: errorMessage(err) });
+  }
+  let alerts: Awaited<ReturnType<typeof runAlertsForOwner>> | { error: string } = { error: "skipped" };
+  try {
+    alerts = await runAlertsForOwner(owner.user_id);
+  } catch (err) {
+    alerts = { error: errorMessage(err) };
+    log.warn("cron_alerts_failed", { message: errorMessage(err) });
+  }
   return json({
     ok: true,
     goals,
+    commitments,
+    alerts,
     synced: summaries.map((s) => ({ provider: s.provider, results: s.results.map((r) => ({ capability: r.capability, seen: r.seen, upserted: r.upserted, error: r.error ?? null })) })),
     monitors,
   });
