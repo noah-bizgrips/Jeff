@@ -5,7 +5,7 @@ const config = [
   ...nextConfig,
   ...nextTs,
   {
-    ignores: [".next/**", "node_modules/**", "public/**", "coverage/**", "supabase/.temp/**", "docs/**"],
+    ignores: [".next/**", "node_modules/**", "public/**", "coverage/**", "supabase/.temp/**", "docs/**", ".claude/**"],
   },
   {
     rules: {
