@@ -35,6 +35,7 @@ export type FindingCategory =
   | "cashflow_change"
   | "recurring_expense_change"
   | "ad_spend_change"
+  | "underperforming_acquisition"
   | "operational_bottleneck"
   | "automation_opportunity";
 

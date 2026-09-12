@@ -44,7 +44,15 @@ function StatusPill({ s }: { s: ConnectionStatus }) {
 
 const PROVIDER_ICON: Record<string, string> = { google: "gmail", highlevel: "leadconnector", meta: "metaads" };
 /** Providers with a server-side sync adapter (lib/integrations/sync/runner.ts). */
-const SYNCABLE = ["google", "highlevel", "stripe", "plaid"];
+const SYNCABLE = ["google", "highlevel", "stripe", "plaid", "meta"];
+
+function tokenDaysLeft(c: ConnectionSummary): number | null {
+  const v = c.metadata.token_expires_at;
+  if (typeof v !== "string") return null;
+  const t = Date.parse(v);
+  if (!Number.isFinite(t)) return null;
+  return Math.floor((t - Date.now()) / 86_400_000);
+}
 
 function statusFor(p: CatalogEntry, conns: ConnectionSummary[]): ConnectionStatus {
   if (conns.length) return conns[0]!.status;
@@ -132,6 +140,9 @@ export function ConnectionsView({ catalog, requests: initialRequests }: { catalo
                   {["connected", "limited"].includes(c.status) ? <span className={freshnessClass(c.lastSyncAt)}>· {freshnessText(c.lastSyncAt)}</span> : null}
                   {c.lastSyncAt ? <span>· synced {new Date(c.lastSyncAt).toLocaleString()}</span> : null}
                   {c.lastError ? <span className="warning-copy">· {c.lastError}</span> : null}
+                  {tokenDaysLeft(c) !== null && tokenDaysLeft(c)! < 10 ? (
+                    <span className="warning-copy">· token expires in {Math.max(0, tokenDaysLeft(c)!)} day{tokenDaysLeft(c) === 1 ? "" : "s"} — re-authorize</span>
+                  ) : null}
                   {c.metadata.last_test_details && typeof c.metadata.last_test_details === "object" ? (
                     <span>
                       ·{" "}

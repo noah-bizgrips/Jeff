@@ -143,7 +143,7 @@ export const GET = withErrorBoundary(async (req, ctx) => {
       lastError: test.ok ? null : (test.error ?? "test_failed"),
       accountIdentifier:
         test.accountIdentifier ?? result.accountIdentifier ?? null,
-      metadata: { ...(result.metadata ?? {}), last_test_details: test.details ?? null },
+      metadata: { ...(result.metadata ?? {}), last_test_details: test.details ?? null, token_expires_at: result.expiresAt ?? null },
     });
     await audit({
       event: "connection_tested",

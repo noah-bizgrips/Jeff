@@ -16,6 +16,8 @@ import { operationalBottleneck } from "./operational-bottleneck";
 import { failedPayment } from "./failed-payment";
 import { cashflowChange } from "./cashflow-change";
 import { recurringExpenseChange } from "./recurring-expense-change";
+import { adSpendChange } from "./ad-spend-change";
+import { underperformingAcquisition } from "./underperforming-acquisition";
 
 /**
  * Monitor runner. Loads the owner's live (non-sample) source_items, runs every
@@ -24,7 +26,7 @@ import { recurringExpenseChange } from "./recurring-expense-change";
  * preserved across runs.
  */
 
-export const MONITORS: Monitor[] = [leadFollowupGap, pipelineAging, missedCommitment, automationFailure, operationalBottleneck, failedPayment, cashflowChange, recurringExpenseChange];
+export const MONITORS: Monitor[] = [leadFollowupGap, pipelineAging, missedCommitment, automationFailure, operationalBottleneck, failedPayment, cashflowChange, recurringExpenseChange, adSpendChange, underperformingAcquisition];
 
 export interface MonitorRunSummary {
   rows: number;

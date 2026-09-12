@@ -35,6 +35,7 @@ const ADAPTERS: Record<string, () => Promise<SyncAdapter>> = {
   highlevel: async () => (await import("./highlevel")).highlevelSyncAdapter,
   stripe: async () => (await import("./stripe")).stripeSyncAdapter,
   plaid: async () => (await import("./plaid")).plaidSyncAdapter,
+  meta: async () => (await import("./meta")).metaSyncAdapter,
 };
 
 export function hasSyncAdapter(provider: string) {

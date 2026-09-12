@@ -48,6 +48,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   cashflow_change: "CASH FLOW",
   recurring_expense_change: "RECURRING EXPENSES",
   ad_spend_change: "AD SPEND",
+  underperforming_acquisition: "ACQUISITION EFFICIENCY",
   operational_bottleneck: "OPERATIONS",
   automation_opportunity: "AUTOMATION OPPORTUNITY",
 };

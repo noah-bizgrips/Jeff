@@ -18,6 +18,7 @@ export const MONITOR_IDS = [
   "recurring_expense_change",
   "onboarding_blocker",
   "ad_spend_change",
+  "underperforming_acquisition",
   "automation_opportunity",
 ] as const;
 export type MonitorId = (typeof MONITOR_IDS)[number];
@@ -37,6 +38,11 @@ export const MONITOR_ALIASES: Record<string, MonitorId> = {
   recurring_expenses: "recurring_expense_change",
   calendar_bottleneck: "operational_bottleneck",
   bottleneck: "operational_bottleneck",
+  ad_spend: "ad_spend_change",
+  ads: "ad_spend_change",
+  underperforming_ads: "underperforming_acquisition",
+  acquisition: "underperforming_acquisition",
+  cost_per_lead: "underperforming_acquisition",
 };
 
 export const MONITOR_LABELS: Record<MonitorId, string> = {
@@ -50,6 +56,7 @@ export const MONITOR_LABELS: Record<MonitorId, string> = {
   recurring_expense_change: "Recurring expense changes",
   onboarding_blocker: "Onboarding blockers",
   ad_spend_change: "Ad spend changes",
+  underperforming_acquisition: "Underperforming acquisition",
   automation_opportunity: "Automation opportunities",
 };
 

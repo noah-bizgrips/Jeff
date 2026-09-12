@@ -78,7 +78,7 @@ export const JEFF_TOOLS: Anthropic.Beta.BetaTool[] = [
   },
   {
     name: "get_ad_performance",
-    description: "Synced Meta Ads reporting rows for a date range. Read-only.",
+    description: "Summarised Meta Ads performance for a date range: spend, leads, cost per lead, CTR, by campaign and by day. Amounts in minor units with currency. Read-only.",
     input_schema: {
       type: "object",
       properties: { days: { type: "integer", minimum: 1, maximum: 90 } },
@@ -344,10 +344,10 @@ export async function runTool(name: string, input: ToolInput, ctx: ToolContext):
         .eq("provider", "meta")
         .eq("resource_type", "ad_insight")
         .gte("source_timestamp", since)
-        .limit(500);
+        .limit(2000);
       if (ctx.mode === "live") q = q.eq("is_sample", false);
       const { data } = await q;
-      return evidence(redact(data ?? []));
+      return summarizeAds((data ?? []) as { metadata: Record<string, unknown>; source_timestamp: string | null }[], days);
     }
     case "get_findings": {
       let q = admin
@@ -394,4 +394,55 @@ export async function runTool(name: string, input: ToolInput, ctx: ToolContext):
       return { error: `unknown_tool:${name}` };
     }
   }
+}
+
+/** Bounded, PII-free Meta Ads summary from ad_insight rows (spend in minor units). */
+export function summarizeAds(rows: { metadata: Record<string, unknown>; source_timestamp: string | null }[], days: number) {
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : Number(v) || 0);
+  if (!rows.length) return { days, note: "No Meta Ads data synced for this range yet. Connect Meta and select ad accounts, then Sync now." };
+  let spend = 0;
+  let leads = 0;
+  let clicks = 0;
+  let impressions = 0;
+  const currency = String(rows[0]!.metadata.currency ?? "USD");
+  const byCampaign = new Map<string, { name: string; spend: number; leads: number; clicks: number; impressions: number }>();
+  const byDay = new Map<string, { spend: number; leads: number }>();
+  for (const r of rows) {
+    const m = r.metadata;
+    const s = n(m.spend);
+    const l = n(m.leads);
+    spend += s;
+    leads += l;
+    clicks += n(m.clicks);
+    impressions += n(m.impressions);
+    const cid = String(m.campaign_id ?? "unknown");
+    const c = byCampaign.get(cid) ?? { name: String(m.campaign_name ?? cid), spend: 0, leads: 0, clicks: 0, impressions: 0 };
+    c.spend += s;
+    c.leads += l;
+    c.clicks += n(m.clicks);
+    c.impressions += n(m.impressions);
+    byCampaign.set(cid, c);
+    const day = String(m.date ?? r.source_timestamp?.slice(0, 10) ?? "");
+    const d = byDay.get(day) ?? { spend: 0, leads: 0 };
+    d.spend += s;
+    d.leads += l;
+    byDay.set(day, d);
+  }
+  const cpl = (sp: number, ld: number) => (ld > 0 ? Math.round(sp / ld) : null);
+  const ctr = (cl: number, im: number) => (im > 0 ? Math.round((cl / im) * 10000) / 100 : null);
+  return {
+    days,
+    currency,
+    amounts: "minor units (cents)",
+    totals: { spend, leads, clicks, impressions, cost_per_lead: cpl(spend, leads), ctr_pct: ctr(clicks, impressions), formula: "cost_per_lead = spend / leads; ctr_pct = clicks / impressions × 100" },
+    by_campaign: [...byCampaign.entries()]
+      .map(([id, c]) => ({ campaign_id: id, name: c.name, spend: c.spend, leads: c.leads, cost_per_lead: cpl(c.spend, c.leads), ctr_pct: ctr(c.clicks, c.impressions) }))
+      .sort((a, b) => b.spend - a.spend)
+      .slice(0, 25),
+    by_day: [...byDay.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-days)
+      .map(([date, d]) => ({ date, spend: d.spend, leads: d.leads })),
+    limitations: "Leads are Meta-reported lead actions; attribution may be restated for ~3 days after the fact.",
+  };
 }
