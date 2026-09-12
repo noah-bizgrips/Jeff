@@ -29,18 +29,34 @@ export interface MetaSecret extends SecretBundle {
 
 const GRAPH = `https://graph.facebook.com/${META_GRAPH_VERSION}`;
 
+/**
+ * Facebook Login for Business (Business-type apps) replaces `scope` with a
+ * `config_id` created in the app dashboard (user-token configuration listing
+ * the same read-only permissions). When META_LOGIN_CONFIG_ID is set we send it
+ * and omit `scope`, per Meta's guidance; otherwise the classic scope flow is used.
+ */
+function authorizeExtras(): { extra: Record<string, string>; scopes: string[] } {
+  const configId = process.env.META_LOGIN_CONFIG_ID?.trim();
+  if (configId) return { extra: { config_id: configId, response_type: "code", override_default_response_type: "true" }, scopes: [] };
+  return { extra: {}, scopes: META_PERMISSIONS };
+}
+
 export const metaAdapter: OAuthProviderAdapter = {
   id: "meta",
-  config: {
-    id: "meta",
-    authorizeUrl: `https://www.facebook.com/${META_GRAPH_VERSION}/dialog/oauth`,
-    tokenUrl: `${GRAPH}/oauth/access_token`,
-    scopes: META_PERMISSIONS,
-    scopeDelimiter: ",",
-    pkce: false,
-    tokenAuth: "body",
-    clientIdEnv: "META_APP_ID",
-    clientSecretEnv: "META_APP_SECRET",
+  get config() {
+    const { extra, scopes } = authorizeExtras();
+    return {
+      id: "meta",
+      authorizeUrl: `https://www.facebook.com/${META_GRAPH_VERSION}/dialog/oauth`,
+      tokenUrl: `${GRAPH}/oauth/access_token`,
+      scopes,
+      scopeDelimiter: ",",
+      pkce: false,
+      tokenAuth: "body" as const,
+      extraAuthorizeParams: extra,
+      clientIdEnv: "META_APP_ID",
+      clientSecretEnv: "META_APP_SECRET",
+    };
   },
   // Meta's token endpoint is a GET with query params; then upgrade to a long-lived token.
   async exchange(code) {
