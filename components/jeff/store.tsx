@@ -119,11 +119,26 @@ export function JeffProvider({ initial, children }: { initial: JeffInitial; chil
   const [toasts, setToasts] = useState<{ id: number; text: string }[]>([]);
   const lastFocus = useRef<Element | null>(null);
 
-  // Apply wide-page layout for operational views.
+  // Apply wide-page layout for operational views; close phone drawers on navigation.
   useEffect(() => {
     const wide = ["/missions", "/insights", "/approvals", "/connections", "/security", "/guide", "/memory"].some((p) => pathname.startsWith(p));
     document.body.classList.toggle("wide-page", wide);
+    // Drawers are overlays on small screens; a route change should always dismiss them.
+    const t = setTimeout(() => {
+      setSidebarOpen(false);
+      setAgentOpen(false);
+    }, 0);
+    return () => clearTimeout(t);
   }, [pathname]);
+
+  // Mirror overlay state onto <body> so CSS can react without :has() (older iOS).
+  useEffect(() => {
+    document.body.classList.toggle("agent-open", agentOpen);
+    document.body.classList.toggle("sidebar-open", sidebarOpen);
+    return () => {
+      document.body.classList.remove("agent-open", "sidebar-open");
+    };
+  }, [agentOpen, sidebarOpen]);
 
   const toast = useCallback((text: string) => {
     const id = ++toastSeq;

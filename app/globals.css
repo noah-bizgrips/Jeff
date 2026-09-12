@@ -4219,3 +4219,502 @@ dialog[open] {
     min-height: 44px;
   }
 }
+
+/* ===========================================================================
+   Mobile pass (phones ≤720px, tablets ≤1000px, iOS PWA standalone)
+   Conventions: see docs/mobile.md. Appended last on purpose so it wins.
+   =========================================================================== */
+
+/* --- Safe areas (viewport-fit=cover): pad fixed/sticky chrome, never content twice */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+html,
+body {
+  overflow-x: hidden; /* belt and braces: no page-level horizontal scroll */
+}
+.main-area,
+.page-view,
+.workspace,
+.workspace-body {
+  min-width: 0;
+  max-width: 100%;
+}
+/* Long tokens (URLs, hashes, ids) never force horizontal scroll */
+.detail-content,
+.kv dd,
+.audit-row p,
+.audit-row strong,
+.callout,
+.policy-row small,
+.memory-copy strong,
+.saved-card p,
+.message-text,
+.insight-card p,
+.mission-card p,
+.goal-card,
+.briefing-reader {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+/* Only genuine data blocks scroll sideways */
+.diff-preview,
+.code-hint,
+pre {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.form-grid-2 {
+  grid-template-columns: 1fr 1fr;
+}
+@media (max-width: 720px) {
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Sidebar drawer scrim (phones) */
+.drawer-scrim {
+  display: none;
+}
+
+/* --- Touch: no hover lift/transform on tap devices (avoids sticky hover state on iOS) */
+@media (hover: none) {
+  .button:hover,
+  .nav-item:hover,
+  .icon-button:hover,
+  .memory-row:hover,
+  .document-open:hover,
+  .suggestion:hover {
+    transform: none;
+  }
+}
+
+/* --- Tablets and below: agent panel becomes a sheet, topbar tidies */
+@media (max-width: 1000px) {
+  body.agent-open .mobile-agent-button {
+    display: none;
+  }
+  .agent-panel,
+  .wide-page .agent-panel {
+    height: 100dvh;
+    max-height: 100dvh;
+    padding-top: var(--safe-top);
+  }
+  .agent-header {
+    height: auto;
+    min-height: 62px;
+    padding: 10px 16px;
+  }
+  .composer-area {
+    padding-bottom: calc(14px + var(--safe-bottom));
+  }
+  .mobile-agent-button {
+    bottom: calc(18px + var(--safe-bottom));
+    right: calc(16px + var(--safe-right));
+    min-height: 44px;
+  }
+  .toast-container {
+    bottom: calc(84px + var(--safe-bottom)); /* clear the floating Ask Jeff button */
+  }
+}
+
+/* --- Phones */
+@media (max-width: 720px) {
+  /* iOS zooms the page when a focused control is < 16px; keep controls at 16px */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+  .composer textarea {
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .search-input-wrap input {
+    font-size: 16px;
+  }
+  .field input,
+  .field select,
+  .field textarea,
+  .form-grid .field input,
+  .form-grid .field select,
+  .form-grid .field textarea {
+    min-height: 44px;
+  }
+  .button,
+  .icon-button,
+  .filter-tab,
+  .nav-item {
+    min-height: 40px;
+  }
+  .button {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  /* Shell */
+  .topbar {
+    height: auto;
+    min-height: 58px;
+    padding: calc(6px + var(--safe-top)) 12px 6px;
+    gap: 8px;
+    flex-wrap: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: var(--bg);
+  }
+  .topbar .private-pill {
+    display: none;
+  }
+  .topbar .top-settings {
+    display: none;
+  }
+  .topbar .mode-badge span:last-child {
+    display: none; /* the dot alone shows Demo/Live; label lives in the sidebar */
+  }
+  .topbar .mode-badge {
+    padding: 8px;
+    min-width: 36px;
+    justify-content: center;
+  }
+  .global-search {
+    min-width: 0;
+    min-height: 40px;
+  }
+  .global-search > span:nth-child(2) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .sidebar {
+    padding-top: calc(27px + var(--safe-top));
+    padding-bottom: calc(15px + var(--safe-bottom));
+    width: min(280px, 84vw);
+    box-shadow: none;
+    z-index: 60;
+  }
+  .sidebar.open {
+    box-shadow: 20px 0 60px #00000088;
+  }
+  .drawer-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: #05090ea8;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+  }
+  .drawer-scrim[hidden] {
+    display: none !important;
+  }
+  .main-area,
+  .wide-page .main-area {
+    padding: 18px 14px calc(96px + var(--safe-bottom));
+  }
+  .page-heading {
+    flex-wrap: wrap;
+  }
+  .page-heading h1 {
+    font-size: 24px;
+  }
+
+  /* Ask Jeff: full-screen sheet, composer pinned above the keyboard */
+  .agent-panel,
+  .wide-page .agent-panel {
+    width: 100vw;
+    left: 0;
+    right: 0;
+  }
+  .chat-scroll {
+    padding-bottom: 8px;
+  }
+  .composer-area {
+    position: sticky;
+    bottom: 0;
+    background: #0c1729;
+  }
+  .citation-chips {
+    flex-wrap: wrap;
+  }
+  .citation-chip {
+    max-width: 100%;
+  }
+  .citation-chip > span:not(.citation-num):not(.source-icon) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .context-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .suggestion {
+    min-height: 48px;
+  }
+
+  /* Mission control */
+  .stats-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .stat {
+    padding-left: 0;
+    border-left: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .brain-stage {
+    height: 46vh;
+    min-height: 260px;
+    max-height: 420px;
+  }
+  .brain-card.expanded {
+    inset: var(--safe-top) 0 0 0;
+    border-radius: 0;
+  }
+  .brain-card.expanded .brain-stage {
+    height: auto;
+    max-height: none;
+    min-height: 0;
+  }
+  .command-bottom {
+    flex-wrap: wrap;
+  }
+  .command-bottom .button {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+  .mode-switch {
+    width: 100%;
+    display: flex;
+  }
+  .mode-switch button {
+    flex: 1;
+    min-height: 40px;
+  }
+  .mission-pulse {
+    flex-wrap: wrap;
+  }
+  .mission-pulse button,
+  .mission-pulse a {
+    min-height: 36px;
+  }
+  .focus-grid {
+    gap: 10px;
+  }
+  .focus-col {
+    padding: 12px;
+  }
+  .focus-row {
+    min-height: 44px;
+    align-items: flex-start;
+  }
+  .signal-strip {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .signal-strip .button {
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  /* Grids & lists → single column */
+  .goal-grid,
+  .insight-grid,
+  .connections-grid,
+  .security-grid,
+  .metric-grid,
+  .task-detail-grid,
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .briefing-layout {
+    grid-template-columns: 1fr;
+  }
+  .kv {
+    grid-template-columns: 1fr;
+    gap: 2px 0;
+  }
+  .kv dt {
+    margin-top: 8px;
+  }
+  .kv dt:first-child {
+    margin-top: 0;
+  }
+  .policy-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .policy-row > div:last-child,
+  .policy-row > .pill {
+    align-self: flex-start;
+  }
+  .goal-metric-table .policy-row {
+    flex-direction: column;
+  }
+  .goal-two-col {
+    grid-template-columns: 1fr;
+  }
+  .view-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .view-toolbar .button {
+    justify-content: center;
+    min-height: 44px;
+  }
+  .audit-row {
+    flex-wrap: wrap;
+  }
+  .audit-row > span:last-child {
+    width: 100%;
+    margin-top: 4px;
+    color: var(--muted);
+  }
+  .audit-row .button {
+    width: 100%;
+    justify-content: center;
+    margin-top: 6px;
+  }
+  .mission-card-footer .button {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+    margin-top: 4px;
+  }
+  .insight-actions .button,
+  .connection-actions .button {
+    flex: 1 1 calc(50% - 8px);
+    justify-content: center;
+    min-height: 44px;
+  }
+  .security-lockbar .button {
+    width: 100%;
+    justify-content: center;
+  }
+  .security-hero > .pill {
+    margin-left: 0;
+    margin-top: 0;
+  }
+  .document-list {
+    grid-template-columns: 1fr;
+  }
+  .toggle {
+    min-width: 44px;
+    min-height: 26px;
+  }
+  .checkbox-list {
+    max-height: 40vh;
+  }
+  .checkbox-list label {
+    min-height: 44px;
+  }
+
+  /* Filter tabs: one scrolling row when there are many */
+  .filter-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+    margin-left: -14px;
+    margin-right: -14px;
+    padding-left: 14px;
+    padding-right: 14px;
+    scroll-snap-type: x proximity;
+  }
+  .filter-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .filter-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    scroll-snap-align: start;
+  }
+  /* Inside toolbars the tabs keep the container's padding */
+  .view-toolbar .filter-tabs {
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  /* Toasts */
+  .toast-container {
+    left: 14px;
+    right: 14px;
+    transform: none;
+    width: auto;
+    max-width: none;
+    bottom: calc(84px + var(--safe-bottom));
+  }
+  .toast {
+    width: 100%;
+  }
+
+  /* Auth pages: fit with the keyboard open */
+  .auth-shell {
+    min-height: 100dvh;
+    padding: calc(16px + var(--safe-top)) 14px calc(16px + var(--safe-bottom));
+    place-items: start center;
+  }
+  .auth-card {
+    padding: 22px 18px 20px;
+  }
+  .auth-card .button.primary {
+    min-height: 48px;
+  }
+  .otp-input {
+    font-size: 24px !important;
+    letter-spacing: 6px;
+  }
+  .qr-wrap img,
+  .qr-wrap svg {
+    width: min(200px, 70vw);
+    height: auto;
+  }
+
+  /* Guide */
+  .security-card h3 {
+    font-size: 14px;
+  }
+}
+
+/* --- Very narrow phones */
+@media (max-width: 380px) {
+  .insight-actions .button,
+  .connection-actions .button,
+  .modal-actions .button,
+  .feedback-actions .button {
+    flex-basis: 100%;
+  }
+}
+
+/* --- Installed PWA (standalone): status bar sits over the top edge */
+@media (display-mode: standalone) {
+  .topbar {
+    padding-top: calc(8px + var(--safe-top));
+  }
+  .auth-shell {
+    padding-top: calc(24px + var(--safe-top));
+  }
+  .sidebar {
+    padding-top: calc(27px + var(--safe-top));
+  }
+}

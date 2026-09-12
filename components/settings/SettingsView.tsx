@@ -77,7 +77,7 @@ export function SettingsView({ initial, vapidPublicKey = "" }: { initial: OwnerS
             <input type="number" min={1} max={10} value={s.brief_max_items} onChange={(e) => set("brief_max_items", Math.max(1, Math.min(10, Number(e.target.value) || 3)))} />
           </label>
           {toggle("weekly_review_enabled", "Weekly operating review", "Goal progress, wins, misses, funnel and finance changes, what worked.")}
-          <div className="form-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+          <div className="form-grid form-grid-2">
             <label className="field">
               Day
               <select value={s.weekly_review_day} onChange={(e) => set("weekly_review_day", Number(e.target.value))}>
@@ -112,7 +112,7 @@ export function SettingsView({ initial, vapidPublicKey = "" }: { initial: OwnerS
               <option value="urgent">Urgent only</option>
             </select>
           </label>
-          <div className="form-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+          <div className="form-grid form-grid-2">
             <label className="field">
               Quiet hours start
               <input type="time" value={s.quiet_hours_start} onChange={(e) => set("quiet_hours_start", e.target.value)} />

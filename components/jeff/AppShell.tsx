@@ -166,6 +166,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
+      {/* Tap-to-close scrim for the phone sidebar drawer. */}
+      <button
+        type="button"
+        className="drawer-scrim"
+        aria-label="Close navigation"
+        hidden={!jeff.sidebarOpen}
+        onClick={() => jeff.setSidebarOpen(false)}
+      />
       <div className="workspace">
         <header className="topbar">
           <button className="icon-button mobile-menu" type="button" aria-label="Toggle navigation" onClick={() => jeff.setSidebarOpen(!jeff.sidebarOpen)}>

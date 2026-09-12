@@ -73,7 +73,7 @@ export function GoalsView({ initial }: { initial: GoalListItem[] }) {
       </div>
       <div className="view-toolbar">
         <p>{active.length ? `${active.length} active goal${active.length === 1 ? "" : "s"}` : "No active goals yet."}</p>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button className="button secondary" type="button" disabled={refreshing || !active.length} onClick={refreshAll}>
             {refreshing ? <span className="spinner" /> : <Icon name="refresh" />}
             Refresh now

@@ -117,7 +117,7 @@ export function MemoryRulesView({ memories: initialMemories, rules: initialRules
                       {m.scope} · {SOURCE_LABEL[m.source] ?? m.source} · {fmtDate(m.created_at)}
                     </small>
                   </div>
-                  <div style={{ display: "flex", gap: 6 }}>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     <button className="icon-button" type="button" aria-label="Edit memory" onClick={() => jeff.openModal(<MemoryEditor memory={m} onSaved={refreshMemories} />)}>
                       <Icon name="compose" />
                     </button>
@@ -378,7 +378,7 @@ export function RuleEditor({ rule, proposed, onSaved }: { rule?: PresentedRule; 
         </label>
         <div className="field">
           Author type
-          <div style={{ display: "flex", gap: 12 }}>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             {["human", "bot", "system"].map((t) => (
               <label key={t} style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 <input type="checkbox" checked={authorTypes.includes(t)} onChange={(e) => setAuthorTypes((a) => (e.target.checked ? [...a, t] : a.filter((x) => x !== t)))} /> {t}
@@ -390,7 +390,7 @@ export function RuleEditor({ rule, proposed, onSaved }: { rule?: PresentedRule; 
           Subject patterns (comma separated; * wildcard)
           <input value={subjects} onChange={(e) => setSubjects(e.target.value)} placeholder="^[*]*, *deployment*" />
         </label>
-        <div className="form-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+        <div className="form-grid form-grid-2">
           <label className="field">
             Amount ≥ ($)
             <input value={amountMin} onChange={(e) => setAmountMin(e.target.value)} inputMode="decimal" />

@@ -112,7 +112,7 @@ export function BriefingsView({ initial }: { initial: BriefingListItem[] }) {
             <>
               <div className="section-heading">
                 <h2>{s.title}</h2>
-                <div style={{ display: "flex", gap: 6 }}>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   <button className="text-button" type="button" onClick={() => mark(selected, selected.saved ? "unsave" : "save")}>
                     <Icon name="bookmark" />
                     {selected.saved ? "Unsave" : "Save"}
@@ -215,7 +215,7 @@ function BriefSection({ label, items, numbered, onMission, empty }: { label: str
                   <strong>{i.title}</strong>
                   {i.detail ? <p>{i.detail}</p> : null}
                 </div>
-                <span style={{ display: "flex", gap: 6 }}>
+                <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {href ? (
                     <Link href={href} className="text-button">
                       Open
