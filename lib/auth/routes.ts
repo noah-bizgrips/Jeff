@@ -3,7 +3,7 @@
  * it can run in the proxy runtime and in unit tests.
  */
 
-const PUBLIC_EXACT = new Set(["/login", "/unauthorized", "/api/health", "/api/auth/login", "/auth/callback", "/auth/signout"]);
+const PUBLIC_EXACT = new Set(["/login", "/unauthorized", "/privacy", "/api/health", "/api/auth/login", "/auth/callback", "/auth/signout"]);
 // /api/cron/ is authenticated by CRON_SECRET inside the handler, not by a session.
 const PUBLIC_PREFIXES = ["/api/webhooks/", "/api/cron/", "/_next/", "/favicon", "/icon", "/apple-icon", "/robots.txt"];
 
