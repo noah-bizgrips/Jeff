@@ -13,6 +13,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: "#090f1c",
   colorScheme: "dark",
+  viewportFit: "cover", // lets env(safe-area-inset-*) work in the iOS home-screen app
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

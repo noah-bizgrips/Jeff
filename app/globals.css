@@ -4137,3 +4137,85 @@ dialog::backdrop {
   flex-wrap: wrap;
   margin-top: auto;
 }
+
+/* ---------------------------------------------------------------------------
+   Modals: scrollable everywhere, bottom-sheet on phones (iOS PWA safe areas)
+   --------------------------------------------------------------------------- */
+dialog {
+  max-height: calc(100dvh - 24px);
+  overflow: hidden;
+  display: none;
+}
+dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+#modalContent {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+#modalContent > .modal-body {
+  flex: 1 1 auto;
+}
+.modal-actions,
+.connection-actions {
+  flex-wrap: wrap;
+}
+.modal-actions .button,
+.connection-actions .button {
+  white-space: nowrap;
+}
+@media (max-width: 720px) {
+  dialog {
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 100dvh;
+    margin: auto 0 0;
+    border-radius: 16px 16px 0 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+  }
+  #modalContent {
+    max-height: 100dvh;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .modal-header {
+    position: sticky;
+    top: 0;
+    background: #0e1827;
+    z-index: 2;
+  }
+  .modal-actions {
+    position: sticky;
+    bottom: 0;
+    background: #0e1827;
+    padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px));
+    margin-top: 16px;
+    border-top: 1px solid var(--border);
+    z-index: 2;
+  }
+  .modal-actions .button,
+  .connection-actions .button {
+    flex: 1 1 calc(50% - 8px);
+    justify-content: center;
+    min-height: 44px; /* iOS tap target */
+  }
+}
+.feedback-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+@media (max-width: 720px) {
+  .feedback-actions .button {
+    flex: 1 1 calc(50% - 8px);
+    justify-content: center;
+    min-height: 44px;
+  }
+}

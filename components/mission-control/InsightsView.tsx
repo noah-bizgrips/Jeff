@@ -424,7 +424,7 @@ function FindingModal({ f, onPrepare, onStatus }: { f: FindingItem; onPrepare: (
           </>
         ) : null}
         <div className="section-label">WAS THIS USEFUL?</div>
-        <div className="connection-actions" style={{ flexWrap: "wrap" }}>
+        <div className="connection-actions feedback-actions">
           {(
             [
               ["useful", "Useful"],
