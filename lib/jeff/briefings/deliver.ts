@@ -18,6 +18,9 @@ export interface Deliverable {
   kind: "briefing" | "alert";
   title: string;
   summary: string;
+  /** Required for channels that address the owner's devices (push). */
+  ownerId?: string;
+  url?: string;
 }
 
 type Deliverer = (item: Deliverable, now: Date) => Promise<DeliveryReceipt>;
@@ -26,7 +29,13 @@ const providers: Record<DeliveryProvider, Deliverer> = {
   // The row in the database IS the in-app inbox; nothing else to do.
   in_app: async (_item, now) => ({ provider: "in_app", delivered_at: now.toISOString(), status: "delivered" }),
   email: async () => ({ provider: "email", delivered_at: null, status: "not_configured", detail: "Email delivery is not configured." }),
-  push: async () => ({ provider: "push", delivered_at: null, status: "not_configured", detail: "Push delivery is not configured." }),
+  push: async (item, now) => {
+    const { pushConfigured, sendPush } = await import("@/lib/jeff/push/send");
+    if (!pushConfigured() || !item.ownerId) return { provider: "push", delivered_at: null, status: "not_configured", detail: "Push delivery is not configured." };
+    const res = await sendPush(item.ownerId, { title: item.title, body: item.summary, url: item.url ?? "/", tag: `${item.kind}:${item.id}` });
+    if (res.delivered) return { provider: "push", delivered_at: now.toISOString(), status: "delivered", detail: `${res.delivered} device(s)` };
+    return { provider: "push", delivered_at: null, status: res.attempted ? "failed" : "not_configured", detail: res.attempted ? "No device accepted the notification." : "No subscribed devices." };
+  },
   sms: async () => ({ provider: "sms", delivered_at: null, status: "not_configured", detail: "SMS delivery is not configured." }),
   slack: async () => ({ provider: "slack", delivered_at: null, status: "not_configured", detail: "Slack delivery is not configured." }),
 };

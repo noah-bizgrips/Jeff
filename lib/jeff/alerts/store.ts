@@ -164,6 +164,13 @@ export async function runAlertsForOwner(ownerId: string, now = new Date()): Prom
     if (error) log.warn("alert_resolve_failed", { id, message: error.message });
     else resolved++;
   }
+  // Push qualifying alerts (urgent always; important outside quiet hours; once per importance level).
+  try {
+    const { pushPendingAlerts } = await import("@/lib/jeff/push/alerts");
+    await pushPendingAlerts(ownerId, now);
+  } catch (err) {
+    log.warn("alert_push_run_failed", { message: err instanceof Error ? err.message : "unknown" });
+  }
   log.info("alerts_run", { candidates: candidates.length, created, updated, resolved, skippedByCooldown: plan.skippedByCooldown, suppressedByRules });
   return { candidates: candidates.length, created, updated, resolved, skippedByCooldown: plan.skippedByCooldown, suppressedByRules };
 }

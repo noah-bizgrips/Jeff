@@ -10,5 +10,6 @@ export default async function SettingsPage() {
   const session = await resolveOwnerSession(supabase);
   if (session.status !== "owner") return null;
   const settings = await getSettings(session.userId);
-  return <SettingsView initial={settings} />;
+  // The VAPID public key is public by design (it identifies the push sender).
+  return <SettingsView initial={settings} vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""} />;
 }

@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { Icon } from "@/components/jeff/icons";
 import { useJeff } from "@/components/jeff/store";
+import { PushCard } from "./PushCard";
 import type { OwnerSettings } from "@/lib/jeff/settings";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const TIMEZONES = ["America/Denver", "America/Los_Angeles", "America/Phoenix", "America/Chicago", "America/New_York", "UTC", "Europe/London"];
 
-export function SettingsView({ initial }: { initial: OwnerSettings }) {
+export function SettingsView({ initial, vapidPublicKey = "" }: { initial: OwnerSettings; vapidPublicKey?: string }) {
   const jeff = useJeff();
   const [s, setS] = useState<OwnerSettings>(initial);
   const [saving, setSaving] = useState(false);
@@ -127,6 +128,16 @@ export function SettingsView({ initial }: { initial: OwnerSettings }) {
           {toggle("financial_notifications", "Financial notifications", "Failed payments, cash-flow and expense changes.")}
           {toggle("personal_notifications", "Personal notifications", "Personal-scope items.")}
         </section>
+
+        <PushCard
+          vapidPublicKey={vapidPublicKey}
+          toggles={
+            <>
+              {toggle("push_alerts", "Push alerts", "Important alerts outside quiet hours; urgent alerts always.")}
+              {toggle("push_briefings", "Push briefings", "A notification when your daily brief or weekly/monthly review is ready.")}
+            </>
+          }
+        />
 
         <section className="security-card">
           <h3>Learning</h3>

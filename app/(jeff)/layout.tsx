@@ -9,6 +9,7 @@ import { loadCounts, loadLiveDocs, loadNotes, loadSaved } from "@/lib/jeff/serve
 import { DEMO_MISSIONS } from "@/lib/jeff/demo-data";
 import { JeffProvider, type JeffInitial } from "@/components/jeff/store";
 import { AppShell } from "@/components/jeff/AppShell";
+import { PushManager } from "@/components/jeff/PushManager";
 import { surfacedAlerts } from "@/lib/jeff/alerts/store";
 import { getSettings } from "@/lib/jeff/settings-store";
 import { atLeast } from "@/lib/jeff/alerts/importance";
@@ -60,6 +61,7 @@ export default async function JeffLayout({ children }: { children: React.ReactNo
 
   return (
     <JeffProvider initial={initial}>
+      <PushManager />
       <AppShell>{children}</AppShell>
     </JeffProvider>
   );

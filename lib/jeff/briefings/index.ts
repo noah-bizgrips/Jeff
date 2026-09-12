@@ -18,6 +18,9 @@ import { label as trajectoryWord } from "@/lib/jeff/alerts/engine";
 import { composeBriefing, type ComposeDeps } from "./compose";
 import { deliver } from "./deliver";
 import { dueBriefings, periodFor, periodInstants, type BriefingKind } from "./schedule";
+import { shouldPushBriefing } from "@/lib/jeff/push/decide";
+
+const BRIEF_PUSH_TITLE: Record<BriefingKind, string> = { daily: "Your Daily Brief", weekly: "Weekly review", monthly: "Monthly review" };
 import { maxItemsFromMemories, type BriefingBundle, type BundleFinance } from "./bundle";
 import type { BriefingSummary } from "./schema";
 
@@ -192,6 +195,16 @@ export async function generateBriefing(ownerId: string, kind: BriefingKind, now 
     : await admin.from("briefings").insert(payload).select(COLUMNS).single();
   if (error || !data) throw new Error(`briefing_write_failed:${error?.code ?? ""}:${redactString(error?.message ?? "").slice(0, 120)}`);
   await audit({ event: "briefing_generated", ownerId, actor: "system", targetId: data.id, metadata: { kind, period_start: period.period_start, usedModel: composed.usedModel, notes: composed.notes, top: composed.summary.top_attention.length } });
+  // Push to the owner's devices (toggle in Settings). Only for a newly generated brief, never a forced re-run.
+  if (!existing && shouldPushBriefing(settings)) {
+    const first = composed.summary.top_attention[0];
+    const pushReceipts = await deliver(
+      { id: data.id, kind: "briefing", ownerId, title: BRIEF_PUSH_TITLE[kind], summary: first?.title ?? composed.summary.title, url: "/briefings" },
+      ["push"],
+      now,
+    );
+    await admin.from("briefings").update({ delivery: [...receipts, ...pushReceipts] }).eq("id", data.id);
+  }
   return { briefing: data as unknown as BriefingRow, created: !existing, usedModel: composed.usedModel };
 }
 
