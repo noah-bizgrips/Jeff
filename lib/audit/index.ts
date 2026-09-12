@@ -47,7 +47,15 @@ export type AuditEvent =
   | "goal_approved"
   | "goal_updated"
   | "goal_deleted"
-  | "goal_recommendation_prepared";
+  | "goal_recommendation_prepared"
+  | "alert_created"
+  | "alert_updated"
+  | "briefing_generated"
+  | "briefing_updated"
+  | "commitment_updated"
+  | "settings_updated"
+  | "mission_completed"
+  | "outcome_recorded";
 
 export interface AuditInput {
   event: AuditEvent;
