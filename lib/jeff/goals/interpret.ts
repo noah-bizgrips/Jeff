@@ -414,7 +414,7 @@ export async function interpretGoal(ownerId: string, text: string, deps: Interpr
       output_tokens: response.usage.output_tokens,
       cache_read_tokens: response.usage.cache_read_input_tokens ?? 0,
       cache_write_tokens: response.usage.cache_creation_input_tokens ?? 0,
-    });
+    }, "goal");
     const tool = response.content.find((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use" && b.name === "goal_interpretation");
     if (!tool) throw new Error("no_tool_output");
     const parsed = GoalInterpretationSchema.safeParse(tool.input);

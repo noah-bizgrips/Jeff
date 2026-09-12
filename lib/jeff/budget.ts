@@ -35,7 +35,9 @@ export async function budgetStatus(ownerId: string): Promise<BudgetStatus> {
 }
 
 /** Records one model call. Never throws. */
-export async function recordUsage(ownerId: string, model: string, usage: UsageCounts): Promise<number> {
+export type AiFeature = "chat" | "briefing" | "goal" | "blind_spot" | "rule" | "other";
+
+export async function recordUsage(ownerId: string, model: string, usage: UsageCounts, feature: AiFeature = "other"): Promise<number> {
   const estimated = estimateCostUsd(model, usage);
   try {
     const admin = createAdminClient();
@@ -47,6 +49,7 @@ export async function recordUsage(ownerId: string, model: string, usage: UsageCo
       cache_read_tokens: usage.cache_read_tokens,
       cache_write_tokens: usage.cache_write_tokens,
       estimated_usd: estimated,
+      feature,
     });
     if (error) log.warn("ai_usage_write_failed", { message: error.message });
   } catch (err) {

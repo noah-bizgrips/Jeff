@@ -7,6 +7,22 @@ import { budgetStatus, recordUsage } from "./budget";
 
 export const JEFF_MODEL = process.env.JEFF_MODEL || "claude-opus-5";
 
+/** Tool results are evidence, not transcripts: keep them bounded so the loop stays cheap. */
+const TOOL_RESULT_MAX_CHARS = 12_000;
+
+/** Marks the last content block of the last message as a cache breakpoint (max 4 per request; system uses one). */
+function withCacheBreakpoint(messages: Anthropic.Beta.BetaMessageParam[]): Anthropic.Beta.BetaMessageParam[] {
+  if (!messages.length) return messages;
+  const last = messages[messages.length - 1]!;
+  const content = typeof last.content === "string" ? [{ type: "text" as const, text: last.content }] : [...last.content];
+  if (!content.length) return messages;
+  const tail = content[content.length - 1]!;
+  if (tail.type === "text" || tail.type === "tool_result") {
+    content[content.length - 1] = { ...tail, cache_control: { type: "ephemeral" } } as typeof tail;
+  }
+  return [...messages.slice(0, -1), { ...last, content }];
+}
+
 /**
  * System prompt is static (cacheable). Retrieved content is always wrapped
  * as untrusted evidence by the tools, and this prompt tells the model so.
@@ -88,7 +104,9 @@ export async function askJeff(turns: ChatTurn[], ctx: ToolContext, request?: Req
   const toolsUsed: string[] = [];
   const toolResultsRaw: unknown[] = [];
 
-  for (let iteration = 0; iteration < 8; iteration++) {
+  for (let iteration = 0; iteration < 6; iteration++) {
+    // Cache the conversation prefix so each tool-loop iteration re-reads prior context at ~10% cost.
+    const cachedMessages = withCacheBreakpoint(messages);
     const response = await client.beta.messages.create({
       model: JEFF_MODEL,
       max_tokens: 8000,
@@ -98,7 +116,7 @@ export async function askJeff(turns: ChatTurn[], ctx: ToolContext, request?: Req
       output_config: { effort: "medium" },
       system: [{ type: "text", text: JEFF_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
       tools: JEFF_TOOLS,
-      messages,
+      messages: cachedMessages,
     });
 
     spentThisRequest += await recordUsage(ctx.ownerId, response.model, {
@@ -106,7 +124,7 @@ export async function askJeff(turns: ChatTurn[], ctx: ToolContext, request?: Req
       output_tokens: response.usage.output_tokens,
       cache_read_tokens: response.usage.cache_read_input_tokens ?? 0,
       cache_write_tokens: response.usage.cache_creation_input_tokens ?? 0,
-    });
+    }, "chat");
 
     if (response.stop_reason === "refusal") {
       return { text: "I can't help with that request.", toolsUsed, citations: [], model: response.model };
@@ -135,7 +153,7 @@ export async function askJeff(turns: ChatTurn[], ctx: ToolContext, request?: Req
       try {
         const out = await runTool(tu.name, (tu.input ?? {}) as Record<string, unknown>, ctx);
         toolResultsRaw.push(out);
-        content = JSON.stringify(out).slice(0, 60_000);
+        content = JSON.stringify(out).slice(0, TOOL_RESULT_MAX_CHARS);
       } catch (err) {
         isError = true;
         content = JSON.stringify({ error: errorMessage(err) });

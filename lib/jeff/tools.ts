@@ -288,7 +288,7 @@ export async function runTool(name: string, input: ToolInput, ctx: ToolContext):
     }
     case "search_sources": {
       const query = String(input.query ?? "").slice(0, 200);
-      const limit = Math.min(Number(input.limit ?? 8), 20);
+      const limit = Math.min(Number(input.limit ?? 6), 12);
       let q = admin
         .from("source_items")
         .select("provider, capability, resource_type, external_id, title, summary, author, source_url, source_timestamp, tags")
@@ -380,7 +380,7 @@ export async function runTool(name: string, input: ToolInput, ctx: ToolContext):
         .select("id, category, title, observed_facts, metrics, interpretation, evidence, range_start, range_end, confidence, limitations, severity, status, created_at")
         .eq("owner_id", ctx.ownerId)
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(20);
       if (ctx.mode === "live") q = q.eq("is_sample", false);
       if (typeof input.status === "string") q = q.eq("status", input.status);
       const { data } = await q;
