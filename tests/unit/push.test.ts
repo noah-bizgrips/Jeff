@@ -2,12 +2,13 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { shouldPushAlert, shouldPushBriefing, type PushableAlert } from "@/lib/jeff/push/decide";
 import { DEFAULT_SETTINGS } from "@/lib/jeff/settings";
 import { classifyRoute } from "@/lib/auth/routes";
+import { alertEmoji, BRIEFING_EMOJI } from "@/lib/jeff/push/emoji";
 
 /* ------------------------------------------------------------------ */
 /* Decision matrix (pure)                                              */
 /* ------------------------------------------------------------------ */
 
-const denver = { timezone: "America/Denver", quiet_hours_start: "21:00", quiet_hours_end: "07:00" };
+const denver = { timezone: "America/Denver", quiet_hours_start: "21:00", quiet_hours_end: "07:00", push_goal_alerts: true, push_opportunity_alerts: true };
 // 2026-09-12 14:00 Denver (MDT, UTC-6) = 20:00Z → outside quiet hours
 const DAY = new Date("2026-09-12T20:00:00Z");
 // 2026-09-12 23:00 Denver = 05:00Z next day → inside quiet hours
@@ -27,6 +28,19 @@ describe("shouldPushAlert", () => {
   it("important alerts are held during quiet hours and when the toggle is off", () => {
     expect(shouldPushAlert(alert(), { push_alerts: true, ...denver }, NIGHT)).toBe(false);
     expect(shouldPushAlert(alert(), { push_alerts: false, ...denver }, DAY)).toBe(false);
+  });
+  it("goal alerts push at briefing importance when the goal toggle is on, not when off", () => {
+    const goal = alert({ kind: "goal", category: "goal_trajectory", importance: "briefing" });
+    expect(shouldPushAlert(goal, { push_alerts: false, ...denver }, DAY)).toBe(true);
+    expect(shouldPushAlert(goal, { push_alerts: true, ...denver, push_goal_alerts: false }, DAY)).toBe(false);
+    expect(shouldPushAlert(goal, { push_alerts: true, ...denver }, NIGHT)).toBe(false);
+  });
+  it("opportunity findings push at briefing importance with their own toggle; other findings need important+", () => {
+    const opp = alert({ kind: "finding", category: "lead_followup_gap", importance: "briefing" });
+    expect(shouldPushAlert(opp, { push_alerts: true, ...denver }, DAY)).toBe(true);
+    expect(shouldPushAlert(opp, { push_alerts: true, ...denver, push_opportunity_alerts: false }, DAY)).toBe(false);
+    const fin = alert({ kind: "finding", category: "failed_payment", importance: "briefing" });
+    expect(shouldPushAlert(fin, { push_alerts: true, ...denver }, DAY)).toBe(false);
   });
   it("deferred alerts wait for their deferral to pass", () => {
     const later = new Date(DAY.getTime() + 3_600_000).toISOString();
@@ -126,5 +140,17 @@ describe("sendPush", () => {
     const { sendPush } = await import("@/lib/jeff/push/send");
     expect(await sendPush("owner", { title: "T", body: "B", url: "/", tag: "t" })).toEqual({ attempted: 0, delivered: 0, disabled: 0, failed: 0 });
     expect(sendNotification).not.toHaveBeenCalled();
+  });
+});
+
+describe("notification emoji", () => {
+  it("assigns a distinct emoji per alert type", () => {
+    expect(alertEmoji({ kind: "goal", category: "goal_trajectory", importance: "briefing" })).toBe("🎯");
+    expect(alertEmoji({ kind: "finding", category: "failed_payment", importance: "important" })).toBe("💳");
+    expect(alertEmoji({ kind: "finding", category: "lead_followup_gap", importance: "briefing" })).toBe("🧲");
+    expect(alertEmoji({ kind: "finding", category: "automation_opportunity", importance: "briefing" })).toBe("💡");
+    expect(alertEmoji({ kind: "commitment", category: null, importance: "important" })).toBe("🤝");
+    expect(alertEmoji({ kind: "finding", category: "something_new", importance: "urgent" })).toBe("🚨");
+    expect(BRIEFING_EMOJI.daily).toBe("☀️");
   });
 });

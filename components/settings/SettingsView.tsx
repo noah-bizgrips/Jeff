@@ -135,6 +135,8 @@ export function SettingsView({ initial, vapidPublicKey = "" }: { initial: OwnerS
             <>
               {toggle("push_alerts", "Push alerts", "Important alerts outside quiet hours; urgent alerts always.")}
               {toggle("push_briefings", "Push briefings", "A notification when your daily brief or weekly/monthly review is ready.")}
+              {toggle("push_goal_alerts", "Push goal alerts", "🎯 Trajectory changes and goal recommendations, as they happen (quiet hours respected).")}
+              {toggle("push_opportunity_alerts", "Push opportunity alerts", "💡 Follow-up gaps, aging pipeline, acquisition and automation opportunities.")}
             </>
           }
         />

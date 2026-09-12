@@ -20,7 +20,7 @@ import { deliver } from "./deliver";
 import { dueBriefings, periodFor, periodInstants, type BriefingKind } from "./schedule";
 import { shouldPushBriefing } from "@/lib/jeff/push/decide";
 
-const BRIEF_PUSH_TITLE: Record<BriefingKind, string> = { daily: "Your Daily Brief", weekly: "Weekly review", monthly: "Monthly review" };
+const BRIEF_PUSH_TITLE: Record<BriefingKind, string> = { daily: "☀️ Your Daily Brief", weekly: "📊 Weekly review", monthly: "🗓️ Monthly review" };
 import { maxItemsFromMemories, type BriefingBundle, type BundleFinance } from "./bundle";
 import type { BriefingSummary } from "./schema";
 

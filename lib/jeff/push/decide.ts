@@ -1,4 +1,5 @@
 import { inQuietHours, type OwnerSettings, type Importance } from "@/lib/jeff/settings";
+import { isOpportunityCategory } from "./emoji";
 
 /**
  * Pure decision: should this alert be pushed to the owner's devices right now?
@@ -12,6 +13,8 @@ import { inQuietHours, type OwnerSettings, type Importance } from "@/lib/jeff/se
 export interface PushableAlert {
   id: string;
   status: string;
+  kind?: string;
+  category?: string | null;
   importance: Importance;
   deferred_until: string | null;
   pushed_at: string | null;
@@ -20,15 +23,26 @@ export interface PushableAlert {
 
 const RANK: Record<Importance, number> = { informational: 0, briefing: 1, important: 2, actionable: 2, urgent: 3 };
 
-export function shouldPushAlert(alert: PushableAlert, settings: Pick<OwnerSettings, "push_alerts" | "timezone" | "quiet_hours_start" | "quiet_hours_end">, now: Date): boolean {
+export function shouldPushAlert(
+  alert: PushableAlert,
+  settings: Pick<OwnerSettings, "push_alerts" | "push_goal_alerts" | "push_opportunity_alerts" | "timezone" | "quiet_hours_start" | "quiet_hours_end">,
+  now: Date,
+): boolean {
   if (alert.status !== "open") return false;
-  if ((RANK[alert.importance] ?? 0) < 2) return false;
+  // Goal and opportunity alerts have their own toggles and also push at "briefing" importance
+  // (they are rarely urgent but the owner asked to hear about them as they happen).
+  const isGoal = alert.kind === "goal";
+  const isOpportunity = alert.kind === "finding" && isOpportunityCategory(alert.category);
+  const minRank = (isGoal && settings.push_goal_alerts) || (isOpportunity && settings.push_opportunity_alerts) ? 1 : 2;
+  if ((RANK[alert.importance] ?? 0) < minRank) return false;
   if (alert.pushed_at && alert.pushed_importance) {
     const prev = RANK[alert.pushed_importance as Importance] ?? 0;
     if (RANK[alert.importance] <= prev) return false;
   }
   if (alert.importance === "urgent") return true;
-  if (!settings.push_alerts) return false;
+  if (isGoal && !settings.push_goal_alerts) return false;
+  if (isOpportunity && !settings.push_opportunity_alerts) return false;
+  if (!isGoal && !isOpportunity && !settings.push_alerts) return false;
   if (alert.deferred_until && Date.parse(alert.deferred_until) > now.getTime()) return false;
   if (inQuietHours(now, settings)) return false;
   return true;

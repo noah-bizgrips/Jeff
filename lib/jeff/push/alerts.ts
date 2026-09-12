@@ -2,10 +2,10 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSettings } from "@/lib/jeff/settings-store";
 import { shouldPushAlert, type PushableAlert } from "./decide";
+import { alertEmoji } from "./emoji";
 import { pushConfigured, sendPush } from "./send";
 import { log, errorMessage } from "@/lib/security/log";
 
-const PREFIX: Record<string, string> = { urgent: "Urgent", important: "Important", actionable: "Action available" };
 
 /**
  * Pushes every open alert that qualifies and has not been pushed at its
@@ -18,20 +18,20 @@ export async function pushPendingAlerts(ownerId: string, now = new Date()): Prom
   const settings = await getSettings(ownerId);
   const { data } = await admin
     .from("alerts")
-    .select("id, status, importance, title, summary, deferred_until, pushed_at, pushed_importance")
+    .select("id, status, kind, category, importance, title, summary, deferred_until, pushed_at, pushed_importance")
     .eq("owner_id", ownerId)
     .eq("status", "open")
-    .in("importance", ["important", "urgent", "actionable"])
+    .in("importance", ["briefing", "important", "urgent", "actionable"])
     .order("last_seen", { ascending: false })
     .limit(50);
-  const rows = (data ?? []) as (PushableAlert & { title: string; summary: string })[];
+  const rows = (data ?? []) as (PushableAlert & { kind: string; category: string | null; title: string; summary: string })[];
   let pushed = 0;
   for (const a of rows) {
     if (!shouldPushAlert(a, settings, now)) continue;
     try {
       const res = await sendPush(ownerId, {
-        title: `${PREFIX[a.importance] ?? "Alert"}: ${a.title}`,
-        body: a.summary || a.title,
+        title: `${alertEmoji(a)} ${a.title}`,
+        body: `${a.importance === "urgent" ? "Urgent · " : ""}${a.summary || a.title}`,
         url: "/alerts",
         tag: `alert:${a.id}`,
       });

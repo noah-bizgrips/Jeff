@@ -46,6 +46,8 @@ export const OwnerSettingsSchema = z
     brief_max_items: z.number().int().min(1).max(10),
     push_alerts: z.boolean(),
     push_briefings: z.boolean(),
+    push_goal_alerts: z.boolean(),
+    push_opportunity_alerts: z.boolean(),
   })
   .strict();
 export type OwnerSettings = z.infer<typeof OwnerSettingsSchema>;
@@ -77,6 +79,8 @@ export const DEFAULT_SETTINGS: OwnerSettings = {
   brief_max_items: 3,
   push_alerts: true,
   push_briefings: true,
+  push_goal_alerts: true,
+  push_opportunity_alerts: true,
 };
 
 export function withDefaults(row: Partial<OwnerSettings> | null | undefined): OwnerSettings {
