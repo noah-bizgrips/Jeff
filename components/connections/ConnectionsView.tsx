@@ -128,6 +128,15 @@ export function ConnectionsView({ catalog, requests: initialRequests }: { catalo
                   <span>{c.accountIdentifier ?? c.displayName}</span>
                   {c.lastTestAt ? <span>· tested {new Date(c.lastTestAt).toLocaleDateString()}</span> : null}
                   {c.lastError ? <span className="warning-copy">· {c.lastError}</span> : null}
+                  {c.metadata.last_test_details && typeof c.metadata.last_test_details === "object" ? (
+                    <span>
+                      ·{" "}
+                      {Object.entries(c.metadata.last_test_details as Record<string, unknown>)
+                        .filter(([, v]) => typeof v === "boolean")
+                        .map(([k, v]) => `${k} ${v ? "✓" : "✗"}`)
+                        .join(" ")}
+                    </span>
+                  ) : null}
                 </div>
               ))}
               <div className="connection-actions">
