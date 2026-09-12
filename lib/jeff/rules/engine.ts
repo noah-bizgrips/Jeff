@@ -190,6 +190,10 @@ export function classifyAuthor(row: Pick<SourceRow, "author" | "title" | "tags" 
   const meta = row.metadata ?? {};
   if (meta.author_type === "bot" || meta.author_type === "system") return meta.author_type as AuthorType;
   if (meta.is_bot === true) return "bot";
+  if (row.provider === "slack") {
+    if (meta.bot_id || meta.subtype === "bot_message") return "bot";
+    if (typeof meta.subtype === "string" && /join|leave|topic|purpose|archive|pinned/.test(meta.subtype)) return "system";
+  }
   if (labels.some((l) => SYSTEM_LABELS.has(l))) return "system";
   if (typeof meta.list_unsubscribe === "string" || meta.list_unsubscribe === true) return "system";
   if (sender && BOT_SENDER_PATTERNS.some((re) => re.test(sender))) return "bot";

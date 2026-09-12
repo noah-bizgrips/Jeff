@@ -53,6 +53,20 @@ export const JEFF_TOOLS: Anthropic.Beta.BetaTool[] = [
     },
   },
   {
+    name: "search_slack",
+    description:
+      "Searches the owner's Slack workspace messages (public channels the owner can see) via Slack's own search. Returns channel, author display name, a short snippet and a permalink — never files or emails. Use for questions about team conversations or decisions.",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Slack search query, e.g. 'Atlas credentials in:#project-atlas'" },
+        count: { type: "integer", minimum: 1, maximum: 20 },
+      },
+      required: ["query"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "get_calendar_context",
     description: "Upcoming synced calendar events within N days.",
     input_schema: {
@@ -285,6 +299,15 @@ export async function runTool(name: string, input: ToolInput, ctx: ToolContext):
       if (typeof input.resource_type === "string") q = q.eq("resource_type", input.resource_type);
       const { data } = await q;
       return evidence(redact(data ?? []));
+    }
+    case "search_slack": {
+      const query = String(input.query ?? "").trim().slice(0, 200);
+      if (!query) return { error: "query is required" };
+      const conn = (await listConnections(ctx.ownerId)).find((c) => c.provider === "slack" && ["connected", "limited"].includes(c.status));
+      if (!conn) return { error: "Slack is not connected" };
+      const { searchSlackMessages } = await import("@/lib/integrations/sync/slack");
+      const hits = await searchSlackMessages(conn, query, Math.min(Number(input.count ?? 10), 20));
+      return evidence(redact(hits));
     }
     case "get_calendar_context": {
       const days = Math.min(Number(input.days ?? 7), 30);
