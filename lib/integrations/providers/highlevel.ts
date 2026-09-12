@@ -3,6 +3,7 @@ import type { OAuthProviderAdapter, TestResult } from "./base";
 import { expiresAtFrom, fetchJson } from "./base";
 import { refreshAccessToken, type TokenResponse } from "@/lib/integrations/oauth";
 import { publicEnv, requireEnv } from "@/lib/env";
+import { redactString } from "@/lib/security/redact";
 import type { SecretBundle } from "@/lib/integrations/store";
 
 /**
@@ -87,7 +88,11 @@ export const highlevelAdapter: OAuthProviderAdapter = {
       }),
       cache: "no-store",
     });
-    if (!res.ok) throw new Error(`token_exchange_failed:${res.status}`);
+    if (!res.ok) {
+      // Provider error text is a short reason (e.g. "Invalid client credentials"); never includes our secret.
+      const detail = await res.text().then((t) => redactString(t).replace(/\s+/g, " ").slice(0, 200)).catch(() => "");
+      throw new Error(`token_exchange_failed:${res.status}:${detail}`);
+    }
     return (await res.json()) as HLTokens;
   },
   async onCallback(tokens: HLTokens) {

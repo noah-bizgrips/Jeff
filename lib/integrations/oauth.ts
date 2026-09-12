@@ -2,6 +2,7 @@ import "server-only";
 import { createHmac, randomBytes, createHash } from "node:crypto";
 import { cookies } from "next/headers";
 import { safeEqual } from "@/lib/crypto/secrets";
+import { redactString } from "@/lib/security/redact";
 import { publicEnv, requireEnv } from "@/lib/env";
 
 /**
@@ -173,7 +174,10 @@ export async function exchangeCode(cfg: OAuthProviderConfig, code: string, verif
     body = new URLSearchParams(params).toString();
   }
   const res = await fetch(cfg.tokenUrl, { method: "POST", headers, body, cache: "no-store" });
-  if (!res.ok) throw new Error(`token_exchange_failed:${res.status}`);
+  if (!res.ok) {
+    const detail = await res.text().then((t) => redactString(t).replace(/\s+/g, " ").slice(0, 200)).catch(() => "");
+    throw new Error(`token_exchange_failed:${res.status}:${detail}`);
+  }
   const json = (await res.json()) as TokenResponse;
   if (typeof json.access_token !== "string" && !(json as { ok?: boolean }).ok) {
     throw new Error("token_exchange_invalid_response");
