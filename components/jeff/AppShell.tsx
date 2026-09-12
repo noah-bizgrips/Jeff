@@ -23,6 +23,7 @@ const NAV: { href: string; icon: string; label: string; end?: "home" | "missions
   { href: "/connections", icon: "plug", label: "Connections" },
   { href: "/memory", icon: "brain", label: "Memory & rules" },
   { href: "/settings", icon: "sliders", label: "Settings" },
+  { href: "/guide", icon: "info", label: "How to use Jeff" },
   { href: "/security", icon: "lock", label: "Security & access" },
 ];
 
@@ -31,6 +32,7 @@ const TITLES: Record<string, [string, string, string]> = {
   "/alerts": ["What deserves attention", "Only what matters, when it matters. Quiet by default.", "Alerts"],
   "/briefings": ["Your briefings", "Daily brief, weekly operating review, monthly owner review.", "Briefings"],
   "/settings": ["How Jeff should behave", "Briefing times, quiet hours, notification thresholds, learning.", "Settings"],
+  "/guide": ["How to use Jeff", "Every area explained, and the habits that make Jeff useful.", "Guide"],
   "/goals": ["What you're aiming for", "Outcomes, the metrics behind them, and whether you're on pace.", "Goals"],
   "/missions": ["From intent to action", "Draft, review, and track work. No hidden production changes.", "Missions"],
   "/insights": ["Find the next improvement", "Evidence first. A specific action next. Outcomes after.", "Operations & insights"],
