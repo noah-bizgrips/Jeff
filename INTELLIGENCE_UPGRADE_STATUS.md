@@ -70,7 +70,12 @@ Migration `20260916000000_alerts_briefings.sql` (additive; **must be pushed with
 
 Tests: 251 total (33 new) — importance mapping incl. rules/settings/quiet hours (DST), §54 dedupe/cooldown/resolve lifecycle, grouping, goal and commitment candidates, commitment extraction/direction/context/dedupe/overdue, §55 ordering, §52 five-item cap (digits and words), weekly/monthly sections, model-addition guard, schema parity, schedule due windows (MDT/MST), period math, freshness levels, outcome math, settings allow-list, route auth for alerts/settings/briefings/cron.
 
-## Phase 16 — Tests/security review, preview deploy — IN PROGRESS (main session: push migration `20260916000000_alerts_briefings.sql`, deploy, run §50/§55 on real data)
+## Phase 16 — Tests/security review, preview deploy — DONE
+- `npm run verify` green: typecheck, lint, **251 tests**, production build.
+- Security review 2026-09-12: every API route guarded (owner+aal2, CRON_SECRET, or signature-verified webhook; public by design: health, session status, OAuth callback with inline owner check); RLS enabled on all public tables incl. the 12 new ones; only `NEXT_PUBLIC_APP_URL/SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY` are public; no secret patterns in git; Tier‑3 protected vocabulary refused by the rule engine.
+- Migrations applied to the production DB (additive): `20260914000000_memory_rules.sql`, `20260915000000_goals.sql`, `20260916000000_alerts_briefings.sql`.
+- Preview: https://jeff-hvrhb9xn4-noah-1259s-projects.vercel.app (gating verified: pages → /login, APIs 401, crons 401 without secret).
+- Production promotion pending owner go-ahead (the `/api/cron/briefings` schedule activates only on a production deploy).
 
 ## User configuration required
 - None for the memory/rules layer. Briefing time/timezone/quiet hours are configurable under Settings (defaults: 7:30 AM America/Denver, weekly review Monday 7:30, monthly on the 1st, quiet hours 21:00–07:00, minimum alert importance "important").
