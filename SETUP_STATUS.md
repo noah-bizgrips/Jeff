@@ -60,9 +60,9 @@ Last updated: 2026-09-11
 | Slack (user search/read scopes) | DONE | USER ACTION REQUIRED | Create Slack app; add `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` |
 | Notion (read-only) | DONE | USER ACTION REQUIRED | Create public integration; add `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET` |
 | HighLevel (read-only, per-location) | DONE | CONNECTED 2026-09-12 | Private Marketplace app (published), route slug `/api/oauth/crm`; location "BizGrips - Clients". |
-| Stripe (restricted key form + webhook) | DONE | USER ACTION REQUIRED | Create restricted read-only key (enter in Jeff UI); add `STRIPE_WEBHOOK_SECRET` |
-| Plaid / Financial Accounts (Link, exchange, webhook verify) | DONE | USER ACTION REQUIRED | Add `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ENV=sandbox` |
-| Meta (Ads/Pages/Instagram, v26.0, asset selection) | DONE | USER ACTION REQUIRED | Create Meta app; add `META_APP_ID`, `META_APP_SECRET` |
+| Stripe (restricted key form + webhook + sync) | DONE | CONNECTED 2026-09-12 | Restricted read-only key verified ("Bizgrips"). Webhook endpoint needs `STRIPE_WEBHOOK_SECRET` (placeholder in Vercel) — USER ACTION optional. |
+| Plaid / Financial Accounts (Link, exchange, webhook verify, transactions sync) | DONE | USER ACTION REQUIRED | Fill `PLAID_CLIENT_ID`, `PLAID_SECRET` placeholders (sandbox). |
+| Meta (Ads/Pages/Instagram, v26.0, asset selection) | DONE | USER ACTION REQUIRED | Fill `META_APP_ID`, `META_APP_SECRET` placeholders. |
 | GitHub App (JWT/installation tokens, repo selection, webhook) | DONE | USER ACTION REQUIRED | Create GitHub App; add `GITHUB_APP_*` vars |
 | n8n adapter (read all; write only `jeff-test` tagged) | DONE | USER ACTION REQUIRED | Add `N8N_BASE_URL`, `N8N_API_KEY` |
 
@@ -74,8 +74,8 @@ Last updated: 2026-09-11
 | Tool architecture (`lib/jeff/tools.ts`) | DONE | get_connection_status, search_sources, get_calendar_context, get_crm_pipeline, get_financial_summary, get_ad_performance, get_findings, list_missions, create_mission |
 | Claude technical worker (Vercel Sandbox) | NOT STARTED | Scaffolded via missions/approvals model; execution intentionally disabled in V1. |
 | "Add a service" (`service_requests`, classifier, UI) | DONE | No installs / remote code. |
-| `source_items` ingestion: Google (Gmail/Calendar/Drive) + HighLevel (contacts/opportunities/conversations/appointments) | DONE | Manual "Sync now" + Vercel cron every 30 min (`/api/cron/sync`). First Google sync: 480 records. |
-| `findings` model + Insights UI + 5 monitors (lead follow-up gap, pipeline aging, missed commitment, automation failure, calendar bottleneck) | DONE | Run after each cron sync or via "Run monitors now". |
+| `source_items` ingestion: Google, HighLevel, Stripe (charges/invoices/subscriptions/customers/refunds/disputes/balance/payouts), Plaid (transactions sync + balances) | DONE | Manual "Sync now" + Vercel cron every 30 min (`/api/cron/sync`). First Google sync: 480 records. |
+| `findings` model + Insights UI + 8 monitors (lead follow-up gap, pipeline aging, missed commitment, automation failure, calendar bottleneck, failed payment, cash-flow change, recurring expense change) | DONE | Run after each cron sync or via "Run monitors now". |
 | Demo/Live mode switch; sample data isolated | DONE | |
 
 ## Phase 23–24 — Vercel & Supabase
@@ -108,4 +108,4 @@ Last updated: 2026-09-11
 | --- | --- |
 | Preview URL tests | DONE |
 | Production deployment | DONE — 2026-09-11, alias jeff-noah-1259s-projects.vercel.app; owner login + TOTP enrollment verified on preview; health/gating/CSP/HSTS verified on production |
-| Connect services one by one | IN PROGRESS — Google ✓ · HighLevel ✓ · next: Stripe (restricted key), Plaid, Slack, Notion, Meta, GitHub, n8n |
+| Connect services one by one | IN PROGRESS — Google ✓ · HighLevel ✓ · Stripe ✓ · next: Meta, Plaid, Slack, Notion, GitHub, n8n |
