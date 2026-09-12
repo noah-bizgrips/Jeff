@@ -319,10 +319,16 @@ export function JeffProvider({ initial, children }: { initial: JeffInitial; chil
   );
 
   const refreshConnections = useCallback(async () => {
-    const res = await fetch("/api/connections", { cache: "no-store" });
-    if (!res.ok) return;
-    const data = (await res.json()) as { connections: ConnectionSummary[] };
-    setConnections(data.connections);
+    // One retry: the list can fail transiently right after a write.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await fetch("/api/connections", { cache: "no-store" }).catch(() => null);
+      if (res?.ok) {
+        const data = (await res.json()) as { connections: ConnectionSummary[] };
+        setConnections(data.connections);
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 800));
+    }
   }, []);
 
   const setMode = useCallback(

@@ -78,7 +78,7 @@ export async function listConnections(ownerId: string): Promise<ConnectionSummar
     .select(SUMMARY_COLUMNS)
     .eq("owner_id", ownerId)
     .order("created_at", { ascending: true });
-  if (error) throw new Error(`connections_list_failed:${error.code ?? ""}`);
+  if (error) throw new Error(`connections_list_failed:${error.code ?? ""}:${redactString(error.message ?? "").slice(0, 200)}`);
   return (data as unknown as ConnectionRow[]).map(toSummary);
 }
 
@@ -125,11 +125,11 @@ export async function upsertConnection(input: UpsertConnectionInput): Promise<Co
   let row: ConnectionRow;
   if (existing) {
     const { data, error } = await admin.from("connections").update(values).eq("id", existing.id).select(SUMMARY_COLUMNS).single();
-    if (error) throw new Error(`connection_update_failed:${error.code ?? ""}`);
+    if (error) throw new Error(`connection_update_failed:${error.code ?? ""}:${redactString(error.message ?? "").slice(0, 200)}`);
     row = data as unknown as ConnectionRow;
   } else {
     const { data, error } = await admin.from("connections").insert(values).select(SUMMARY_COLUMNS).single();
-    if (error) throw new Error(`connection_insert_failed:${error.code ?? ""}`);
+    if (error) throw new Error(`connection_insert_failed:${error.code ?? ""}:${redactString(error.message ?? "").slice(0, 200)}`);
     row = data as unknown as ConnectionRow;
   }
 
@@ -155,7 +155,7 @@ export async function writeSecret(connectionId: string, bundle: SecretBundle, ex
     },
     { onConflict: "connection_id" },
   );
-  if (error) throw new Error(`secret_write_failed:${error.code ?? ""}`);
+  if (error) throw new Error(`secret_write_failed:${error.code ?? ""}:${redactString(error.message ?? "").slice(0, 200)}`);
 }
 
 /**
@@ -209,6 +209,6 @@ export async function deleteConnection(ownerId: string, connectionId: string): P
   const admin = createAdminClient();
   // connection_secrets cascades on delete.
   const { error, count } = await admin.from("connections").delete({ count: "exact" }).eq("owner_id", ownerId).eq("id", connectionId);
-  if (error) throw new Error(`connection_delete_failed:${error.code ?? ""}`);
+  if (error) throw new Error(`connection_delete_failed:${error.code ?? ""}:${redactString(error.message ?? "").slice(0, 200)}`);
   return (count ?? 0) > 0;
 }
