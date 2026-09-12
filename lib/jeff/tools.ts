@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { listConnections } from "@/lib/integrations/store";
 import { PROVIDERS } from "@/lib/integrations/registry";
 import { redact } from "@/lib/security/redact";
+import { MEMORY_RULE_TOOLS, runMemoryRuleTool } from "@/lib/jeff/rules/tools";
 
 /**
  * Narrow, server-side tools exposed to the model. Each tool:
@@ -111,6 +112,7 @@ export const JEFF_TOOLS: Anthropic.Beta.BetaTool[] = [
       additionalProperties: false,
     },
   },
+  ...MEMORY_RULE_TOOLS,
 ];
 
 type ToolInput = Record<string, unknown>;
@@ -377,7 +379,10 @@ export async function runTool(name: string, input: ToolInput, ctx: ToolContext):
       if (error) return { error: "mission_create_failed" };
       return { created: data, note: "Draft only. The owner must review and approve before any work runs." };
     }
-    default:
+    default: {
+      const handled = await runMemoryRuleTool(name, input, ctx);
+      if (handled !== undefined) return handled;
       return { error: `unknown_tool:${name}` };
+    }
   }
 }

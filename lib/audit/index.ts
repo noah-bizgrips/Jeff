@@ -32,7 +32,17 @@ export type AuditEvent =
   | "service_request_created"
   | "webhook_received"
   | "webhook_rejected"
-  | "jeff_chat";
+  | "jeff_chat"
+  | "rule_created"
+  | "rule_updated"
+  | "rule_disabled"
+  | "rule_deleted"
+  | "rule_refused"
+  | "memory_created"
+  | "memory_updated"
+  | "memory_deleted"
+  | "findings_reprocessed"
+  | "finding_feedback";
 
 export interface AuditInput {
   event: AuditEvent;
