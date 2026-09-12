@@ -78,18 +78,33 @@ const transactions: CapabilityFetch = async (conn, cursor) => {
   return { items, seen, cursor: next ?? null, remove: remove.length ? { resource_type: "transaction", external_ids: remove } : undefined };
 };
 
+/**
+ * Account metadata + balances. Uses /accounts/get (no per-call charge; balances
+ * are as of Plaid's last transaction refresh) instead of /accounts/balance/get,
+ * which is billed per call and would run ~96×/day on the 30-minute cron.
+ * Real-time balances are available on demand via `refreshBalancesNow`.
+ */
 const accounts: CapabilityFetch = async (conn) => {
   const secret = await secretFor(conn);
   const client = plaidClient();
   let res;
   try {
-    res = await client.accountsBalanceGet({ access_token: secret.access_token });
+    res = await client.accountsGet({ access_token: secret.access_token });
   } catch (err) {
-    await failIfLoginRequired(conn, err, "accounts_balance");
+    await failIfLoginRequired(conn, err, "accounts_get");
   }
   const list = res!.data.accounts;
   return { items: list.map((a) => mapAccount(a, institutionOf(conn), secret.item_id)), seen: list.length };
 };
+
+/** Explicit, owner-triggered real-time balance refresh (billable per call). Not used by the cron. */
+export async function refreshBalancesNow(conn: Parameters<CapabilityFetch>[0]) {
+  const secret = await secretFor(conn);
+  const client = plaidClient();
+  const res = await client.accountsBalanceGet({ access_token: secret.access_token });
+  const list = res.data.accounts;
+  return { items: list.map((a) => mapAccount(a, institutionOf(conn), secret.item_id)), seen: list.length };
+}
 
 export const plaidSyncAdapter: SyncAdapter = {
   provider: "plaid",

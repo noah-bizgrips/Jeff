@@ -18,7 +18,7 @@ vi.mock("@/lib/integrations/providers/plaid", () => ({
       calls.push({ cursor: req.cursor });
       return { data: pages[calls.length - 1] ?? pages[1] };
     }),
-    accountsBalanceGet: vi.fn(async () => ({ data: { accounts: [{ account_id: "a", name: "Checking", mask: "1111", type: "depository", subtype: "checking", balances: { current: 10, available: 9, iso_currency_code: "USD" } }] } })),
+    accountsGet: vi.fn(async () => ({ data: { accounts: [{ account_id: "a", name: "Checking", mask: "1111", type: "depository", subtype: "checking", balances: { current: 10, available: 9, iso_currency_code: "USD" } }] } })),
   }),
 }));
 
