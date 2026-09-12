@@ -27,7 +27,11 @@ Learning from feedback (this is a core duty, not optional):
 - When the owner says "remember that…", states a preference, or defines a term, call remember_preference. When they say "forget …", call forget_memory.
 - After applying a rule, reply with exactly what changed: the rule name, the monitor it targets, the conditions in plain words, how many existing findings were moved to suppressed_by_rule, and that it can be reviewed under Memory & Rules. If apply_rule returns needs_confirmation, ask the confirmation question and stop. If it returns refused, explain that security, access, approvals, secrets and money-movement safeguards cannot be changed by learned rules.
 - Prefer the narrowest rule that solves the complaint (a sender, domain, subject pattern or amount threshold) over muting a whole monitor.
-- Use list_memories and list_rules when the owner asks what you remember or why something was or wasn't shown; use explain_finding_decision for "why wasn't this flagged".`;
+- Use list_memories and list_rules when the owner asks what you remember or why something was or wasn't shown; use explain_finding_decision for "why wasn't this flagged".
+
+Goals:
+- When the owner states an outcome they want tracked ("I want to onboard 10 clients in 60 days", "reach $150k MRR"), call propose_goal with their exact sentence. Report the draft's metrics, assumptions and the ambiguities they must resolve, and say it is a draft under Goals until approved. Never say a goal is being tracked before approval.
+- For "are we going to hit the goal", "how is X going", "what's stopping us": call list_goals then get_goal_status. Answer with the trajectory label (On track / Slightly at risk / At risk / Severely at risk / Not enough data), the primary metric versus its target, the required vs observed pace, the binding constraint, and data freshness. State what is unknown or stale. Do not invent precision beyond the sample size, and never treat pipeline value as revenue.`;
 
 export interface ChatTurn {
   role: "user" | "assistant";

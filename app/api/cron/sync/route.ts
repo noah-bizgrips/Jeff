@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { syncAllForOwner } from "@/lib/integrations/sync/runner";
 import { errorMessage, log } from "@/lib/security/log";
 import { runMonitorsForOwner } from "@/lib/jeff/monitors";
+import { refreshGoals } from "@/lib/jeff/goals/refresh";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -36,8 +37,18 @@ export const GET = withErrorBoundary(async (req) => {
       log.warn("cron_monitors_failed", { message: errorMessage(err) });
     }
   }
+  // Goals are refreshed from the same fresh data; failures never fail the cron.
+  let goals: { refreshed: number; changed: number } | { error: string } = { error: "skipped" };
+  try {
+    const results = await refreshGoals(owner.user_id);
+    goals = { refreshed: results.length, changed: results.filter((r) => r.changed).length };
+  } catch (err) {
+    goals = { error: errorMessage(err) };
+    log.warn("cron_goals_failed", { message: errorMessage(err) });
+  }
   return json({
     ok: true,
+    goals,
     synced: summaries.map((s) => ({ provider: s.provider, results: s.results.map((r) => ({ capability: r.capability, seen: r.seen, upserted: r.upserted, error: r.error ?? null })) })),
     monitors,
   });

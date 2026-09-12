@@ -5,6 +5,7 @@ import { listConnections } from "@/lib/integrations/store";
 import { PROVIDERS } from "@/lib/integrations/registry";
 import { redact } from "@/lib/security/redact";
 import { MEMORY_RULE_TOOLS, runMemoryRuleTool } from "@/lib/jeff/rules/tools";
+import { GOAL_TOOLS, runGoalTool } from "@/lib/jeff/goals/tools";
 
 /**
  * Narrow, server-side tools exposed to the model. Each tool:
@@ -113,6 +114,7 @@ export const JEFF_TOOLS: Anthropic.Beta.BetaTool[] = [
     },
   },
   ...MEMORY_RULE_TOOLS,
+  ...GOAL_TOOLS,
 ];
 
 type ToolInput = Record<string, unknown>;
@@ -382,6 +384,8 @@ export async function runTool(name: string, input: ToolInput, ctx: ToolContext):
     default: {
       const handled = await runMemoryRuleTool(name, input, ctx);
       if (handled !== undefined) return handled;
+      const goal = await runGoalTool(name, input, ctx);
+      if (goal !== undefined) return goal;
       return { error: `unknown_tool:${name}` };
     }
   }

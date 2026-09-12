@@ -42,7 +42,12 @@ export type AuditEvent =
   | "memory_updated"
   | "memory_deleted"
   | "findings_reprocessed"
-  | "finding_feedback";
+  | "finding_feedback"
+  | "goal_created"
+  | "goal_approved"
+  | "goal_updated"
+  | "goal_deleted"
+  | "goal_recommendation_prepared";
 
 export interface AuditInput {
   event: AuditEvent;
