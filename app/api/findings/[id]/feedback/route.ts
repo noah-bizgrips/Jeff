@@ -12,7 +12,7 @@ import { describeRule } from "@/lib/jeff/rules/schema";
 export const dynamic = "force-dynamic";
 
 const Body = z.object({
-  verdict: z.enum(["useful", "not_useful", "wrong", "too_noisy", "dont_show", "change_rule"]),
+  verdict: z.enum(["useful", "not_useful", "wrong", "too_noisy", "dont_show", "change_rule", "already_knew"]),
   note: z.string().trim().max(500).optional(),
 });
 
@@ -33,12 +33,14 @@ export const POST = withErrorBoundary(async (req, ctx) => {
   const loaded = await loadFindingForRule(g.session.userId, id!);
   if (!loaded) return apiError("finding_not_found", 404);
   const admin = createAdminClient();
+  const { data: fRow } = await admin.from("findings").select("job_id").eq("id", id!).eq("owner_id", g.session.userId).maybeSingle();
+  const jobId = (fRow as { job_id?: string | null } | null)?.job_id ?? null;
 
   let ruleId: string | null = null;
   let created = null;
   let suppressed = 0;
   let proposed = null;
-  const inferred = body.data.verdict === "dont_show" || body.data.verdict === "change_rule" || body.data.verdict === "too_noisy" ? inferNarrowRule(loaded.finding, loaded.evidenceRow) : null;
+  const inferred = body.data.verdict === "dont_show" || body.data.verdict === "change_rule" || body.data.verdict === "too_noisy" || body.data.verdict === "already_knew" ? inferNarrowRule(loaded.finding, loaded.evidenceRow) : null;
 
   if (body.data.verdict === "dont_show") {
     if (!inferred) {
@@ -58,11 +60,15 @@ export const POST = withErrorBoundary(async (req, ctx) => {
     proposed = inferred ? { ...inferred, summary: describeRule(inferred) } : null;
   } else if (body.data.verdict === "wrong" || body.data.verdict === "not_useful") {
     await admin.from("findings").update({ status: "dismissed" }).eq("id", id!).eq("owner_id", g.session.userId);
+  } else if (body.data.verdict === "already_knew") {
+    // Not wrong, not useful as an alert: acknowledge quietly so it stops competing for attention.
+    await admin.from("findings").update({ status: "acknowledged" }).eq("id", id!).eq("owner_id", g.session.userId);
+    proposed = inferred ? { ...inferred, summary: describeRule(inferred) } : null;
   } else if (body.data.verdict === "useful") {
     await admin.from("findings").update({ status: "accepted" }).eq("id", id!).eq("owner_id", g.session.userId);
   }
 
-  const { error } = await admin.from("finding_feedback").insert({ owner_id: g.session.userId, finding_id: id, verdict: body.data.verdict, note: body.data.note ?? null, rule_id: ruleId });
+  const { error } = await admin.from("finding_feedback").insert({ owner_id: g.session.userId, finding_id: id, verdict: body.data.verdict, note: body.data.note ?? null, rule_id: ruleId, job_id: jobId });
   if (error) return apiError("feedback_failed", 500);
   await audit({ event: "finding_feedback", ownerId: g.session.userId, targetId: id, request: req, metadata: { verdict: body.data.verdict, rule_id: ruleId } });
   return json({ ok: true, verdict: body.data.verdict, rule: created, suppressed, proposed });

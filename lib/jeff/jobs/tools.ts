@@ -3,7 +3,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { audit } from "@/lib/audit";
 import { redact } from "@/lib/security/redact";
 import { createJobFromDescription, ensureJobs, presentJobs } from "./index";
-import { getJob, listRuns, updateJob } from "./store";
+import { listRuns, updateJob } from "./store";
 import { runJob } from "./runner";
 import { NotificationPolicySchema } from "./types";
 

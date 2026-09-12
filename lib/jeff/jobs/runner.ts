@@ -219,10 +219,11 @@ export async function applyNotificationPolicy(ownerId: string, job: JobRow, find
   return adjusted;
 }
 
-export async function runJob(ownerId: string, job: JobRow, opts: { mode: RunMode; now?: Date }): Promise<JobRunOutcome> {
+export async function runJob(ownerId: string, job: JobRow, opts: { mode: RunMode; now?: Date; onStart?: (runId: string) => void }): Promise<JobRunOutcome> {
   const now = opts.now ?? new Date();
   const mode = opts.mode;
   const runId = await startRun(ownerId, job.id, mode, now);
+  opts.onStart?.(runId);
   const stats = emptyStats();
   const notes: string[] = [];
   let coverage: CoverageEntry[] = [];
