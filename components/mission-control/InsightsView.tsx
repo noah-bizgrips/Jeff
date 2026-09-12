@@ -95,6 +95,30 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
   function onStatus(id: string, status: string) {
     setFindings((list) => list.map((x) => (x.id === id ? { ...x, status } : x)));
   }
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  function toggleSelect(id: string) {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+  async function bulk(ids: string[], status: "dismissed" | "resolved" | "open") {
+    if (!ids.length) return;
+    setBulkBusy(true);
+    try {
+      const res = await fetch("/api/findings/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids, status }) });
+      const d = (await res.json().catch(() => null)) as { changed?: number; error?: string } | null;
+      if (!res.ok) return jeff.toast(`Could not update findings (${d?.error ?? res.status}).`);
+      setFindings((list) => list.map((x) => (ids.includes(x.id) ? { ...x, status } : x)));
+      setSelected(new Set());
+      jeff.toast(`${d?.changed ?? ids.length} finding${(d?.changed ?? ids.length) === 1 ? "" : "s"} ${status}.`);
+    } finally {
+      setBulkBusy(false);
+    }
+  }
 
   async function runMonitors() {
     setRunning(true);
@@ -178,6 +202,37 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
           ))}
         </div>
       ) : null}
+      {!demo && shown.length ? (
+        <div className="view-toolbar" style={{ marginTop: 0 }}>
+          <p>
+            {selected.size ? `${selected.size} selected` : "Select findings to act on them together."}{" "}
+            <button className="text-button" type="button" onClick={() => setSelected(new Set(shown.map((f) => f.id)))}>
+              Select all shown
+            </button>
+            {selected.size ? (
+              <>
+                {" · "}
+                <button className="text-button" type="button" onClick={() => setSelected(new Set())}>
+                  Clear
+                </button>
+              </>
+            ) : null}
+          </p>
+          <div style={{ display: "flex", gap: 8 }}>
+            {view === "active" ? (
+              <button className="button secondary" type="button" disabled={bulkBusy || !selected.size} onClick={() => bulk([...selected], "dismissed")}>
+                <Icon name="x" />
+                Dismiss selected
+              </button>
+            ) : (
+              <button className="button secondary" type="button" disabled={bulkBusy || !selected.size} onClick={() => bulk([...selected], "open")}>
+                <Icon name="refresh" />
+                Reopen selected
+              </button>
+            )}
+          </div>
+        </div>
+      ) : null}
       <div className="insight-grid">
         {demo
           ? demoInsights.map((i) => (
@@ -192,16 +247,31 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
               </article>
             ))
           : shown.map((f) => (
-              <article className="insight-card" key={f.id}>
-                <span className="mini-eyebrow">{CATEGORY_LABEL[f.category] ?? f.category.toUpperCase()}</span>
+              <article className={`insight-card ${selected.has(f.id) ? "selected" : ""}`} key={f.id}>
+                <label className="insight-select">
+                  <input type="checkbox" checked={selected.has(f.id)} onChange={() => toggleSelect(f.id)} aria-label={`Select ${f.title}`} />
+                  <span className="mini-eyebrow">{CATEGORY_LABEL[f.category] ?? f.category.toUpperCase()}</span>
+                </label>
                 <h3>{f.title}</h3>
                 <p>{f.interpretation ?? "No interpretation recorded."}</p>
                 <span className="evidence-count">
                   {f.evidence.length} evidence item{f.evidence.length === 1 ? "" : "s"} · {f.severity} · {f.status}
                 </span>
-                <button className="button secondary" type="button" onClick={() => jeff.openModal(<FindingModal f={f} onPrepare={prepare} onStatus={onStatus} />)}>
-                  Review finding <Icon name="arrowUpRight" />
-                </button>
+                <div className="insight-actions">
+                  <button className="button secondary" type="button" onClick={() => jeff.openModal(<FindingModal f={f} onPrepare={prepare} onStatus={onStatus} />)}>
+                    Review <Icon name="arrowUpRight" />
+                  </button>
+                  {ACTIVE.includes(f.status) ? (
+                    <button className="button secondary" type="button" disabled={bulkBusy} onClick={() => bulk([f.id], "dismissed")} title="Dismiss this finding">
+                      <Icon name="x" />
+                      Dismiss
+                    </button>
+                  ) : (
+                    <button className="button secondary" type="button" disabled={bulkBusy} onClick={() => bulk([f.id], "open")}>
+                      Reopen
+                    </button>
+                  )}
+                </div>
               </article>
             ))}
       </div>

@@ -4116,3 +4116,24 @@ dialog::backdrop {
     grid-template-columns: 1fr;
   }
 }
+
+/* Insights: selection + inline actions */
+.insight-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-dim);
+}
+.insight-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.insight-select input {
+  accent-color: var(--accent);
+}
+.insight-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
