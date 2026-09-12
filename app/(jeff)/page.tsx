@@ -13,6 +13,8 @@ import { resolveOwnerSession } from "@/lib/auth/session";
 import { latestSnapshot, listGoalMetrics, listGoals } from "@/lib/jeff/goals/store";
 import { TRAJECTORY_LABEL } from "@/lib/jeff/goals/schema";
 import { formatMetricValue, formatTarget } from "@/lib/jeff/goals/metrics";
+import { connectedProviders, ensureJobs } from "@/lib/jeff/jobs";
+import type { JobsSummary } from "@/components/jobs/BlindSpotScan";
 
 export const dynamic = "force-dynamic";
 
@@ -81,5 +83,27 @@ export default async function Home() {
       };
     }
   }
-  return <MissionControl topInsight={top} goalsAtRisk={goalsAtRisk} focus={focus} />;
+  let jobs: JobsSummary | null = null;
+  if (mode === "live") {
+    const supabase = await createClient();
+    const session = await resolveOwnerSession(supabase);
+    if (session.status === "owner") {
+      const all = await ensureJobs(session.userId).catch(() => []);
+      if (all.length) {
+        const connected: string[] = await connectedProviders(session.userId).catch(() => []);
+        const active = all.filter((j) => j.status === "active");
+        const lastRuns = all.map((j) => j.last_run_at).filter((x): x is string => !!x).sort();
+        const nextRuns = active.map((j) => j.next_run_at).filter((x): x is string => !!x).sort();
+        jobs = {
+          active: active.length,
+          total: all.length,
+          limited: active.filter((j) => j.sources.some((s) => !connected.includes(s))).length,
+          lastRunAt: lastRuns[lastRuns.length - 1] ?? null,
+          nextRunAt: nextRuns[0] ?? null,
+          scannerStatus: all.find((j) => j.slug === "blind-spot-scanner")?.status ?? null,
+        };
+      }
+    }
+  }
+  return <MissionControl topInsight={top} goalsAtRisk={goalsAtRisk} focus={focus} jobs={jobs} />;
 }

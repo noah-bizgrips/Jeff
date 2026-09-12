@@ -45,6 +45,7 @@ const ICON_PATHS: Record<string, string> = {
   target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/><path d="M12 3v3m0 12v3M3 12h3m12 0h3"/>',
   bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4l2-2Z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
   inbox: '<path d="M3 13l2-8h14l2 8v6H3v-6Z"/><path d="M3 13h5l1.5 2h5L16 13h5"/>',
+  briefcase: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 12h18M12 11v3"/>',
 };
 
 export type IconName = keyof typeof ICON_PATHS;

@@ -11,6 +11,7 @@ import { linksFor } from "@/lib/jeff/retrieve";
 import { looksSensitiveClient } from "@/lib/security/client-redact";
 import type { DemoInsight } from "@/lib/jeff/demo-data";
 import { PushPrompt } from "@/components/jeff/PushPrompt";
+import { BlindSpotScanButton, JobsStatusLine, type JobsSummary } from "@/components/jobs/BlindSpotScan";
 
 type CommandMode = "prepare" | "ask" | "run";
 
@@ -60,7 +61,7 @@ export interface FocusData {
   freshness: string[];
 }
 
-export function MissionControl({ topInsight, goalsAtRisk = [], focus = null }: { topInsight: DemoInsight | null; goalsAtRisk?: GoalRiskItem[]; focus?: FocusData | null }) {
+export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, jobs = null }: { topInsight: DemoInsight | null; goalsAtRisk?: GoalRiskItem[]; focus?: FocusData | null; jobs?: JobsSummary | null }) {
   const jeff = useJeff();
   const brain = useRef<BrainHandle>(null);
   const [zoom, setZoom] = useState(1);
@@ -154,6 +155,12 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null }: {
         </span>
       </div>
       {jeff.mode === "live" ? <PushPrompt /> : null}
+      {jeff.mode === "live" ? (
+        <section className="jobs-strip" aria-label="Jeff's Jobs">
+          <JobsStatusLine summary={jobs} />
+          <BlindSpotScanButton disabled={jobs?.scannerStatus === "disabled"} />
+        </section>
+      ) : null}
 
       {jeff.mode === "live" && focus ? (
         <section className="focus-grid" aria-label="Operating focus">

@@ -1,6 +1,7 @@
 import { json, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
 import { connectedProviders, listTemplates } from "@/lib/jeff/jobs";
+import { DETECTOR_SPECS } from "@/lib/jeff/jobs/detectors";
 
 export const dynamic = "force-dynamic";
 
@@ -10,5 +11,6 @@ export const GET = withErrorBoundary(async (req) => {
   if (!g.ok) return g.response;
   const connected = await connectedProviders(g.session.userId);
   const templates = listTemplates().map((t) => ({ ...t, missing_sources: (t.scaffold?.sources ?? []).filter((s: string) => !connected.includes(s)) }));
-  return json({ templates, connected });
+  const detectors = DETECTOR_SPECS.map((d) => ({ id: d.id, label: d.label, kind: d.kind, sources: d.sources }));
+  return json({ templates, connected, detectors });
 });

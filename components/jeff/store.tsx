@@ -126,7 +126,7 @@ export function JeffProvider({ initial, children }: { initial: JeffInitial; chil
 
   // Apply wide-page layout for operational views; close phone drawers on navigation.
   useEffect(() => {
-    const wide = ["/missions", "/insights", "/approvals", "/connections", "/security", "/guide", "/memory"].some((p) => pathname.startsWith(p));
+    const wide = ["/missions", "/insights", "/approvals", "/connections", "/security", "/guide", "/memory", "/jobs"].some((p) => pathname.startsWith(p));
     document.body.classList.toggle("wide-page", wide);
     // Page views feed blind-spot detection (what the owner is NOT looking at). Throttled per path.
     if (document.body.dataset.jeffMode === "live") noteAttention({ kind: "page_viewed", path: pathname });

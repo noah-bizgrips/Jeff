@@ -279,7 +279,7 @@ const ACTIONS: { value: RuleAction["type"]; label: string }[] = [
   { value: "require_min_confidence", label: "Require minimum confidence" },
 ];
 
-export function RuleEditor({ rule, proposed, onSaved }: { rule?: PresentedRule; proposed?: { name: string; target_monitor: string | null; conditions: RuleCondition; action: RuleAction; description?: string }; onSaved: () => Promise<void> }) {
+export function RuleEditor({ rule, proposed, onSaved, targetJob }: { rule?: PresentedRule; proposed?: { name: string; target_monitor: string | null; conditions: RuleCondition; action: RuleAction; description?: string }; onSaved: () => Promise<void>; /** Scope a new rule to one of Jeff's Jobs (slug); global monitors ignore it. */ targetJob?: string }) {
   const jeff = useJeff();
   const seed = rule ?? proposed;
   const [name, setName] = useState(seed?.name ?? "");
@@ -326,7 +326,7 @@ export function RuleEditor({ rule, proposed, onSaved }: { rule?: PresentedRule; 
       const payload = { name, target_monitor: target || null, conditions: buildConditions(), action: buildAction(), rule_type: actionType === "suppress_alert" || actionType === "escalate" ? "alert_policy" : "monitor_filter", target_system: actionType === "suppress_alert" || actionType === "escalate" ? "alerts" : "monitors" };
       const res = rule
         ? await fetch(`/api/rules/${rule.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: payload.name, target_monitor: payload.target_monitor, conditions: payload.conditions, action: payload.action, rule_type: payload.rule_type }) })
-        : await fetch("/api/rules", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, description: proposed?.description }) });
+        : await fetch("/api/rules", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, description: proposed?.description, target_job: targetJob ?? null }) });
       const d = (await res.json().catch(() => null)) as { error?: string; reason?: string; suppressed?: number } | null;
       if (!res.ok) return setError(d?.reason ?? d?.error ?? `HTTP ${res.status}`);
       await onSaved();
