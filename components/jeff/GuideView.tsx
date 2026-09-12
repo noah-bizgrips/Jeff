@@ -174,6 +174,7 @@ const SECTIONS: Section[] = [
     what: "Settings controls timing and thresholds; Security & access shows the enforced protections and the audit log.",
     how: [
       "Settings: timezone, Daily Brief time, weekly/monthly reviews, quiet hours, minimum alert importance, goal/opportunity/business/personal/financial notification toggles, and whether Jeff may learn from feedback and auto-apply safe rules.",
+      "Push notifications: on iPhone, open jeff.bizgrips.com in Safari → Share → Add to Home Screen, open Jeff from the home screen, then Settings → Notifications on this device → Enable push notifications (allow when asked). Send test notification confirms it. Urgent alerts always push; important ones respect quiet hours; the Daily Brief and reviews push when generated. Turn either off with the Push alerts / Push briefings toggles, or Disable on this device.",
       "Security & access: MFA status, owner binding, encryption, AI budget spend, connection count, and the audit trail of logins, connections, rules and approvals. Sign out revokes the session everywhere.",
       "Signing in always requires your password plus an authenticator code. There is no signup and no MFA bypass.",
     ],

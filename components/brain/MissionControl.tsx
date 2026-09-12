@@ -10,6 +10,7 @@ import { sourceDef } from "@/lib/jeff/sources";
 import { linksFor } from "@/lib/jeff/retrieve";
 import { looksSensitiveClient } from "@/lib/security/client-redact";
 import type { DemoInsight } from "@/lib/jeff/demo-data";
+import { PushPrompt } from "@/components/jeff/PushPrompt";
 
 type CommandMode = "prepare" | "ask" | "run";
 
@@ -152,6 +153,7 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null }: {
           )}
         </span>
       </div>
+      {jeff.mode === "live" ? <PushPrompt /> : null}
 
       {jeff.mode === "live" && focus ? (
         <section className="focus-grid" aria-label="Operating focus">

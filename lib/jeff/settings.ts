@@ -44,6 +44,8 @@ export const OwnerSettingsSchema = z
     auto_apply_safe_rules: z.boolean(),
     ask_before_major_changes: z.boolean(),
     brief_max_items: z.number().int().min(1).max(10),
+    push_alerts: z.boolean(),
+    push_briefings: z.boolean(),
   })
   .strict();
 export type OwnerSettings = z.infer<typeof OwnerSettingsSchema>;
@@ -73,6 +75,8 @@ export const DEFAULT_SETTINGS: OwnerSettings = {
   auto_apply_safe_rules: true,
   ask_before_major_changes: true,
   brief_max_items: 3,
+  push_alerts: true,
+  push_briefings: true,
 };
 
 export function withDefaults(row: Partial<OwnerSettings> | null | undefined): OwnerSettings {

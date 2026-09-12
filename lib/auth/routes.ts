@@ -3,9 +3,11 @@
  * it can run in the proxy runtime and in unit tests.
  */
 
-const PUBLIC_EXACT = new Set(["/login", "/unauthorized", "/privacy", "/api/health", "/api/auth/login", "/auth/callback", "/auth/signout"]);
+// sw.js and the manifest must be public: the browser fetches them without the workspace session
+// (service worker registration and install prompts), and they contain nothing owner-specific.
+const PUBLIC_EXACT = new Set(["/login", "/unauthorized", "/privacy", "/api/health", "/api/auth/login", "/auth/callback", "/auth/signout", "/sw.js", "/manifest.webmanifest"]);
 // /api/cron/ is authenticated by CRON_SECRET inside the handler, not by a session.
-const PUBLIC_PREFIXES = ["/api/webhooks/", "/api/cron/", "/_next/", "/favicon", "/icon", "/apple-icon", "/robots.txt"];
+const PUBLIC_PREFIXES = ["/api/webhooks/", "/api/cron/", "/_next/", "/favicon", "/icon", "/icons/", "/apple-icon", "/robots.txt"];
 
 // Owner-only but reachable at aal1 (needed to complete MFA).
 const AAL1_EXACT = new Set(["/mfa"]);
