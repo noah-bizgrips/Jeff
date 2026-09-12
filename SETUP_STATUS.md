@@ -56,7 +56,7 @@ Last updated: 2026-09-11
 | Provider | Code | Status | Owner action |
 | --- | --- | --- | --- |
 | Registry + status model + Connections UI | DONE | | |
-| Google (Gmail/Drive/Calendar, read-only, PKCE) | DONE | USER ACTION REQUIRED | Create OAuth client; add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
+| Google (Gmail/Drive/Calendar, read-only, PKCE) | DONE | CONNECTED 2026-09-11 | Internal OAuth client; all four probes pass. |
 | Slack (user search/read scopes) | DONE | USER ACTION REQUIRED | Create Slack app; add `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` |
 | Notion (read-only) | DONE | USER ACTION REQUIRED | Create public integration; add `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET` |
 | HighLevel (read-only, per-location) | DONE | USER ACTION REQUIRED | Create Marketplace app; add `HIGHLEVEL_CLIENT_ID`, `HIGHLEVEL_CLIENT_SECRET` |
@@ -108,4 +108,4 @@ Last updated: 2026-09-11
 | --- | --- |
 | Preview URL tests | DONE |
 | Production deployment | DONE — 2026-09-11, alias jeff-noah-1259s-projects.vercel.app; owner login + TOTP enrollment verified on preview; health/gating/CSP/HSTS verified on production |
-| Connect services one by one | IN PROGRESS — 1. Google (USER ACTION: create OAuth client) |
+| Connect services one by one | IN PROGRESS — Google ✓ · next: Google sync jobs, then HighLevel |
