@@ -173,7 +173,8 @@ export async function runMonitorsForOwner(ownerId: string, now = new Date()): Pr
   }
   const { candidates, errors, trace } = runMonitors(rows, now, MONITORS, rules);
 
-  const { data: existingRows } = await admin.from("findings").select("id, fingerprint, status").eq("owner_id", ownerId).not("fingerprint", "is", null);
+  // Blind spots are owned by lib/jeff/blindspots (its own daily lifecycle); never touch them here.
+  const { data: existingRows } = await admin.from("findings").select("id, fingerprint, status").eq("owner_id", ownerId).not("fingerprint", "is", null).neq("category", "blind_spot");
   const existing = new Map<string, { id: string; status: string }>();
   for (const r of existingRows ?? []) if (r.fingerprint) existing.set(r.fingerprint, { id: r.id, status: r.status });
 

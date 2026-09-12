@@ -26,6 +26,7 @@ export const MONITOR_IDS = [
   "lead_not_contacted",
   "client_unpaid_invoice",
   "client_ad_spend_no_leads",
+  "blind_spots",
 ] as const;
 export type MonitorId = (typeof MONITOR_IDS)[number];
 
@@ -62,6 +63,10 @@ export const MONITOR_ALIASES: Record<string, MonitorId> = {
   unpaid_invoices: "client_unpaid_invoice",
   client_ads: "client_ad_spend_no_leads",
   ad_spend_no_leads: "client_ad_spend_no_leads",
+  blind_spot: "blind_spots",
+  blindspot: "blind_spots",
+  blindspots: "blind_spots",
+  things_im_missing: "blind_spots",
 };
 
 export const MONITOR_LABELS: Record<MonitorId, string> = {
@@ -83,6 +88,7 @@ export const MONITOR_LABELS: Record<MonitorId, string> = {
   lead_not_contacted: "Uncontacted leads",
   client_unpaid_invoice: "Client unpaid invoices",
   client_ad_spend_no_leads: "Client ad spend without leads",
+  blind_spots: "Blind spots",
 };
 
 export function resolveMonitorId(id: string | null | undefined): MonitorId | null {

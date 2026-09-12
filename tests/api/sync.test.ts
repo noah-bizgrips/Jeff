@@ -20,6 +20,7 @@ vi.mock("@/lib/integrations/store", () => ({
       : null,
   ),
 }));
+vi.mock("@/lib/jeff/blindspots", () => ({ runBlindSpotsForOwner: vi.fn(async () => ({ ran: false, reason: "not_due", candidates: 0, excludedByRules: 0, created: 0, updated: 0, resolved: 0, deferredByCap: 0, usedModel: false, pushed: false, errors: [] })) }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({ from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { user_id: OWNER_ID } }) }) }) }) }),
 }));

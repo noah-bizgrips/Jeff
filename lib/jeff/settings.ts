@@ -48,6 +48,8 @@ export const OwnerSettingsSchema = z
     push_briefings: z.boolean(),
     push_goal_alerts: z.boolean(),
     push_opportunity_alerts: z.boolean(),
+    push_blind_spots: z.boolean(),
+    blind_spot_max_per_day: z.number().int().min(1).max(5),
   })
   .strict();
 export type OwnerSettings = z.infer<typeof OwnerSettingsSchema>;
@@ -81,6 +83,8 @@ export const DEFAULT_SETTINGS: OwnerSettings = {
   push_briefings: true,
   push_goal_alerts: true,
   push_opportunity_alerts: true,
+  push_blind_spots: true,
+  blind_spot_max_per_day: 2,
 };
 
 export function withDefaults(row: Partial<OwnerSettings> | null | undefined): OwnerSettings {

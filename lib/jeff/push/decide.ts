@@ -29,6 +29,7 @@ export function shouldPushAlert(
   now: Date,
 ): boolean {
   if (alert.status !== "open") return false;
+  if (alert.category === "blind_spot") return false; // batched daily by the blind-spot runner
   // Goal and opportunity alerts have their own toggles and also push at "briefing" importance
   // (they are rarely urgent but the owner asked to hear about them as they happen).
   const isGoal = alert.kind === "goal";

@@ -43,7 +43,8 @@ export type FindingCategory =
   | "client_unpaid_invoice"
   | "client_ad_spend_no_leads"
   | "operational_bottleneck"
-  | "automation_opportunity";
+  | "automation_opportunity"
+  | "blind_spot";
 
 export interface CandidateFinding {
   /** Stable identity: same condition → same fingerprint across runs. */

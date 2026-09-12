@@ -36,6 +36,7 @@ export type AuditEvent =
   | "push_subscribed"
   | "push_unsubscribed"
   | "push_sent"
+  | "blind_spots_run"
   | "rule_created"
   | "rule_updated"
   | "rule_disabled"

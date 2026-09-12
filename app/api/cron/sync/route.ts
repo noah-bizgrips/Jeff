@@ -10,6 +10,7 @@ import { runCommitmentsForOwner } from "@/lib/jeff/commitments/store";
 import { runAlertsForOwner } from "@/lib/jeff/alerts/store";
 import { rebuildClientMap } from "@/lib/jeff/clients/map";
 import { attributeSourceItems } from "@/lib/jeff/clients/attribution";
+import { runBlindSpotsForOwner } from "@/lib/jeff/blindspots";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -80,8 +81,17 @@ export const GET = withErrorBoundary(async (req) => {
     alerts = { error: errorMessage(err) };
     log.warn("cron_alerts_failed", { message: errorMessage(err) });
   }
+  // Blind spots run once per owner-local day (self-gated); failures never fail the cron.
+  let blindSpots: Awaited<ReturnType<typeof runBlindSpotsForOwner>> | { error: string } = { error: "skipped" };
+  try {
+    blindSpots = await runBlindSpotsForOwner(owner.user_id);
+  } catch (err) {
+    blindSpots = { error: errorMessage(err) };
+    log.warn("cron_blind_spots_failed", { message: errorMessage(err) });
+  }
   return json({
     ok: true,
+    blindSpots,
     clients,
     attribution,
     goals,

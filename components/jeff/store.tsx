@@ -6,6 +6,7 @@ import { SEED_DOCS, type JeffDoc } from "@/lib/jeff/demo-data";
 import { GRAPH_SOURCES, SOURCES, sourceDef } from "@/lib/jeff/sources";
 import { retrieve, extractiveAnswer } from "@/lib/jeff/retrieve";
 import { looksSensitiveClient } from "@/lib/security/client-redact";
+import { noteAttention } from "@/lib/jeff/attention/client";
 import type { ConnectionSummary } from "@/lib/integrations/types";
 
 export type Mode = "demo" | "live";
@@ -119,10 +120,16 @@ export function JeffProvider({ initial, children }: { initial: JeffInitial; chil
   const [toasts, setToasts] = useState<{ id: number; text: string }[]>([]);
   const lastFocus = useRef<Element | null>(null);
 
+  useEffect(() => {
+    document.body.dataset.jeffMode = mode;
+  }, [mode]);
+
   // Apply wide-page layout for operational views; close phone drawers on navigation.
   useEffect(() => {
     const wide = ["/missions", "/insights", "/approvals", "/connections", "/security", "/guide", "/memory"].some((p) => pathname.startsWith(p));
     document.body.classList.toggle("wide-page", wide);
+    // Page views feed blind-spot detection (what the owner is NOT looking at). Throttled per path.
+    if (document.body.dataset.jeffMode === "live") noteAttention({ kind: "page_viewed", path: pathname });
     // Drawers are overlays on small screens; a route change should always dismiss them.
     const t = setTimeout(() => {
       setSidebarOpen(false);

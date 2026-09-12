@@ -211,10 +211,19 @@ export function buildTemplate(b: BriefingBundle): BriefingSummary {
       })),
   ];
 
-  const signals: BriefingItem[] = b.findings
-    .filter((f) => ["open", "new", "accepted", "reviewing", "monitoring"].includes(f.status) && !FINANCE_CATEGORIES.has(f.category))
-    .slice(0, 8)
-    .map((f) => ({ title: f.title, detail: `${f.category.replace(/_/g, " ")} · ${f.severity}`, ref_kind: "finding" as const, ref_id: f.id, importance: "briefing" as const }));
+  const activeFindings = b.findings.filter((f) => ["open", "new", "accepted", "reviewing", "monitoring"].includes(f.status));
+  // Blind spots (max 2 lines) lead the business signals so "what you're not seeing" is never buried.
+  const blindSpots: BriefingItem[] = activeFindings
+    .filter((f) => f.category === "blind_spot")
+    .slice(0, 2)
+    .map((f) => ({ title: `👁️ Blind spot: ${f.title}`, detail: "Something you may not be noticing — evidence in Operations & insights.", ref_kind: "finding" as const, ref_id: f.id, importance: "briefing" as const }));
+  const signals: BriefingItem[] = [
+    ...blindSpots,
+    ...activeFindings
+      .filter((f) => f.category !== "blind_spot" && !FINANCE_CATEGORIES.has(f.category))
+      .slice(0, 8)
+      .map((f) => ({ title: f.title, detail: `${f.category.replace(/_/g, " ")} · ${f.severity}`, ref_kind: "finding" as const, ref_id: f.id, importance: "briefing" as const })),
+  ].slice(0, 10);
 
   const financial: BriefingSummary["financial"] = [];
   if (b.finance) {

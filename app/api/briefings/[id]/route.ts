@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { apiError, json, parseBody, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
+import { recordAttention } from "@/lib/jeff/attention/store";
 import { audit } from "@/lib/audit";
 import { getBriefing, updateBriefing } from "@/lib/jeff/briefings";
 
@@ -26,5 +27,6 @@ export const PATCH = withErrorBoundary(async (req, ctx) => {
   const briefing = await updateBriefing(g.session.userId, id!, body.data.action);
   if (!briefing) return apiError("briefing_not_found", 404);
   await audit({ event: "briefing_updated", ownerId: g.session.userId, targetId: id, request: req, metadata: { action: body.data.action } });
+  if (body.data.action === "read") void recordAttention(g.session.userId, [{ kind: "briefing_read", ref_id: id }]);
   return json({ briefing });
 });

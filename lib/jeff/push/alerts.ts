@@ -27,6 +27,8 @@ export async function pushPendingAlerts(ownerId: string, now = new Date()): Prom
   const rows = (data ?? []) as (PushableAlert & { kind: string; category: string | null; title: string; summary: string })[];
   let pushed = 0;
   for (const a of rows) {
+    // Blind spots are pushed as ONE daily batch by lib/jeff/blindspots (never per alert).
+    if (a.category === "blind_spot") continue;
     if (!shouldPushAlert(a, settings, now)) continue;
     try {
       const res = await sendPush(ownerId, {

@@ -137,6 +137,11 @@ export function SettingsView({ initial, vapidPublicKey = "" }: { initial: OwnerS
               {toggle("push_briefings", "Push briefings", "A notification when your daily brief or weekly/monthly review is ready.")}
               {toggle("push_goal_alerts", "Push goal alerts", "🎯 Trajectory changes and goal recommendations, as they happen (quiet hours respected).")}
               {toggle("push_opportunity_alerts", "Push opportunity alerts", "💡 Follow-up gaps, aging pipeline, acquisition and automation opportunities.")}
+              {toggle("push_blind_spots", "Push blind spots", "👁️ Once a day, things you may not be noticing — quiet clients, sources that stopped flowing, untracked drift.")}
+              <label className="field">
+                Blind spots per day (max)
+                <input type="number" min={1} max={5} value={s.blind_spot_max_per_day} onChange={(e) => set("blind_spot_max_per_day", Math.max(1, Math.min(5, Number(e.target.value) || 2)))} />
+              </label>
             </>
           }
         />

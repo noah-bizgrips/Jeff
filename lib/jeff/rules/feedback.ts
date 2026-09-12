@@ -22,6 +22,15 @@ export function inferNarrowRule(finding: FindingForRule, evidenceRow: SourceRow 
   const monitor = resolveMonitorId(finding.category) ?? null;
   const label = monitor ? MONITOR_LABELS[monitor] : "monitors";
   const base = { rule_type: "monitor_filter" as const, scope: "business" as const, target_system: "monitors" as const, target_monitor: monitor, action: { type: "exclude" as const }, priority: 100, enabled: true };
+  if (finding.category === "blind_spot") {
+    // Blind spots anchor on their own ref (a client, provider, metric, goal or commitment), never the whole detector.
+    const subtype = typeof finding.metrics.subtype === "string" ? finding.metrics.subtype : null;
+    const ref = typeof finding.metrics.ref === "string" ? finding.metrics.ref : null;
+    if (subtype && ref) {
+      return { ...base, target_monitor: "blind_spots", name: `Ignore blind spot "${subtype.replace(/_/g, " ")}" for ${ref}`.slice(0, 140), description: `Created from "Don't show this again" on: ${finding.title}`.slice(0, 1000), conditions: { metadata_equals: { subtype, ref } } };
+    }
+    return null;
+  }
   if (evidenceRow) {
     const sender = bareAddress(evidenceRow.author);
     const authorType = classifyAuthor(evidenceRow);
