@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { apiError, json, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { deleteConnection, getConnection, setConnectionStatus } from "@/lib/integrations/store";
+import { deleteConnection, getConnection, readSecret, setConnectionStatus } from "@/lib/integrations/store";
+import { removePlaidItem } from "@/lib/integrations/providers/plaid";
 import { audit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
@@ -26,8 +27,14 @@ export const DELETE = withErrorBoundary(async (req, ctx) => {
   if (!Id.safeParse(id).success) return apiError("invalid_id", 400);
   const conn = await getConnection(g.session.userId, id!);
   if (!conn) return apiError("connection_not_found", 404);
+  // Revoke at the provider where supported, then delete the encrypted secret and all synced records (cascade).
+  let revoked: boolean | null = null;
+  if (conn.provider === "plaid") {
+    const secret = await readSecret(conn.id);
+    revoked = secret ? await removePlaidItem(secret) : false;
+  }
   await deleteConnection(g.session.userId, id!);
-  await audit({ event: "connection_removed", ownerId: g.session.userId, provider: conn.provider, targetId: id, request: req });
+  await audit({ event: "connection_removed", ownerId: g.session.userId, provider: conn.provider, targetId: id, request: req, metadata: { providerRevoked: revoked } });
   return json({ ok: true });
 });
 

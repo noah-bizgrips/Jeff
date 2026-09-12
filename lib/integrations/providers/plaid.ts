@@ -109,3 +109,14 @@ export async function verifyPlaidWebhook(rawBody: string, verificationHeader: st
   verifier.end();
   return verifier.verify({ key: pub, dsaEncoding: "ieee-p1363" }, Buffer.from(sig, "base64url"));
 }
+
+/** Revokes the Item at Plaid so the access token is invalidated server-side (data-deletion policy). */
+export async function removePlaidItem(secret: SecretBundle): Promise<boolean> {
+  const s = secret as PlaidSecret;
+  try {
+    await plaidClient().itemRemove({ access_token: s.access_token });
+    return true;
+  } catch {
+    return false;
+  }
+}
