@@ -28,6 +28,7 @@ export async function runConnectionTest(conn: ConnectionSummary): Promise<TestRe
     lastTestOk: result.ok,
     lastError: result.ok ? null : (result.error ?? "test_failed"),
     accountIdentifier: result.accountIdentifier ?? conn.accountIdentifier,
+    metadata: { ...conn.metadata, last_test_details: result.details ?? null },
   });
   // Strip anything that might be sensitive before returning to a route.
   return { ok: result.ok, limited: result.limited, accountIdentifier: result.accountIdentifier ?? null, details: result.details, error: result.error };

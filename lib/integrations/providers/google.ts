@@ -96,7 +96,8 @@ export const googleAdapter: OAuthProviderAdapter = {
       headers: { Authorization: `Bearer ${token}` },
     });
     checks.drive = drive.status === 200;
-    const cal = await fetchJson("https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=1", {
+    // calendar.events.readonly permits reading events, not the calendar list — probe the primary calendar's events.
+    const cal = await fetchJson("https://www.googleapis.com/calendar/v3/calendars/primary/events?maxResults=1&singleEvents=true", {
       headers: { Authorization: `Bearer ${token}` },
     });
     checks.calendar = cal.status === 200;
