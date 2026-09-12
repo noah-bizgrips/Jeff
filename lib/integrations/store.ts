@@ -202,7 +202,7 @@ export async function setConnectionStatus(
   if (patch.metadata) update.metadata = patch.metadata;
   if (patch.lastSyncAt) update.last_sync_at = patch.lastSyncAt;
   const { error } = await admin.from("connections").update(update).eq("id", connectionId);
-  if (error) throw new Error(`connection_status_failed:${error.code ?? ""}`);
+  if (error) throw new Error(`connection_status_failed:${error.code ?? ""}:${redactString(error.message ?? "").slice(0, 200)}`);
 }
 
 export async function deleteConnection(ownerId: string, connectionId: string): Promise<boolean> {

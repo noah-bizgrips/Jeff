@@ -9,7 +9,7 @@ import { testN8n } from "./providers/n8n";
 import { testGithubApp } from "./providers/github";
 import { googleAccessToken, type GoogleSecret } from "./providers/google";
 import { highlevelAccessToken, type HighLevelSecret } from "./providers/highlevel";
-import { errorMessage } from "@/lib/security/log";
+import { errorMessage, log } from "@/lib/security/log";
 
 /**
  * Runs the harmless provider test for a stored connection and records the
@@ -23,13 +23,20 @@ export async function runConnectionTest(conn: ConnectionSummary): Promise<TestRe
   } catch (err) {
     result = { ok: false, error: errorMessage(err) };
   }
-  await setConnectionStatus(conn.id, {
-    status: result.ok ? (result.limited ? "limited" : "connected") : reconnectOrError(result.error),
-    lastTestOk: result.ok,
-    lastError: result.ok ? null : (result.error ?? "test_failed"),
-    accountIdentifier: result.accountIdentifier ?? conn.accountIdentifier,
-    metadata: { ...conn.metadata, last_test_details: result.details ?? null },
-  });
+  const finalStatus = result.ok ? (result.limited ? "limited" : "connected") : reconnectOrError(result.error);
+  try {
+    await setConnectionStatus(conn.id, {
+      status: finalStatus,
+      lastTestOk: result.ok,
+      lastError: result.ok ? null : (result.error ?? "test_failed"),
+      accountIdentifier: result.accountIdentifier ?? conn.accountIdentifier,
+      metadata: { ...conn.metadata, last_test_details: result.details ?? null },
+    });
+  } catch (err) {
+    // Never leave a connection stuck in "testing": record the outcome without the optional fields, then surface the error.
+    log.error("connection_status_write_failed", { connectionId: conn.id, message: errorMessage(err) });
+    await setConnectionStatus(conn.id, { status: finalStatus, lastTestOk: result.ok, lastError: result.ok ? null : (result.error ?? "test_failed") });
+  }
   // Strip anything that might be sensitive before returning to a route.
   return { ok: result.ok, limited: result.limited, accountIdentifier: result.accountIdentifier ?? null, details: result.details, error: result.error };
 }
