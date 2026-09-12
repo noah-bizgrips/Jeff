@@ -35,10 +35,18 @@ const GRAPH = `https://graph.facebook.com/${META_GRAPH_VERSION}`;
  * the same read-only permissions). When META_LOGIN_CONFIG_ID is set we send it
  * and omit `scope`, per Meta's guidance; otherwise the classic scope flow is used.
  */
+/** Permissions actually requested: META_SCOPES (comma list) narrows the default set to what the app has been granted. */
+export function metaRequestedScopes(): string[] {
+  const raw = process.env.META_SCOPES?.trim();
+  if (!raw) return META_PERMISSIONS;
+  const allowed = new Set([...META_PERMISSIONS, "email", "public_profile"]);
+  return raw.split(",").map((s) => s.trim()).filter((s) => allowed.has(s));
+}
+
 function authorizeExtras(): { extra: Record<string, string>; scopes: string[] } {
   const configId = process.env.META_LOGIN_CONFIG_ID?.trim();
   if (configId) return { extra: { config_id: configId, response_type: "code", override_default_response_type: "true" }, scopes: [] };
-  return { extra: {}, scopes: META_PERMISSIONS };
+  return { extra: {}, scopes: metaRequestedScopes() };
 }
 
 export const metaAdapter: OAuthProviderAdapter = {
@@ -99,7 +107,7 @@ export const metaAdapter: OAuthProviderAdapter = {
     if (me.status !== 200 || !me.body?.id) return { ok: false, error: `meta_me_failed:${me.status}` };
     const perms = await fetchJson<{ data?: { permission: string; status: string }[] }>(`${GRAPH}/me/permissions?${q}`);
     const granted = (perms.body?.data ?? []).filter((p) => p.status === "granted").map((p) => p.permission);
-    const missing = META_PERMISSIONS.filter((p) => !granted.includes(p));
+    const missing = metaRequestedScopes().filter((p) => !granted.includes(p));
     return {
       ok: true,
       limited: missing.length > 0,
