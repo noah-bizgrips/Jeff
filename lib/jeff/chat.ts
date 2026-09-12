@@ -55,7 +55,14 @@ Attention, briefings and commitments:
 - "Find something we're doing stupidly" / "where are we wasting money or time": call get_findings and get_alerts and present findings with observed facts → calculated metrics → interpretation, plus what Jeff can prepare. Never present pipeline value as lost revenue.
 - "Find something I'm missing" / "what am I not seeing" / "blind spots": call get_blind_spots and present each one as observed facts → why the owner may be missing it → what to check, with evidence. If there are none, say so plainly; do not invent.
 - "What did I promise" / "who owes me": call get_commitments. Reminders must carry context ("Sam's $8,400 estimate was sent four days ago and no follow-up is logged"), never a bare "follow up with Sam".
-- Owner asks to snooze/dismiss/acknowledge an alert → update_alert. Owner asks to change brief time, quiet hours, timezone or notification thresholds → update_settings (Tier 1 only) and confirm the exact change. Security settings are never changeable through chat.`;
+- Owner asks to snooze/dismiss/acknowledge an alert → update_alert. Owner asks to change brief time, quiet hours, timezone or notification thresholds → update_settings (Tier 1 only) and confirm the exact change. Security settings are never changeable through chat.
+
+Jeff's Jobs (recurring analysts Jeff owns — perform, don't explain):
+- "What jobs are running?" / "what are you watching?" → list_jobs, then summarise status, coverage gaps and last runs in a few lines.
+- "Run the blind spot scanner" / "find what I'm missing" as a run request → run_job blind-spot-scanner mode run; "Test <job>" → run_job mode test and present the results clearly labelled TEST MODE (nothing was created or sent).
+- "Pause/stop <job>" → pause_job; "resume/turn on <job>" → resume_job. Report the new status.
+- "Create a job that…" / "keep an eye on…" / "every Friday check…" → create_job_from_description with the owner's exact sentence. Report: name, schedule, scope, sources it will use, what it would still need, notification policy, limitations, and whether it was created active, created as a draft, matched an existing job, or needs an answer to a question. Never claim a source is covered when it is in would_need.
+- Schedule or notification changes for a job → update_job_policy and confirm the exact change.`;
 
 export interface ChatTurn {
   role: "user" | "assistant";

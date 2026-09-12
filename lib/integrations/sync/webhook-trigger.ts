@@ -44,6 +44,14 @@ export async function syncFromWebhook(provider: string, opts: { externalAccountI
     } catch (err) {
       log.warn("webhook_evaluate_failed", { provider, message: errorMessage(err) });
     }
+    // Event-driven Jobs whose sources include this provider run immediately (bounded; failures never propagate).
+    try {
+      const { listJobs, triggerJobsForEvent } = await import("@/lib/jeff/jobs");
+      const jobs = await listJobs(row.owner_id);
+      await triggerJobsForEvent(row.owner_id, jobs, provider);
+    } catch (err) {
+      log.warn("webhook_jobs_failed", { provider, message: errorMessage(err) });
+    }
   } catch (err) {
     log.warn("webhook_sync_failed", { provider, message: errorMessage(err) });
   }

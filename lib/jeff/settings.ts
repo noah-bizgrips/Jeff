@@ -50,6 +50,7 @@ export const OwnerSettingsSchema = z
     push_opportunity_alerts: z.boolean(),
     push_blind_spots: z.boolean(),
     blind_spot_max_per_day: z.number().int().min(1).max(5),
+    jobs_auto_create_safe: z.boolean(),
   })
   .strict();
 export type OwnerSettings = z.infer<typeof OwnerSettingsSchema>;
@@ -85,6 +86,7 @@ export const DEFAULT_SETTINGS: OwnerSettings = {
   push_opportunity_alerts: true,
   push_blind_spots: true,
   blind_spot_max_per_day: 2,
+  jobs_auto_create_safe: true,
 };
 
 export function withDefaults(row: Partial<OwnerSettings> | null | undefined): OwnerSettings {
