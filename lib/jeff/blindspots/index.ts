@@ -99,7 +99,20 @@ function evidenceBundle(ctx: BlindSpotContext, candidates: BlindSpotCandidate[])
   return out.slice(0, 200);
 }
 
-export async function runBlindSpotsForOwner(ownerId: string, now = new Date(), opts: { force?: boolean; skipAi?: boolean } = {}): Promise<BlindSpotRunSummary> {
+export type BlindSpotProgress = "preparing" | "reviewing_goals" | "business_signals" | "commitments" | "obligations" | "financial" | "patterns" | "novel" | "ranking" | "complete";
+
+export async function runBlindSpotsForOwner(
+  ownerId: string,
+  now = new Date(),
+  opts: { force?: boolean; skipAi?: boolean; onProgress?: (step: BlindSpotProgress) => Promise<void> | void } = {},
+): Promise<BlindSpotRunSummary> {
+  const progress = async (step: BlindSpotProgress) => {
+    try {
+      await opts.onProgress?.(step);
+    } catch {
+      /* progress reporting is best-effort */
+    }
+  };
   const admin = createAdminClient();
   const settings = await getSettings(ownerId);
   const { data: state } = await admin.from("owner_settings").select("blind_spots_last_run_at").eq("owner_id", ownerId).maybeSingle();
@@ -107,14 +120,19 @@ export async function runBlindSpotsForOwner(ownerId: string, now = new Date(), o
   const summary: BlindSpotRunSummary = { ran: false, candidates: 0, excludedByRules: 0, created: 0, updated: 0, resolved: 0, deferredByCap: 0, usedModel: false, pushed: false, errors: [] };
   if (!opts.force && !isDueToday(settings, lastRunAt, now)) return { ...summary, reason: "not_due" };
 
+  await progress("preparing");
   const ctx = await loadBlindSpotContext(ownerId, now);
+  await progress("reviewing_goals");
   const rules = await listRules(ownerId).catch(() => []);
+  await progress("business_signals");
   const detected = detectBlindSpots(ctx, rules);
+  await progress("patterns");
   summary.errors = detected.errors;
   summary.excludedByRules = detected.excluded;
 
   let candidates = detected.candidates;
   if (!opts.skipAi) {
+    await progress("novel");
     const bundle = evidenceBundle(ctx, candidates);
     const outcome = await reviewBlindSpots(ownerId, candidates, bundle);
     summary.usedModel = outcome.usedModel;
@@ -128,6 +146,7 @@ export async function runBlindSpotsForOwner(ownerId: string, now = new Date(), o
   for (const r of existingRows ?? []) if (r.fingerprint) existing.set(r.fingerprint, { id: r.id, status: r.status, created_at: r.created_at });
   const today = localTime(now, settings.timezone).date;
   const createdToday = [...existing.values()].filter((r) => localTime(new Date(r.created_at), settings.timezone).date === today).length;
+  await progress("ranking");
   const { pass, deferred } = applyDailyCap(candidates, new Set(existing.keys()), createdToday, settings.blind_spot_max_per_day);
   summary.deferredByCap = deferred.length;
 
@@ -174,6 +193,7 @@ export async function runBlindSpotsForOwner(ownerId: string, now = new Date(), o
   await recordRuleEvents(ownerId, detected.events);
   await admin.from("owner_settings").upsert({ owner_id: ownerId, blind_spots_last_run_at: nowIso }, { onConflict: "owner_id" });
   summary.ran = true;
+  await progress("complete");
 
   // Alerts for the new/updated findings, then a single daily push batch.
   try {

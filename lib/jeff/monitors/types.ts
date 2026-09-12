@@ -44,7 +44,10 @@ export type FindingCategory =
   | "client_ad_spend_no_leads"
   | "operational_bottleneck"
   | "automation_opportunity"
-  | "blind_spot";
+  | "blind_spot"
+  | "client_scope_creep"
+  | "goal_trajectory"
+  | "obligation";
 
 export interface CandidateFinding {
   /** Stable identity: same condition → same fingerprint across runs. */
@@ -61,6 +64,8 @@ export interface CandidateFinding {
   limitations: string;
   severity: "info" | "low" | "medium" | "high";
   proposed_mission: { title: string; goal: string } | null;
+  /** Set when the finding is about a specific goal (stamped onto findings.goal_id). */
+  goal_id?: string | null;
 }
 
 export interface MonitorContext {

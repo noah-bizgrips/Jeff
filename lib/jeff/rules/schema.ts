@@ -160,6 +160,8 @@ export const RuleInputSchema = z
     scope: ScopeSchema.default("business"),
     target_system: z.enum(["monitors", "alerts", "briefings", "chat"]).default("monitors"),
     target_monitor: z.string().max(60).nullable().optional(),
+    /** Job slug: the rule applies only inside that job's runs (Jeff's Jobs). */
+    target_job: z.string().max(60).nullable().optional(),
     conditions: RuleConditionSchema.default({}),
     action: RuleActionSchema.default({ type: "exclude" }),
     priority: z.number().int().min(0).max(1000).default(100),
@@ -181,6 +183,7 @@ export interface OperatingRule extends RuleInput {
   last_triggered_at: string | null;
   trigger_count: number;
   target_monitor: string | null;
+  target_job?: string | null;
 }
 
 export const MemoryCategorySchema = z.enum(["preference", "definition", "working_style", "priority", "dislike", "business_context", "personal_context", "communication_style", "exception"]);

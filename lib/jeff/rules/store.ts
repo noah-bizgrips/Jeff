@@ -11,7 +11,7 @@ import { classifyTier } from "./tiers";
  */
 
 const RULE_COLUMNS =
-  "id, owner_id, name, description, rule_type, scope, target_system, target_monitor, conditions, action, priority, tier, enabled, pending_confirmation, source, source_quote, created_by, created_at, updated_at, last_triggered_at, trigger_count";
+  "id, owner_id, name, description, rule_type, scope, target_system, target_monitor, target_job, conditions, action, priority, tier, enabled, pending_confirmation, source, source_quote, created_by, created_at, updated_at, last_triggered_at, trigger_count";
 
 export function rowToRule(r: Record<string, unknown>): OperatingRule {
   const conditions = RuleConditionSchema.safeParse(r.conditions ?? {});
@@ -25,6 +25,7 @@ export function rowToRule(r: Record<string, unknown>): OperatingRule {
     scope: (r.scope as OperatingRule["scope"]) ?? "business",
     target_system: (r.target_system as OperatingRule["target_system"]) ?? "monitors",
     target_monitor: (r.target_monitor as string | null) ?? null,
+    target_job: (r.target_job as string | null) ?? null,
     conditions: conditions.success ? conditions.data : {},
     action: action.success ? action.data : { type: "exclude" },
     priority: Number(r.priority ?? 100),
@@ -86,6 +87,7 @@ export async function createRule(ownerId: string, raw: unknown, opts: CreateRule
       scope: input.scope,
       target_system: input.target_system,
       target_monitor: input.target_monitor ?? null,
+      target_job: input.target_job ?? null,
       conditions: input.conditions,
       action: input.action,
       priority: input.priority,
@@ -112,6 +114,7 @@ export async function updateRule(ownerId: string, id: string, patch: Partial<Rul
     scope: patch.scope ?? existing.scope,
     target_system: patch.target_system ?? existing.target_system,
     target_monitor: patch.target_monitor === undefined ? existing.target_monitor : patch.target_monitor,
+    target_job: patch.target_job === undefined ? existing.target_job : patch.target_job,
     conditions: patch.conditions ?? existing.conditions,
     action: patch.action ?? existing.action,
     priority: patch.priority ?? existing.priority,
@@ -126,6 +129,7 @@ export async function updateRule(ownerId: string, id: string, patch: Partial<Rul
     .update({
       ...merged.data,
       target_monitor: merged.data.target_monitor ?? null,
+      target_job: merged.data.target_job ?? null,
       description: merged.data.description ?? null,
       tier: tier.tier,
       pending_confirmation: patch.pending_confirmation ?? (patch.enabled === true ? false : existing.pending_confirmation),
