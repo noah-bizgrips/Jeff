@@ -102,6 +102,17 @@ Last updated: 2026-09-11
 | GitHub Actions CI on PRs | DONE | `.github/workflows/ci.yml` incl. secret-pattern scan |
 | Secret scan of repo | DONE | No credential patterns present. |
 
+## Intelligence upgrade (memory & rules, goals, alerts, briefings)
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Memory & operating rules engine + UI (`/memory`) | DONE | Deployed to production 2026-09-12. See `INTELLIGENCE_UPGRADE_STATUS.md`. |
+| Open Commitments classifier fix + seeded GitHub rule | DONE | |
+| Goals engine + UI (`/goals`) | DONE | |
+| Alert engine + Alert center (`/alerts`) | DONE | |
+| Daily/weekly/monthly briefings (`/briefings`), cron every 15 min | DONE | 7:30 AM America/Denver default; configurable in `/settings`. |
+| Commitments, outcome measurement, data freshness, Settings | DONE | |
+
 ## Phase 27–30
 
 | Item | Status |
