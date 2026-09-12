@@ -101,6 +101,7 @@ const SECTIONS: Section[] = [
       "Actions: Investigate opens the source; Snooze hides it until a time; Dismiss; Prepare fix creates a mission; Change rule / Don't show this again adjusts future behavior.",
       "Duplicates are merged: the same condition updates one alert (with an occurrence count) instead of repeating. Resolved conditions resolve their alert automatically.",
       "Quiet hours and the minimum importance in Settings decide what can interrupt you; urgent items always surface.",
+      "👁️ Blind spots: once a day Jeff looks for what you are NOT noticing — finding categories you never open, clients that went quiet, sources whose volume dropped or stopped syncing, metrics drifting with no goal, contradictions between systems, promises owed to you with no reminder, neglected at-risk goals. At most a couple per day, one push, all under Operations & insights → Blind spots. 'Don't show this again' teaches Jeff which ones you don't need.",
     ],
     href: "/alerts",
   },

@@ -23,7 +23,10 @@ const CATEGORY_EMOJI: Record<string, string> = {
   portal_task_overdue: "📋",
   portal_stage_stalled: "🚧",
   portal_notification_failure: "📵",
+  blind_spot: "👁️",
 };
+
+export const BLIND_SPOT_EMOJI = "👁️";
 
 const OPPORTUNITY_CATEGORIES = new Set(["automation_opportunity", "underperforming_acquisition", "lead_followup_gap", "pipeline_aging", "client_ad_spend_no_leads"]);
 

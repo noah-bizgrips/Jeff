@@ -1,5 +1,6 @@
 "use client";
 
+import { noteAttention } from "@/lib/jeff/attention/client";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/jeff/icons";
@@ -237,6 +238,7 @@ function useGoalDetail(goalId: string) {
     setDetail(d);
   }, [goalId]);
   useEffect(() => {
+    noteAttention({ kind: "goal_viewed", ref_id: goalId });
     // Fetch on mount; state updates happen in the async callback, not synchronously in the effect.
     fetch(`/api/goals/${goalId}`, { cache: "no-store" })
       .then(async (res) => {

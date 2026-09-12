@@ -3,6 +3,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadClientMap, type ClientMapEntry } from "./map";
 import { summarizeClients, type ClientRow } from "./overview";
+import { recordAttention } from "@/lib/jeff/attention/store";
 
 /**
  * Ask Jeff tools for the client roster. Everything is derived from the portal
@@ -88,5 +89,7 @@ export async function runClientTool(name: string, input: Record<string, unknown>
   }
   const hit = findClient(map, String(input.client ?? ""));
   if (!hit) return { error: "client_not_found", known: map.map((c) => c.name).slice(0, 30) };
+  // Looking at a client through chat counts as attention (blind-spot detection).
+  void recordAttention(ctx.ownerId, [{ kind: "client_viewed", ref_id: hit.portal_client_id }]);
   return summaries.find((c) => c.client_id === hit.portal_client_id) ?? { error: "client_not_found" };
 }

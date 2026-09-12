@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { loadFindings } from "@/lib/jeff/server-data";
 import { DEMO_INSIGHTS } from "@/lib/jeff/demo-data";
@@ -9,5 +10,9 @@ export const dynamic = "force-dynamic";
 export default async function InsightsPage() {
   const supabase = await createClient();
   const findings = await loadFindings(supabase);
-  return <InsightsView findings={findings} demoInsights={DEMO_INSIGHTS} liveMonitors={MONITORS.length} />;
+  return (
+    <Suspense>
+      <InsightsView findings={findings} demoInsights={DEMO_INSIGHTS} liveMonitors={MONITORS.length + 1} />
+    </Suspense>
+  );
 }

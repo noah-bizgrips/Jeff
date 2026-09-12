@@ -4,7 +4,7 @@ import { redactString } from "@/lib/security/redact";
 import { OwnerSettingsSchema, SettingsPatchSchema, withDefaults, type OwnerSettings, type SettingsPatch } from "./settings";
 
 const COLUMNS =
-  "timezone, daily_brief_enabled, daily_brief_time, weekly_review_enabled, weekly_review_day, weekly_review_time, monthly_review_enabled, monthly_review_time, quiet_hours_start, quiet_hours_end, alert_min_importance, goal_alerts, opportunity_alerts, business_notifications, personal_notifications, financial_notifications, learn_from_feedback, auto_apply_safe_rules, ask_before_major_changes, brief_max_items";
+  "timezone, daily_brief_enabled, daily_brief_time, weekly_review_enabled, weekly_review_day, weekly_review_time, monthly_review_enabled, monthly_review_time, quiet_hours_start, quiet_hours_end, alert_min_importance, goal_alerts, opportunity_alerts, business_notifications, personal_notifications, financial_notifications, learn_from_feedback, auto_apply_safe_rules, ask_before_major_changes, brief_max_items, push_alerts, push_briefings, push_goal_alerts, push_opportunity_alerts, push_blind_spots, blind_spot_max_per_day";
 
 export async function getSettings(ownerId: string): Promise<OwnerSettings> {
   const admin = createAdminClient();

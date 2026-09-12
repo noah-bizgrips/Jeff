@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { noteAttention } from "@/lib/jeff/attention/client";
 import { Icon } from "@/components/jeff/icons";
 import { useJeff } from "@/components/jeff/store";
 import { EmptyState, MemoryRow, ModalHeader } from "@/components/jeff/shared";
@@ -57,6 +59,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   lead_not_contacted: "SPEED TO LEAD",
   client_unpaid_invoice: "CLIENT BILLING",
   client_ad_spend_no_leads: "CLIENT AD SPEND",
+  blind_spot: "BLIND SPOT",
 };
 
 export function rowToFinding(f: Record<string, unknown>): FindingItem {
@@ -87,13 +90,26 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
   const demo = jeff.mode === "demo";
   const [findings, setFindings] = useState(initialFindings);
   const [running, setRunning] = useState(false);
-  const [view, setView] = useState<"active" | "dismissed" | "resolved" | "suppressed" | "all">("active");
+  const params = useSearchParams();
+  const [view, setView] = useState<"active" | "blind" | "dismissed" | "resolved" | "suppressed" | "all">(params.get("view") === "blind" ? "blind" : "active");
+  const [runningBlind, setRunningBlind] = useState(false);
   const ACTIVE = ["new", "open", "reviewing", "accepted", "action_planned", "action_in_progress", "monitoring"];
   const shown = findings.filter((f) =>
-    view === "all" ? true : view === "active" ? ACTIVE.includes(f.status) : view === "dismissed" ? f.status === "dismissed" : view === "resolved" ? f.status === "resolved" : f.status === "suppressed_by_rule",
+    view === "all"
+      ? true
+      : view === "active"
+        ? ACTIVE.includes(f.status)
+        : view === "blind"
+          ? f.category === "blind_spot" && ACTIVE.includes(f.status)
+          : view === "dismissed"
+            ? f.status === "dismissed"
+            : view === "resolved"
+              ? f.status === "resolved"
+              : f.status === "suppressed_by_rule",
   );
   const counts = {
     active: findings.filter((f) => ACTIVE.includes(f.status)).length,
+    blind: findings.filter((f) => f.category === "blind_spot" && ACTIVE.includes(f.status)).length,
     dismissed: findings.filter((f) => f.status === "dismissed").length,
     resolved: findings.filter((f) => f.status === "resolved").length,
     suppressed: findings.filter((f) => f.status === "suppressed_by_rule").length,
@@ -141,6 +157,22 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
     }
   }
 
+  async function runBlindSpots() {
+    setRunningBlind(true);
+    try {
+      const res = await fetch("/api/blindspots/run", { method: "POST" });
+      const data = (await res.json().catch(() => null)) as { created?: number; updated?: number; resolved?: number; candidates?: number; deferredByCap?: number; error?: string } | null;
+      if (!res.ok || !data) return jeff.toast(`Blind-spot detection could not run (${data?.error ?? res.status}).`);
+      jeff.toast(`Blind spots: ${data.candidates ?? 0} found (${data.created ?? 0} new, ${data.updated ?? 0} updated, ${data.resolved ?? 0} resolved${data.deferredByCap ? `, ${data.deferredByCap} held for tomorrow` : ""}).`);
+      const list = await fetch("/api/findings", { cache: "no-store" });
+      const body = (await list.json().catch(() => null)) as { findings?: Record<string, unknown>[] } | null;
+      if (list.ok && body?.findings) setFindings(body.findings.map(rowToFinding));
+      setView("blind");
+    } finally {
+      setRunningBlind(false);
+    }
+  }
+
   async function prepare(goal: string, title?: string) {
     const res = await fetch("/api/missions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ goal, title }) });
     if (!res.ok) return jeff.toast("Could not create the task draft.");
@@ -168,10 +200,16 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
       {!demo ? (
         <div className="view-toolbar">
           <p>Monitors re-run automatically after every scheduled sync. Run them now to re-check against the latest synced data.</p>
-          <button className="button primary" type="button" disabled={running} onClick={runMonitors}>
-            {running ? <span className="spinner" /> : <Icon name="refresh" />}
-            Run monitors now
-          </button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button className="button primary" type="button" disabled={running} onClick={runMonitors}>
+              {running ? <span className="spinner" /> : <Icon name="refresh" />}
+              Run monitors now
+            </button>
+            <button className="button secondary" type="button" disabled={runningBlind} onClick={runBlindSpots} title="Look for things you might be missing">
+              {runningBlind ? <span className="spinner" /> : <span aria-hidden="true">👁️</span>}
+              Find blind spots
+            </button>
+          </div>
         </div>
       ) : null}
       <div className="metric-grid">
@@ -196,6 +234,7 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
           {(
             [
               ["active", `Active (${counts.active})`],
+              ["blind", `👁️ Blind spots (${counts.blind})`],
               ["dismissed", `Dismissed (${counts.dismissed})`],
               ["resolved", `Resolved (${counts.resolved})`],
               ["suppressed", `Suppressed by rules (${counts.suppressed})`],
@@ -225,7 +264,7 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
             ) : null}
           </p>
           <div style={{ display: "flex", gap: 8 }}>
-            {view === "active" ? (
+            {view === "active" || view === "blind" ? (
               <button className="button secondary" type="button" disabled={bulkBusy || !selected.size} onClick={() => bulk([...selected], "dismissed")}>
                 <Icon name="x" />
                 Dismiss selected
@@ -282,7 +321,11 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
             ))}
       </div>
       {!demo && !shown.length ? (
-        view === "active" ? (
+        view === "blind" ? (
+          <EmptyState icon="sun" title="No open blind spots.">
+            Jeff looks once a day for things you may not be noticing — quiet clients, sources that stopped flowing, metrics drifting with no goal, promises owed to you. Use &quot;Find blind spots&quot; to check now.
+          </EmptyState>
+        ) : view === "active" ? (
           <EmptyState icon="sun" title={findings.length ? "All clear." : "No findings yet."}>
             {findings.length ? "Nothing active needs your attention. Dismissed, resolved and rule-suppressed findings are kept under the other tabs." : "Findings appear after connected sources sync and monitors run."}
           </EmptyState>
@@ -331,6 +374,13 @@ function DemoInsightModal({ i, onPrepare }: { i: DemoInsight; onPrepare: (goal: 
 function FindingModal({ f, onPrepare, onStatus }: { f: FindingItem; onPrepare: (goal: string, title?: string) => Promise<void>; onStatus?: (id: string, status: string) => void }) {
   const jeff = useJeff();
   const [status, setStatusLocal] = useState(f.status);
+  // Opening a finding is an attention signal (blind-spot detection watches for what is NOT opened).
+  useEffect(() => {
+    noteAttention({ kind: "finding_viewed", ref_id: f.id });
+  }, [f.id]);
+  const isBlindSpot = f.category === "blind_spot";
+  const blindSubtype = isBlindSpot && typeof f.metrics.subtype === "string" ? (f.metrics.subtype as string).replace(/_/g, " ") : null;
+  const blindAttention = isBlindSpot && typeof f.metrics.attention === "string" ? (f.metrics.attention as string) : null;
   function setStatus(s: string) {
     setStatusLocal(s);
     onStatus?.(f.id, s);
@@ -382,8 +432,13 @@ function FindingModal({ f, onPrepare, onStatus }: { f: FindingItem; onPrepare: (
   }
   return (
     <>
-      <ModalHeader title={f.title} desc={`${CATEGORY_LABEL[f.category] ?? f.category} · severity ${f.severity}`} eyebrow="OPERATIONS FINDING" />
+      <ModalHeader title={f.title} desc={`${CATEGORY_LABEL[f.category] ?? f.category}${blindSubtype ? ` · ${blindSubtype}` : ""} · severity ${f.severity}`} eyebrow={isBlindSpot ? "👁️ BLIND SPOT" : "OPERATIONS FINDING"} />
       <div className="modal-body">
+        {isBlindSpot ? (
+          <div className="callout">
+            <strong>Why you might be missing this.</strong> {blindAttention ?? "This is something no single monitor or dashboard surfaces on its own."}
+          </div>
+        ) : null}
         <div className="section-label">OBSERVED FACTS</div>
         <ul className="checklist">
           {f.observedFacts.length ? f.observedFacts.map((x, i) => <li key={i}>{typeof x === "string" ? x : JSON.stringify(x)}</li>) : <li>None recorded.</li>}

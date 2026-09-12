@@ -1,5 +1,6 @@
 "use client";
 
+import { noteAttention } from "@/lib/jeff/attention/client";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/jeff/icons";
@@ -162,7 +163,14 @@ export function AlertsView({ initial }: { initial: AlertItem[] }) {
           ) : null}
           <div className="modal-actions">
             {refHref(a) ? (
-              <Link className="button secondary" href={refHref(a)!} onClick={jeff.closeModal}>
+              <Link
+                className="button secondary"
+                href={refHref(a)!}
+                onClick={() => {
+                  noteAttention({ kind: "alert_viewed", ref_id: a.id });
+                  jeff.closeModal();
+                }}
+              >
                 Investigate <Icon name="arrowUpRight" />
               </Link>
             ) : null}
