@@ -39,9 +39,47 @@ const CATEGORY_LABEL: Record<string, string> = {
   automation_opportunity: "AUTOMATION OPPORTUNITY",
 };
 
-export function InsightsView({ findings, demoInsights, liveMonitors }: { findings: FindingItem[]; demoInsights: DemoInsight[]; liveMonitors: number }) {
+export function rowToFinding(f: Record<string, unknown>): FindingItem {
+  return {
+    id: String(f.id),
+    category: String(f.category),
+    title: String(f.title),
+    observedFacts: (f.observed_facts as unknown[]) ?? [],
+    metrics: (f.metrics as Record<string, unknown>) ?? {},
+    interpretation: (f.interpretation as string | null) ?? null,
+    evidence: (f.evidence as FindingItem["evidence"]) ?? [],
+    rangeStart: (f.range_start as string | null) ?? null,
+    rangeEnd: (f.range_end as string | null) ?? null,
+    confidence: (f.confidence as number | null) ?? null,
+    limitations: (f.limitations as string | null) ?? null,
+    severity: String(f.severity ?? "info"),
+    status: String(f.status ?? "open"),
+    proposedMission: (f.proposed_mission as FindingItem["proposedMission"]) ?? null,
+    createdAt: String(f.created_at ?? ""),
+    isSample: Boolean(f.is_sample),
+  };
+}
+
+export function InsightsView({ findings: initialFindings, demoInsights, liveMonitors }: { findings: FindingItem[]; demoInsights: DemoInsight[]; liveMonitors: number }) {
   const jeff = useJeff();
   const demo = jeff.mode === "demo";
+  const [findings, setFindings] = useState(initialFindings);
+  const [running, setRunning] = useState(false);
+
+  async function runMonitors() {
+    setRunning(true);
+    try {
+      const res = await fetch("/api/monitors/run", { method: "POST" });
+      const data = (await res.json().catch(() => null)) as { created?: number; updated?: number; resolved?: number; candidates?: number; error?: string } | null;
+      if (!res.ok || !data) return jeff.toast(`Monitors could not run (${data?.error ?? res.status}).`);
+      jeff.toast(`Monitors ran: ${data.candidates ?? 0} findings (${data.created ?? 0} new, ${data.updated ?? 0} updated, ${data.resolved ?? 0} resolved).`);
+      const list = await fetch("/api/findings", { cache: "no-store" });
+      const body = (await list.json().catch(() => null)) as { findings?: Record<string, unknown>[] } | null;
+      if (list.ok && body?.findings) setFindings(body.findings.map(rowToFinding));
+    } finally {
+      setRunning(false);
+    }
+  }
 
   async function prepare(goal: string, title?: string) {
     const res = await fetch("/api/missions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ goal, title }) });
@@ -67,11 +105,20 @@ export function InsightsView({ findings, demoInsights, liveMonitors }: { finding
           )}
         </span>
       </div>
+      {!demo ? (
+        <div className="view-toolbar">
+          <p>Monitors re-run automatically after every scheduled sync. Run them now to re-check against the latest synced data.</p>
+          <button className="button primary" type="button" disabled={running} onClick={runMonitors}>
+            {running ? <span className="spinner" /> : <Icon name="refresh" />}
+            Run monitors now
+          </button>
+        </div>
+      ) : null}
       <div className="metric-grid">
         <div className="metric-box">
           <small>Live monitors</small>
           <strong>{liveMonitors}</strong>
-          <p>{liveMonitors ? "Running on schedule" : "Enabled after sources sync"}</p>
+          <p>{liveMonitors ? "Run after every sync" : "Enabled after sources sync"}</p>
         </div>
         <div className="metric-box">
           <small>{demo ? "Example opportunities" : "Open findings"}</small>

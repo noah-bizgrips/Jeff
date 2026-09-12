@@ -3,7 +3,8 @@ import { safeEqual } from "@/lib/crypto/secrets";
 import { hasEnv, requireEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncAllForOwner } from "@/lib/integrations/sync/runner";
-import { log } from "@/lib/security/log";
+import { errorMessage, log } from "@/lib/security/log";
+import { runMonitorsForOwner } from "@/lib/jeff/monitors";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -25,8 +26,19 @@ export const GET = withErrorBoundary(async (req) => {
 
   const summaries = await syncAllForOwner(owner.user_id, "schedule");
   log.info("cron_sync", { connections: summaries.length });
+  // Re-evaluate findings once the data is fresh. Monitor failures never fail the sync response.
+  let monitors: Awaited<ReturnType<typeof runMonitorsForOwner>> | { error: string } = { error: "skipped" };
+  if (summaries.length) {
+    try {
+      monitors = await runMonitorsForOwner(owner.user_id);
+    } catch (err) {
+      monitors = { error: errorMessage(err) };
+      log.warn("cron_monitors_failed", { message: errorMessage(err) });
+    }
+  }
   return json({
     ok: true,
     synced: summaries.map((s) => ({ provider: s.provider, results: s.results.map((r) => ({ capability: r.capability, seen: r.seen, upserted: r.upserted, error: r.error ?? null })) })),
+    monitors,
   });
 });

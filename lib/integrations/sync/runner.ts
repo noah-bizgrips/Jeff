@@ -28,6 +28,7 @@ export interface SyncAdapter {
 
 const ADAPTERS: Record<string, () => Promise<SyncAdapter>> = {
   google: async () => (await import("./google")).googleSyncAdapter,
+  highlevel: async () => (await import("./highlevel")).highlevelSyncAdapter,
 };
 
 export function hasSyncAdapter(provider: string) {
