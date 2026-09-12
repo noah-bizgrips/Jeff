@@ -64,7 +64,11 @@ describe("missed_commitment", () => {
     const out = missedCommitment.run(rows, { now: NOW });
     expect(out).toHaveLength(1);
     expect(out[0]!.fingerprint).toBe("missed_commitment:t1");
-    expect(out[0]!.confidence).toBeLessThan(0.5);
+    // Classifier-scored: explicit "by Friday" without a named actor lands mid-range.
+    expect(out[0]!.confidence).toBeGreaterThanOrEqual(0.45);
+    expect(out[0]!.confidence).toBeLessThan(0.8);
+    expect(out[0]!.title).toMatch(/^Open commitment:/);
+    expect(out[0]!.metrics.due_date).toBe("2026-09-11");
     expect(out[0]!.proposed_mission).toBeNull();
   });
   it("does not flag when another author replied later, or when the cue is too recent", () => {
