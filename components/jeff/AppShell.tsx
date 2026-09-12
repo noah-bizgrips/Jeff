@@ -9,8 +9,10 @@ import { ModalHost, Toasts, AddNoteModal } from "./shared";
 import { AgentPanel } from "@/components/assistant/AgentPanel";
 import { sourceDef } from "@/lib/jeff/sources";
 
-const NAV: { href: string; icon: string; label: string; end?: "home" | "missions" | "approvals" | "key" | "memories" | "saved" }[] = [
+const NAV: { href: string; icon: string; label: string; end?: "home" | "missions" | "approvals" | "key" | "memories" | "saved" | "alerts" }[] = [
   { href: "/", icon: "network", label: "Mission control", end: "home" },
+  { href: "/alerts", icon: "bell", label: "Alerts", end: "alerts" },
+  { href: "/briefings", icon: "inbox", label: "Briefings" },
   { href: "/goals", icon: "target", label: "Goals" },
   { href: "/missions", icon: "compose", label: "Missions", end: "missions" },
   { href: "/insights", icon: "sun", label: "Operations & insights" },
@@ -20,11 +22,15 @@ const NAV: { href: string; icon: string; label: string; end?: "home" | "missions
   { href: "/saved", icon: "bookmark", label: "Saved answers", end: "saved" },
   { href: "/connections", icon: "plug", label: "Connections" },
   { href: "/memory", icon: "brain", label: "Memory & rules" },
+  { href: "/settings", icon: "sliders", label: "Settings" },
   { href: "/security", icon: "lock", label: "Security & access" },
 ];
 
 const TITLES: Record<string, [string, string, string]> = {
   "/": ["Your business. In focus", "Connect your knowledge. Turn the next right idea into action.", "Mission control"],
+  "/alerts": ["What deserves attention", "Only what matters, when it matters. Quiet by default.", "Alerts"],
+  "/briefings": ["Your briefings", "Daily brief, weekly operating review, monthly owner review.", "Briefings"],
+  "/settings": ["How Jeff should behave", "Briefing times, quiet hours, notification thresholds, learning.", "Settings"],
   "/goals": ["What you're aiming for", "Outcomes, the metrics behind them, and whether you're on pace.", "Goals"],
   "/missions": ["From intent to action", "Draft, review, and track work. No hidden production changes.", "Missions"],
   "/insights": ["Find the next improvement", "Evidence first. A specific action next. Outcomes after.", "Operations & insights"],
@@ -92,6 +98,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               {n.end === "key" ? <span className="nav-end keycap">K</span> : null}
               {n.end === "memories" ? <span className="nav-end nav-count">{docCount}</span> : null}
               {n.end === "saved" ? <span className="nav-end nav-count">{jeff.saved.length}</span> : null}
+              {n.end === "alerts" && jeff.alertCount > 0 ? <span className="nav-end review-dot">{jeff.alertCount}</span> : null}
             </Link>
           ))}
         </nav>

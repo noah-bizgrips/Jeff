@@ -129,6 +129,7 @@ export function ConnectionsView({ catalog, requests: initialRequests }: { catalo
                   <StatusPill s={c.status} />
                   <span>{c.accountIdentifier ?? c.displayName}</span>
                   {c.lastTestAt ? <span>· tested {new Date(c.lastTestAt).toLocaleDateString()}</span> : null}
+                  {["connected", "limited"].includes(c.status) ? <span className={freshnessClass(c.lastSyncAt)}>· {freshnessText(c.lastSyncAt)}</span> : null}
                   {c.lastSyncAt ? <span>· synced {new Date(c.lastSyncAt).toLocaleString()}</span> : null}
                   {c.lastError ? <span className="warning-copy">· {c.lastError}</span> : null}
                   {c.metadata.last_test_details && typeof c.metadata.last_test_details === "object" ? (
@@ -203,6 +204,18 @@ export function ConnectionsView({ catalog, requests: initialRequests }: { catalo
       </section>
     </section>
   );
+}
+
+/** Data freshness (spec §44) from the last successful sync; thresholds mirror lib/jeff/freshness.ts. */
+function freshnessText(lastSyncAt: string | null): string {
+  if (!lastSyncAt) return "no data synced yet";
+  const h = (Date.now() - Date.parse(lastSyncAt)) / 3_600_000;
+  const age = h < 1 ? `${Math.max(1, Math.round(h * 60))}m` : h < 48 ? `${Math.round(h)}h` : `${Math.round(h / 24)}d`;
+  return h > 36 ? `data ${age} old (stale)` : `data ${age} old`;
+}
+function freshnessClass(lastSyncAt: string | null): string {
+  if (!lastSyncAt) return "warning-copy";
+  return (Date.now() - Date.parse(lastSyncAt)) / 3_600_000 > 36 ? "warning-copy" : "";
 }
 
 const DEMO_SOURCE_IDS: Record<string, string[]> = {

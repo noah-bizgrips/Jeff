@@ -54,17 +54,27 @@ Route `/goals` ("Goals" in nav): cards with primary-metric progress, days remain
 
 Tests: 218 total (37 new) — §49 pre-parse, other shapes, model merge/validation fallback, metric computation (count, currency minor units, ratio null on missing source, duration pairing, staleness, safe formulas), trajectory scenarios + driver constraint + history pace, recommendations, route auth, propose→approve (prompt immutability, unresolved ambiguities block, dates), post-approval edit events, refresh snapshot/metric/event, prepare → sandbox mission, chat tools.
 
-## Phase 9–10 — Finding/opportunity + alert engine — NOT STARTED
-`alerts` table, importance levels, dedupe/cooldown/snooze/acknowledge/mute, quiet hours.
+## Phase 9–10 — Finding/opportunity + alert engine — DONE
+Migration `20260916000000_alerts_briefings.sql` (additive; **must be pushed with `supabase db push`**): `alerts`, `briefings`, `owner_settings`, `commitments`, `mission_outcomes`, plus `missions.completed_at` / `missions.finding_id`. Alert engine in `lib/jeff/alerts/`: deterministic importance (severity × confidence × money at stake × goals × urgency → informational/briefing/important/urgent/actionable), rule decisions (`set_importance`, `escalate`, `suppress_alert`, exclusions) applied before owner settings (minimum importance, scope/goal/opportunity toggles, quiet hours defer non-urgent), dedupe by fingerprint (repeats bump `occurrences`), 24h cooldown after resolve, grouping (≥4 findings of one category → one alert), snooze/acknowledge/dismiss/resolve/mute (mute infers the narrowest rule via the existing feedback inference — never a monitor mute). Runs after every cron sync and after webhook-triggered syncs (event-driven, spec §26). Alert center at `/alerts` with the spec's filters and actions. APIs: `GET/POST /api/alerts`, `PATCH /api/alerts/[id]`.
 
-## Phase 11–12 — Daily brief, weekly/monthly reviews — NOT STARTED
-`briefings` table + inbox UI; cron-scheduled generation in America/Denver; delivery-provider abstraction (in-app first).
+## Phase 11–12 — Daily brief, weekly/monthly reviews — DONE
+`lib/jeff/briefings/`: deterministic evidence bundle (alerts, goals + trajectory changes, today's events, commitments, findings, Stripe/Plaid deltas vs prior period, MRR, open invoices, missions, outcomes, freshness) → deterministic template (ordering: goals at risk → client/pipeline → financial → rest; urgent jumps ahead) → ONE optional Claude call (strict tool schema, Zod-validated, budget-guarded) that may tighten/drop but never add items, refs or numbers (`guardAgainstAdditions`); falls back to the template on any failure. Owner memories (e.g. "no more than five items") and `briefing_pref` rules cap/shape the brief. Scheduling: `/api/cron/briefings` every 15 min (vercel.json) generates due daily/weekly/monthly briefs in the owner's timezone (DST-safe via Intl), idempotent per (kind, period). Inbox at `/briefings` (read/save/ask Jeff/create mission/open evidence); delivery abstraction in `deliver.ts` (`in_app` implemented; email/push/sms/slack stubs). APIs: `GET /api/briefings`, `GET/PATCH /api/briefings/[id]`, `POST /api/briefings/generate`.
 
-## Phase 13–15 — Mission Control, commitments, outcome measurement — NOT STARTED
-## Phase 16 — Tests/security review, preview deploy — NOT STARTED
+## Phase 13–15 — Mission Control, commitments, outcome measurement — DONE
+- Mission Control (live mode) now leads with WHAT NEEDS YOUR ATTENTION · GOALS AT RISK · OPPORTUNITIES · TODAY · ACTIVE MISSIONS (+ freshness line); command card, stats and brain graph remain below. Demo mode unchanged.
+- Commitments (`lib/jeff/commitments/`): human-only conversations (Gmail + HighLevel) → actor/action/due date, direction (owed_by_me vs owed_to_me), context-rich reminder text from the linked CRM opportunity ("Sam's $8,400 estimate…"), dedupe, overdue detection; operating rules apply before extraction. Overdue → alerts and the brief's TODAY. APIs: `GET/POST /api/commitments`, `PATCH /api/commitments/[id]`.
+- Outcome measurement (`lib/jeff/outcomes*.ts`): marking a finding/goal-linked mission completed records a 14-day baseline; the briefings cron measures the post window, direction (improved/worsened/unchanged/unknown), delta %, confounders (other missions completed in the window) and cautious wording (no causal claims). Shown in the mission modal and the weekly review's "did previous changes work".
+- Settings at `/settings` + `GET/PATCH /api/settings` (Tier 1 only: timezone, brief times, quiet hours, minimum importance, notification/learning toggles, brief item cap). Security controls are not settings.
+- Data freshness (`lib/jeff/freshness*.ts`): per-connection last success/attempt/error → fresh/aging/stale/error/never; shown on Connections cards, in briefings, Mission Control and Ask Jeff tool outputs; `GET /api/freshness`.
+- Ask Jeff tools: `get_alerts`, `get_briefing`, `get_commitments`, `update_alert`, `get_settings`, `update_settings`, `get_data_freshness`; system prompt covers "what should I focus on today", "find something we're doing stupidly", commitments with context, and settings changes via chat.
+
+Tests: 251 total (33 new) — importance mapping incl. rules/settings/quiet hours (DST), §54 dedupe/cooldown/resolve lifecycle, grouping, goal and commitment candidates, commitment extraction/direction/context/dedupe/overdue, §55 ordering, §52 five-item cap (digits and words), weekly/monthly sections, model-addition guard, schema parity, schedule due windows (MDT/MST), period math, freshness levels, outcome math, settings allow-list, route auth for alerts/settings/briefings/cron.
+
+## Phase 16 — Tests/security review, preview deploy — IN PROGRESS (main session: push migration `20260916000000_alerts_briefings.sql`, deploy, run §50/§55 on real data)
 
 ## User configuration required
-- None for the memory/rules layer. Briefing time/timezone/quiet hours configurable in Settings (defaults: 7:30 AM America/Denver).
+- None for the memory/rules layer. Briefing time/timezone/quiet hours are configurable under Settings (defaults: 7:30 AM America/Denver, weekly review Monday 7:30, monthly on the 1st, quiet hours 21:00–07:00, minimum alert importance "important").
+- `vercel.json` now declares two crons (`/api/cron/sync` every 30 min, `/api/cron/briefings` every 15 min); both use the existing `CRON_SECRET`. Cron schedules activate on a production deploy.
 - Goals require the owner to type/approve them in the UI.
 
 ## Blocked

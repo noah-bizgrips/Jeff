@@ -23,7 +23,43 @@ export interface GoalRiskItem {
   daysRemaining: number | null;
 }
 
-export function MissionControl({ topInsight, goalsAtRisk = [] }: { topInsight: DemoInsight | null; goalsAtRisk?: GoalRiskItem[] }) {
+export interface FocusAlert {
+  id: string;
+  kind: string;
+  importance: string;
+  title: string;
+  summary: string | null;
+  occurrences: number;
+}
+export interface FocusFinding {
+  id: string;
+  category: string;
+  title: string;
+  severity: string;
+}
+export interface FocusToday {
+  kind: "event" | "commitment";
+  id: string;
+  title: string;
+  detail: string;
+  when: string | null;
+  overdue?: boolean;
+}
+export interface FocusMission {
+  id: string;
+  code: string;
+  title: string;
+  status: string;
+}
+export interface FocusData {
+  attention: FocusAlert[];
+  opportunities: FocusFinding[];
+  today: FocusToday[];
+  missions: FocusMission[];
+  freshness: string[];
+}
+
+export function MissionControl({ topInsight, goalsAtRisk = [], focus = null }: { topInsight: DemoInsight | null; goalsAtRisk?: GoalRiskItem[]; focus?: FocusData | null }) {
   const jeff = useJeff();
   const brain = useRef<BrainHandle>(null);
   const [zoom, setZoom] = useState(1);
@@ -117,6 +153,96 @@ export function MissionControl({ topInsight, goalsAtRisk = [] }: { topInsight: D
         </span>
       </div>
 
+      {jeff.mode === "live" && focus ? (
+        <section className="focus-grid" aria-label="Operating focus">
+          <div className="focus-col">
+            <div className="section-label">WHAT NEEDS YOUR ATTENTION</div>
+            {focus.attention.length ? (
+              focus.attention.slice(0, 5).map((a) => (
+                <Link key={a.id} href="/alerts" className="focus-row">
+                  <span className={`pill ${a.importance === "urgent" ? "danger" : a.importance === "important" || a.importance === "actionable" ? "amber" : "info"}`}>{a.importance}</span>
+                  <span className="focus-copy">
+                    <strong>{a.title}</strong>
+                    <small>{a.summary?.slice(0, 140)}</small>
+                  </span>
+                  <Icon name="arrowUpRight" className="arrow-icon" />
+                </Link>
+              ))
+            ) : (
+              <p className="muted focus-empty">Nothing needs your attention right now.</p>
+            )}
+          </div>
+          <div className="focus-col">
+            <div className="section-label">GOALS AT RISK</div>
+            {goalsAtRisk.length ? (
+              goalsAtRisk.slice(0, 4).map((g) => (
+                <Link key={g.id} href="/goals" className="focus-row">
+                  <span className={`pill ${g.trajectory === "severely_at_risk" ? "danger" : "amber"}`}>{g.label}</span>
+                  <span className="focus-copy">
+                    <strong>{g.name}</strong>
+                    <small>
+                      {g.primary ?? ""}
+                      {g.constraint ? ` · constraint: ${g.constraint}` : ""}
+                      {g.daysRemaining != null ? ` · ${g.daysRemaining}d left` : ""}
+                    </small>
+                  </span>
+                  <Icon name="arrowUpRight" className="arrow-icon" />
+                </Link>
+              ))
+            ) : (
+              <p className="muted focus-empty">No active goal is at risk.</p>
+            )}
+            <div className="section-label">OPPORTUNITIES</div>
+            {focus.opportunities.length ? (
+              focus.opportunities.slice(0, 4).map((f) => (
+                <Link key={f.id} href="/insights" className="focus-row">
+                  <span className="pill neutral">{f.category.replace(/_/g, " ")}</span>
+                  <span className="focus-copy">
+                    <strong>{f.title}</strong>
+                  </span>
+                  <Icon name="arrowUpRight" className="arrow-icon" />
+                </Link>
+              ))
+            ) : (
+              <p className="muted focus-empty">No open findings.</p>
+            )}
+          </div>
+          <div className="focus-col">
+            <div className="section-label">TODAY</div>
+            {focus.today.length ? (
+              focus.today.slice(0, 6).map((t) => (
+                <div key={`${t.kind}:${t.id}`} className="focus-row static">
+                  <span className={`pill ${t.overdue ? "amber" : "neutral"}`}>{t.kind === "event" ? "event" : t.overdue ? "overdue" : "due"}</span>
+                  <span className="focus-copy">
+                    <strong>{t.title}</strong>
+                    <small>{t.detail}</small>
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="muted focus-empty">Nothing scheduled or due today in synced data.</p>
+            )}
+            <div className="section-label">ACTIVE MISSIONS</div>
+            {focus.missions.length ? (
+              focus.missions.slice(0, 4).map((m) => (
+                <Link key={m.id} href="/missions" className="focus-row">
+                  <span className="pill info">{m.status}</span>
+                  <span className="focus-copy">
+                    <strong>
+                      {m.code} · {m.title}
+                    </strong>
+                  </span>
+                  <Icon name="arrowUpRight" className="arrow-icon" />
+                </Link>
+              ))
+            ) : (
+              <p className="muted focus-empty">No active missions.</p>
+            )}
+            {focus.freshness.length ? <p className="auth-note">{focus.freshness.join(" · ")}</p> : null}
+          </div>
+        </section>
+      ) : null}
+
       <section className="command-card" aria-label="Command Jeff">
         <div className="command-card-title">
           <Icon name="sparkles" />
@@ -208,7 +334,7 @@ export function MissionControl({ topInsight, goalsAtRisk = [] }: { topInsight: D
         </div>
       </section>
 
-      {goalsAtRisk.length ? (
+      {goalsAtRisk.length && !(jeff.mode === "live" && focus) ? (
         <section className="signal-strip goals-risk-strip" aria-label="Goals at risk">
           <div>
             <span className="mini-eyebrow">GOALS AT RISK</span>

@@ -43,6 +43,8 @@ const ICON_PATHS: Record<string, string> = {
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',
   shield: '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/>',
   target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/><path d="M12 3v3m0 12v3M3 12h3m12 0h3"/>',
+  bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4l2-2Z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  inbox: '<path d="M3 13l2-8h14l2 8v6H3v-6Z"/><path d="M3 13h5l1.5 2h5L16 13h5"/>',
 };
 
 export type IconName = keyof typeof ICON_PATHS;

@@ -20,6 +20,24 @@ export interface MissionItem {
   createdAt: string;
   isSample: boolean;
   result?: Record<string, unknown>;
+  findingId?: string | null;
+  goalId?: string | null;
+  completedAt?: string | null;
+  outcome?: MissionOutcome | null;
+}
+
+export interface MissionOutcome {
+  metric_label: string | null;
+  metric_key: string;
+  baseline_value: number | null;
+  post_value: number | null;
+  delta: number | null;
+  delta_pct: number | null;
+  direction: "improved" | "worsened" | "unchanged" | "unknown";
+  limitations: string | null;
+  implemented_at: string;
+  measured_at: string | null;
+  confounders: string[];
 }
 
 export interface ApprovalItem {
@@ -143,6 +161,24 @@ function MissionModal({ m, onChange }: { m: MissionItem; onChange: (id: string, 
             <div className="diff-preview">{JSON.stringify(m.result, null, 2)}</div>
           </>
         ) : null}
+        {m.outcome ? (
+          <>
+            <div className="section-label">OUTCOME MEASUREMENT</div>
+            <dl className="kv">
+              <dt>Metric</dt>
+              <dd>{m.outcome.metric_label ?? m.outcome.metric_key}</dd>
+              <dt>Baseline (14d before)</dt>
+              <dd>{m.outcome.baseline_value ?? "—"}</dd>
+              <dt>After (14d)</dt>
+              <dd>{m.outcome.measured_at ? (m.outcome.post_value ?? "—") : "window not elapsed yet"}</dd>
+              <dt>Change</dt>
+              <dd>
+                {m.outcome.measured_at ? `${m.outcome.direction}${m.outcome.delta_pct != null ? ` (${m.outcome.delta_pct >= 0 ? "+" : ""}${m.outcome.delta_pct}%)` : ""}` : "pending"}
+              </dd>
+            </dl>
+            <p className="warning-copy">{m.outcome.limitations}</p>
+          </>
+        ) : null}
         <div className="modal-actions">
           <button className="button secondary" type="button" onClick={closeModal}>
             Close
@@ -155,6 +191,11 @@ function MissionModal({ m, onChange }: { m: MissionItem; onChange: (id: string, 
           {!m.isSample && m.status === "draft" ? (
             <button className="button primary" type="button" disabled={busy} onClick={() => set("queued")}>
               Queue for sandbox worker
+            </button>
+          ) : null}
+          {!m.isSample && ["queued", "running", "review", "approved", "action_in_progress"].includes(m.status) ? (
+            <button className="button primary" type="button" disabled={busy} onClick={() => set("completed")}>
+              Mark completed
             </button>
           ) : null}
           {m.isSample ? (
@@ -179,8 +220,9 @@ export function MissionsView({ initial }: { initial: MissionItem[] }) {
     if (!target || target.isSample) return;
     const res = await fetch(`/api/missions/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
     if (!res.ok) return jeff.toast("Could not update the mission.");
-    setMissions((ms) => ms.map((m) => (m.id === id ? { ...m, status } : m)));
-    jeff.toast(status === "queued" ? "Queued. The sandbox worker is not enabled yet; nothing will run until it is." : "Mission updated.");
+    const data = (await res.json().catch(() => null)) as { outcome?: MissionOutcome | null } | null;
+    setMissions((ms) => ms.map((m) => (m.id === id ? { ...m, status, outcome: data?.outcome ?? m.outcome } : m)));
+    jeff.toast(status === "queued" ? "Queued. The sandbox worker is not enabled yet; nothing will run until it is." : status === "completed" ? (data?.outcome ? "Marked completed. Baseline recorded; Jeff measures the outcome after 14 days." : "Marked completed.") : "Mission updated.");
   }
 
   return (

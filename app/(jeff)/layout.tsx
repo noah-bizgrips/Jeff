@@ -9,6 +9,15 @@ import { loadCounts, loadLiveDocs, loadNotes, loadSaved } from "@/lib/jeff/serve
 import { DEMO_MISSIONS } from "@/lib/jeff/demo-data";
 import { JeffProvider, type JeffInitial } from "@/components/jeff/store";
 import { AppShell } from "@/components/jeff/AppShell";
+import { surfacedAlerts } from "@/lib/jeff/alerts/store";
+import { getSettings } from "@/lib/jeff/settings-store";
+import { atLeast } from "@/lib/jeff/alerts/importance";
+
+async function countSurfacedAlerts(ownerId: string): Promise<number> {
+  const [alerts, settings] = await Promise.all([surfacedAlerts(ownerId, new Date(), 50), getSettings(ownerId).catch(() => null)]);
+  const min = settings?.alert_min_importance ?? "important";
+  return alerts.filter((a) => a.status === "open" && atLeast(a.importance, min)).length;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -25,12 +34,13 @@ export default async function JeffLayout({ children }: { children: React.ReactNo
   if (session.aal !== "aal2") redirect("/mfa");
 
   const mode = await effectiveMode();
-  const [connections, liveDocs, notes, saved, counts] = await Promise.all([
+  const [connections, liveDocs, notes, saved, counts, alertCount] = await Promise.all([
     listConnections(session.userId).catch(() => []),
     mode === "live" ? loadLiveDocs(supabase) : Promise.resolve([]),
     mode === "live" ? loadNotes(supabase) : Promise.resolve([]),
     mode === "live" ? loadSaved(supabase) : Promise.resolve([]),
     loadCounts(supabase),
+    mode === "live" ? countSurfacedAlerts(session.userId) : Promise.resolve(0),
   ]);
 
   const initial: JeffInitial = {
@@ -45,6 +55,7 @@ export default async function JeffLayout({ children }: { children: React.ReactNo
     saved,
     missionCount: mode === "demo" ? DEMO_MISSIONS.length + counts.missions : counts.missions,
     approvalCount: mode === "demo" ? DEMO_MISSIONS.filter((m) => m.status === "review").length + counts.approvals : counts.approvals,
+    alertCount,
   };
 
   return (

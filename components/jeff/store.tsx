@@ -40,6 +40,8 @@ export interface JeffInitial {
   saved: SavedAnswer[];
   missionCount: number;
   approvalCount: number;
+  /** Open alerts at or above the owner's minimum importance (live mode). */
+  alertCount: number;
 }
 
 interface JeffStore extends JeffInitial {

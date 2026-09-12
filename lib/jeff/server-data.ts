@@ -57,6 +57,10 @@ export async function loadMissions(supabase: SupabaseClient): Promise<MissionIte
     createdAt: m.created_at,
     isSample: m.is_sample,
     result: m.result ?? {},
+    findingId: m.finding_id ?? null,
+    goalId: m.goal_id ?? null,
+    completedAt: m.completed_at ?? null,
+    outcome: null,
   }));
 }
 
