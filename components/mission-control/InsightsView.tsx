@@ -81,6 +81,20 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
   const demo = jeff.mode === "demo";
   const [findings, setFindings] = useState(initialFindings);
   const [running, setRunning] = useState(false);
+  const [view, setView] = useState<"active" | "dismissed" | "resolved" | "suppressed" | "all">("active");
+  const ACTIVE = ["new", "open", "reviewing", "accepted", "action_planned", "action_in_progress", "monitoring"];
+  const shown = findings.filter((f) =>
+    view === "all" ? true : view === "active" ? ACTIVE.includes(f.status) : view === "dismissed" ? f.status === "dismissed" : view === "resolved" ? f.status === "resolved" : f.status === "suppressed_by_rule",
+  );
+  const counts = {
+    active: findings.filter((f) => ACTIVE.includes(f.status)).length,
+    dismissed: findings.filter((f) => f.status === "dismissed").length,
+    resolved: findings.filter((f) => f.status === "resolved").length,
+    suppressed: findings.filter((f) => f.status === "suppressed_by_rule").length,
+  };
+  function onStatus(id: string, status: string) {
+    setFindings((list) => list.map((x) => (x.id === id ? { ...x, status } : x)));
+  }
 
   async function runMonitors() {
     setRunning(true);
@@ -138,7 +152,7 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
         </div>
         <div className="metric-box">
           <small>{demo ? "Example opportunities" : "Open findings"}</small>
-          <strong>{demo ? demoInsights.length : findings.filter((f) => f.status === "open").length}</strong>
+          <strong>{demo ? demoInsights.length : counts.active}</strong>
           <p>{demo ? "Evidence linked to sample records" : "Evidence linked to synced records"}</p>
         </div>
         <div className="metric-box">
@@ -147,6 +161,23 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
           <p>No baseline or outcome data yet</p>
         </div>
       </div>
+      {!demo ? (
+        <div className="filter-tabs">
+          {(
+            [
+              ["active", `Active (${counts.active})`],
+              ["dismissed", `Dismissed (${counts.dismissed})`],
+              ["resolved", `Resolved (${counts.resolved})`],
+              ["suppressed", `Suppressed by rules (${counts.suppressed})`],
+              ["all", "All"],
+            ] as const
+          ).map(([id, label]) => (
+            <button key={id} type="button" className={`filter-tab ${view === id ? "active" : ""}`} onClick={() => setView(id)}>
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <div className="insight-grid">
         {demo
           ? demoInsights.map((i) => (
@@ -160,7 +191,7 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
                 </button>
               </article>
             ))
-          : findings.filter((f) => f.status !== "suppressed_by_rule").map((f) => (
+          : shown.map((f) => (
               <article className="insight-card" key={f.id}>
                 <span className="mini-eyebrow">{CATEGORY_LABEL[f.category] ?? f.category.toUpperCase()}</span>
                 <h3>{f.title}</h3>
@@ -168,42 +199,20 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
                 <span className="evidence-count">
                   {f.evidence.length} evidence item{f.evidence.length === 1 ? "" : "s"} · {f.severity} · {f.status}
                 </span>
-                <button className="button secondary" type="button" onClick={() => jeff.openModal(<FindingModal f={f} onPrepare={prepare} />)}>
+                <button className="button secondary" type="button" onClick={() => jeff.openModal(<FindingModal f={f} onPrepare={prepare} onStatus={onStatus} />)}>
                   Review finding <Icon name="arrowUpRight" />
                 </button>
               </article>
             ))}
       </div>
-      {!demo && findings.some((f) => f.status === "suppressed_by_rule") ? (
-        <details className="callout" style={{ marginTop: 16 }}>
-          <summary>
-            Suppressed by your rules ({findings.filter((f) => f.status === "suppressed_by_rule").length}) — kept for history, hidden from the active monitor
-          </summary>
-          <div className="audit-list" style={{ marginTop: 8 }}>
-            {findings
-              .filter((f) => f.status === "suppressed_by_rule")
-              .map((f) => (
-                <div className="audit-row" key={f.id}>
-                  <Icon name="lock" />
-                  <div>
-                    <strong>{f.title}</strong>
-                    <p>
-                      {CATEGORY_LABEL[f.category] ?? f.category}
-                      {f.suppressedByRuleName ? ` · rule: ${f.suppressedByRuleName}` : ""}
-                    </p>
-                  </div>
-                  <button className="button secondary" type="button" onClick={() => jeff.openModal(<FindingModal f={f} onPrepare={prepare} />)}>
-                    View
-                  </button>
-                </div>
-              ))}
-          </div>
-        </details>
-      ) : null}
-      {!demo && !findings.some((f) => f.status !== "suppressed_by_rule") ? (
-        <EmptyState icon="sun" title="No findings yet.">
-          Findings appear after connected sources sync and monitors run. Connect Google, HighLevel, Stripe, or Financial Accounts to start.
-        </EmptyState>
+      {!demo && !shown.length ? (
+        view === "active" ? (
+          <EmptyState icon="sun" title={findings.length ? "All clear." : "No findings yet."}>
+            {findings.length ? "Nothing active needs your attention. Dismissed, resolved and rule-suppressed findings are kept under the other tabs." : "Findings appear after connected sources sync and monitors run."}
+          </EmptyState>
+        ) : (
+          <EmptyState title="Nothing here.">No findings in this state.</EmptyState>
+        )
       ) : null}
     </section>
   );
@@ -243,9 +252,13 @@ function DemoInsightModal({ i, onPrepare }: { i: DemoInsight; onPrepare: (goal: 
   );
 }
 
-function FindingModal({ f, onPrepare }: { f: FindingItem; onPrepare: (goal: string, title?: string) => Promise<void> }) {
+function FindingModal({ f, onPrepare, onStatus }: { f: FindingItem; onPrepare: (goal: string, title?: string) => Promise<void>; onStatus?: (id: string, status: string) => void }) {
   const jeff = useJeff();
-  const [status, setStatus] = useState(f.status);
+  const [status, setStatusLocal] = useState(f.status);
+  function setStatus(s: string) {
+    setStatusLocal(s);
+    onStatus?.(f.id, s);
+  }
   async function setFindingStatus(s: string) {
     const res = await fetch(`/api/findings/${f.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: s }) });
     if (!res.ok) return jeff.toast("Could not update the finding.");
@@ -267,6 +280,7 @@ function FindingModal({ f, onPrepare }: { f: FindingItem; onPrepare: (goal: stri
         } else {
           setStatus("dismissed");
           jeff.toast("Dismissed. No safe narrow rule could be inferred from this finding's evidence.");
+          jeff.closeModal();
         }
         return;
       }
@@ -279,7 +293,12 @@ function FindingModal({ f, onPrepare }: { f: FindingItem; onPrepare: (goal: stri
         return;
       }
       if (verdict === "useful") setStatus("accepted");
-      if (verdict === "wrong" || verdict === "not_useful") setStatus("dismissed");
+      if (verdict === "wrong" || verdict === "not_useful") {
+        setStatus("dismissed");
+        jeff.toast("Dismissed. It won't reappear unless the condition recurs with new evidence.");
+        jeff.closeModal();
+        return;
+      }
       jeff.toast("Thanks — feedback recorded.");
     } finally {
       setFeedbackBusy(false);
