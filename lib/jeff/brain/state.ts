@@ -182,7 +182,8 @@ function obligationWeight(o: BrainObligationInput, now: Date): number {
 function fmtOverdue(due: string | null, now: Date): string | null {
   if (!due) return null;
   const days = Math.floor((now.getTime() - Date.parse(due)) / 86_400_000);
-  if (days <= 0) return "Due today";
+  if (days < 0) return null; // not yet due
+  if (days === 0) return "Due today";
   return `${days} day${days === 1 ? "" : "s"} overdue`;
 }
 
