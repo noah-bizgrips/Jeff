@@ -47,6 +47,21 @@ export interface BundleCommitment {
   status: string;
 }
 
+export interface BundleObligation {
+  id: string;
+  title: string;
+  bucket: "overdue" | "waiting_on_me" | "waiting_on_other" | "possibly_complete" | "snoozed";
+  due_at: string | null;
+  priority: string;
+  tracking_mode: string;
+  waiting_on: string | null;
+  related_goal_id: string | null;
+  scope: string;
+  amount_label: string | null;
+  briefing_only: boolean;
+  question: string | null;
+}
+
 export interface BundleFinding {
   id: string;
   category: string;
@@ -98,6 +113,7 @@ export interface BriefingBundle {
   goals: BundleGoal[];
   events_today: BundleEvent[];
   commitments: BundleCommitment[];
+  obligations: BundleObligation[];
   findings: BundleFinding[];
   finance: BundleFinance | null;
   missions: BundleMission[];
@@ -197,7 +213,26 @@ export function buildTemplate(b: BriefingBundle): BriefingSummary {
   const greetingName = b.owner_first_name ? `, ${b.owner_first_name}` : "";
   const title = b.kind === "daily" ? `Daily brief · ${b.period_start}` : b.kind === "weekly" ? `Weekly operating review · ${b.period_start} → ${b.period_end}` : `Monthly owner review · ${b.period_start.slice(0, 7)}`;
 
+  // FOLLOW-THROUGH: at most 3 unresolved obligations, ranked by importance/overdue/goal/financial/client — never a dump.
+  const followThrough: BriefingItem[] = (b.obligations ?? [])
+    .filter((o) => o.bucket !== "snoozed" && (b.kind !== "daily" || o.scope !== "personal" || o.priority === "high" || o.priority === "critical"))
+    .map((o) => {
+      const overdueDays = o.due_at ? Math.max(0, Math.floor((b.now.getTime() - Date.parse(o.due_at)) / 86400000)) : 0;
+      const score = (o.priority === "critical" ? 40 : o.priority === "high" ? 25 : 10) + Math.min(30, overdueDays * 5) + (o.related_goal_id ? 15 : 0) + (o.amount_label ? 10 : 0) + (o.scope === "financial" ? 8 : 0) + (o.bucket === "possibly_complete" ? 12 : 0) + (o.tracking_mode === "critical" ? 20 : o.tracking_mode === "important" ? 10 : 0);
+      const detail =
+        o.bucket === "possibly_complete"
+          ? (o.question ?? "Possible completion — confirm in Follow-Through.")
+          : o.bucket === "waiting_on_other"
+            ? `Waiting on ${o.waiting_on ?? "someone else"}${overdueDays ? ` · ${overdueDays} day${overdueDays === 1 ? "" : "s"} past due` : ""}.`
+            : `${overdueDays ? `${overdueDays} day${overdueDays === 1 ? "" : "s"} overdue` : o.due_at ? `Due ${o.due_at.slice(0, 10)}` : "No due date"}${o.amount_label ? ` · ${o.amount_label}` : ""}${o.related_goal_id ? " · linked to an active goal" : ""}.`;
+      return { score, item: { title: o.title, detail, ref_kind: "obligation" as const, ref_id: o.id, importance: (overdueDays > 0 && o.bucket !== "waiting_on_other" ? "important" : "briefing") as BriefingItem["importance"] } };
+    })
+    .sort((a, x) => x.score - a.score)
+    .slice(0, 3)
+    .map((x) => x.item);
+
   const today: BriefingItem[] = [
+    ...followThrough,
     ...b.events_today.map((e) => ({ title: `${fmtTime(e.start, b.timezone)} ${e.title}`.trim(), detail: [e.location, e.attendees ? `${e.attendees} attendees` : null].filter(Boolean).join(" · "), ref_kind: "none" as const, ref_id: null, importance: "briefing" as const })),
     ...b.commitments
       .filter((c) => c.status === "open" || c.status === "overdue")

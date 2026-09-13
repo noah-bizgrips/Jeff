@@ -5,6 +5,8 @@ import { DEMO_INSIGHTS } from "@/lib/jeff/demo-data";
 import { MissionControl, type FocusData, type GoalRiskItem } from "@/components/brain/MissionControl";
 import { surfacedAlerts } from "@/lib/jeff/alerts/store";
 import { listCommitments } from "@/lib/jeff/commitments/store";
+import { countBuckets, listObligations } from "@/lib/jeff/obligations/store";
+import { bucketOf } from "@/lib/jeff/obligations/types";
 import { loadFreshness } from "@/lib/jeff/freshness-store";
 import { getSettings } from "@/lib/jeff/settings-store";
 import { localTime } from "@/lib/jeff/settings";
@@ -62,14 +64,23 @@ export default async function Home() {
       const tz = settings?.timezone ?? "America/Denver";
       const today = localTime(now, tz).date;
       const { start, end } = periodInstants(today, today, tz);
-      const [alerts, commitments, freshness, findings, missions, events] = await Promise.all([
+      const [alerts, commitments, freshness, findings, missions, events, obligations] = await Promise.all([
         surfacedAlerts(session.userId, now, 8),
         listCommitments(session.userId, { status: ["open", "overdue"], limit: 20 }).catch(() => []),
         loadFreshness(session.userId, now).catch(() => []),
         loadFindings(supabase).catch(() => []),
         supabase.from("missions").select("id, code, title, status").in("status", ["queued", "running", "review", "approved", "action_in_progress"]).order("updated_at", { ascending: false }).limit(6),
         supabase.from("source_items").select("id, title, source_timestamp, metadata").eq("resource_type", "event").eq("is_sample", false).gte("source_timestamp", start.toISOString()).lte("source_timestamp", end.toISOString()).order("source_timestamp", { ascending: true }).limit(8),
+        listObligations(session.userId, { live: true, limit: 300 }).catch(() => []),
       ]);
+      const obCounts = countBuckets(obligations, now);
+      const rank = (b: string) => (b === "overdue" ? 0 : b === "possibly_complete" ? 1 : b === "waiting_on_me" ? 2 : b === "waiting_on_other" ? 3 : 9);
+      const obTop = obligations
+        .map((o) => ({ o, bucket: bucketOf(o, now) }))
+        .filter((x) => x.bucket !== "snoozed")
+        .sort((a, b) => rank(a.bucket) - rank(b.bucket))
+        .slice(0, 4)
+        .map(({ o, bucket }) => ({ id: o.id, title: o.title, bucket, due_at: o.due_at, waiting_on: o.waiting_on ?? o.counterparty, question: o.completion_question }));
       const fmt = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" }).format(new Date(iso)) : "");
       focus = {
         attention: alerts.map((a) => ({ id: a.id, kind: a.kind, importance: a.importance, title: a.title, summary: a.summary, occurrences: a.occurrences })),
@@ -80,6 +91,7 @@ export default async function Home() {
         ],
         missions: (missions.data ?? []).map((m) => ({ id: m.id, code: m.code, title: m.title, status: m.status })),
         freshness: freshness.filter((f) => f.level !== "fresh").map((f) => f.text),
+        followThrough: { unresolved: obCounts.live - obCounts.snoozed, overdue: obCounts.overdue, waiting_on_other: obCounts.waiting_on_other, possibly_complete: obCounts.possibly_complete, top: obTop },
       };
     }
   }

@@ -9,7 +9,7 @@ const Item = z.object({
   title: z.string().min(1).max(200),
   detail: z.string().max(600).default(""),
   /** Where the reader can go: alert | finding | goal | commitment | mission | connection. */
-  ref_kind: z.enum(["alert", "finding", "goal", "commitment", "mission", "connection", "none"]).default("none"),
+  ref_kind: z.enum(["alert", "finding", "goal", "commitment", "obligation", "mission", "connection", "none"]).default("none"),
   ref_id: z.string().max(80).nullable().default(null),
   importance: z.enum(["informational", "briefing", "important", "urgent", "actionable"]).default("briefing"),
 });
@@ -60,7 +60,7 @@ const ITEM_SCHEMA = {
   properties: {
     title: { type: "string" },
     detail: { type: "string" },
-    ref_kind: { type: "string", enum: ["alert", "finding", "goal", "commitment", "mission", "connection", "none"] },
+    ref_kind: { type: "string", enum: ["alert", "finding", "goal", "commitment", "obligation", "mission", "connection", "none"] },
     ref_id: { type: ["string", "null"] },
     importance: { type: "string", enum: ["informational", "briefing", "important", "urgent", "actionable"] },
   },

@@ -15,6 +15,7 @@ const NAV: { href: string; icon: string; label: string; end?: "home" | "missions
   { href: "/briefings", icon: "inbox", label: "Briefings" },
   { href: "/goals", icon: "target", label: "Goals" },
   { href: "/jobs", icon: "briefcase", label: "Jeff's Jobs" },
+  { href: "/follow-through", icon: "refresh", label: "Follow-Through" },
   { href: "/missions", icon: "compose", label: "Missions", end: "missions" },
   { href: "/insights", icon: "sun", label: "Operations & insights" },
   { href: "/approvals", icon: "check", label: "Approvals", end: "approvals" },
@@ -31,6 +32,7 @@ const NAV: { href: string; icon: string; label: string; end?: "home" | "missions
 const TITLES: Record<string, [string, string, string]> = {
   "/": ["Your business. In focus", "Connect your knowledge. Turn the next right idea into action.", "Mission control"],
   "/alerts": ["What deserves attention", "Only what matters, when it matters. Quiet by default.", "Alerts"],
+  "/follow-through": ["What still needs to happen", "Resolved when the thing is actually done — not when a reminder was shown.", "Follow-Through"],
   "/briefings": ["Your briefings", "Daily brief, weekly operating review, monthly owner review.", "Briefings"],
   "/settings": ["How Jeff should behave", "Briefing times, quiet hours, notification thresholds, learning.", "Settings"],
   "/guide": ["How to use Jeff", "Every area explained, and the habits that make Jeff useful.", "Guide"],

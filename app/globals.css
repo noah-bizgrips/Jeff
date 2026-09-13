@@ -5010,3 +5010,37 @@ pre {
     justify-content: flex-start;
   }
 }
+
+/* Follow-Through queue */
+.ft-row {
+  flex-wrap: wrap;
+}
+.ft-open {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.ft-open:hover strong {
+  color: var(--accent);
+}
+.ft-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.ft-actions .button {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+@media (max-width: 640px) {
+  .ft-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}

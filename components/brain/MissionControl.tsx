@@ -53,12 +53,22 @@ export interface FocusMission {
   title: string;
   status: string;
 }
+export interface FocusObligation {
+  id: string;
+  title: string;
+  bucket: string;
+  due_at: string | null;
+  waiting_on: string | null;
+  question: string | null;
+}
+
 export interface FocusData {
   attention: FocusAlert[];
   opportunities: FocusFinding[];
   today: FocusToday[];
   missions: FocusMission[];
   freshness: string[];
+  followThrough?: { unresolved: number; overdue: number; waiting_on_other: number; possibly_complete: number; top: FocusObligation[] };
 }
 
 export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, jobs = null }: { topInsight: DemoInsight | null; goalsAtRisk?: GoalRiskItem[]; focus?: FocusData | null; jobs?: JobsSummary | null }) {
@@ -231,6 +241,33 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
             ) : (
               <p className="muted focus-empty">Nothing scheduled or due today in synced data.</p>
             )}
+            {focus.followThrough ? (
+              <>
+                <div className="section-label">NEEDS FOLLOW-THROUGH</div>
+                {focus.followThrough.unresolved ? (
+                  <>
+                    <p className="muted focus-empty" style={{ marginBottom: 6 }}>
+                      {focus.followThrough.unresolved} unresolved · {focus.followThrough.overdue} overdue · {focus.followThrough.waiting_on_other} waiting on someone else · {focus.followThrough.possibly_complete} possible completion{focus.followThrough.possibly_complete === 1 ? "" : "s"}
+                    </p>
+                    {focus.followThrough.top.map((o) => (
+                      <Link key={o.id} href="/follow-through" className="focus-row">
+                        <span className={`pill ${o.bucket === "overdue" ? "amber" : o.bucket === "possibly_complete" ? "info" : "neutral"}`}>{o.bucket === "possibly_complete" ? "confirm" : o.bucket === "waiting_on_other" ? "waiting" : o.bucket === "overdue" ? "overdue" : "open"}</span>
+                        <span className="focus-copy">
+                          <strong>{o.title}</strong>
+                          <small>{o.bucket === "possibly_complete" && o.question ? o.question : o.bucket === "waiting_on_other" ? `Waiting on ${o.waiting_on ?? "someone else"}` : o.due_at ? `Due ${new Date(o.due_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "No due date"}</small>
+                        </span>
+                        <Icon name="arrowUpRight" className="arrow-icon" />
+                      </Link>
+                    ))}
+                    <Link className="text-button" href="/follow-through">
+                      Review all <Icon name="arrowRight" />
+                    </Link>
+                  </>
+                ) : (
+                  <p className="muted focus-empty">Nothing unresolved.</p>
+                )}
+              </>
+            ) : null}
             <div className="section-label">ACTIVE MISSIONS</div>
             {focus.missions.length ? (
               focus.missions.slice(0, 4).map((m) => (

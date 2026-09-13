@@ -23,7 +23,7 @@ interface RuleProposal {
 }
 
 /** One job, every section from spec §6.2. Actions are Tier 1 (reversible configuration); runs go through the same runner as the cron. */
-export function JobDetailView({ initialJob, initialRuns }: { initialJob: JobItem; initialRuns: JobRunRow[] }) {
+export function JobDetailView({ initialJob, initialRuns, obligations = null }: { initialJob: JobItem; initialRuns: JobRunRow[]; obligations?: { live: number; overdue: number; waiting_on_me: number; waiting_on_other: number; possibly_complete: number; snoozed: number } | null }) {
   const jeff = useJeff();
   const [job, setJob] = useState(initialJob);
   const [runs, setRuns] = useState(initialRuns);
@@ -163,6 +163,34 @@ export function JobDetailView({ initialJob, initialRuns }: { initialJob: JobItem
               <dd>{job.next_run_at ? fmtWhen(job.next_run_at) : job.schedule_type === "manual" ? "manual only" : "not scheduled"}</dd>
             </dl>
           </article>
+
+          {obligations ? (
+            <>
+              <div className="section-label">OPEN OBLIGATIONS</div>
+              <article className="goal-card">
+                <div className="metric-grid">
+                  {(
+                    [
+                      ["Open", obligations.live],
+                      ["Overdue", obligations.overdue],
+                      ["Waiting on me", obligations.waiting_on_me],
+                      ["Waiting on someone else", obligations.waiting_on_other],
+                      ["Possibly complete", obligations.possibly_complete],
+                      ["Snoozed", obligations.snoozed],
+                    ] as const
+                  ).map(([label, n]) => (
+                    <div className="metric-box" key={label}>
+                      <small>{label}</small>
+                      <strong>{n}</strong>
+                    </div>
+                  ))}
+                </div>
+                <Link className="button secondary" href="/follow-through" style={{ marginTop: 10 }}>
+                  Open the Follow-Through queue <Icon name="arrowUpRight" />
+                </Link>
+              </article>
+            </>
+          ) : null}
 
           <div className="section-label">PURPOSE</div>
           <article className="goal-card">

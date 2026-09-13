@@ -23,6 +23,7 @@ function bundle(over: Partial<BriefingBundle> = {}): BriefingBundle {
     ],
     goals: [{ id: "g1", name: "10 clients in 60 days", trajectory: "slightly_at_risk", trajectory_label: "Slightly at risk", primary: "6 of ≥ 10", constraint: "booked_calls", days_remaining: 31, change: null }],
     events_today: [{ title: "Atlas scope alignment", start: "2026-09-16T16:00:00.000Z", location: null, attendees: 3 }],
+    obligations: [],
     commitments: [{ id: "c1", action_text: "I'll send the proposal Thursday", context_text: "Sam's $8,400 estimate was sent four days ago and no follow-up is logged.", due_at: "2026-09-16T23:59:59.000Z", direction: "owed_by_me", status: "open" }],
     findings: [{ id: "f-low", category: "operational_bottleneck", title: "Thursday is heavily booked", severity: "low", status: "open", created_at: NOW.toISOString(), proposed_mission: { title: "Protect focus time", goal: "Block two mornings." } }],
     finance: { stripe_inflow: 1_250_000, stripe_prev_inflow: 1_000_000, plaid_inflow: null, plaid_outflow: null, plaid_prev_inflow: null, plaid_prev_outflow: null, open_invoices_count: 1, open_invoices_minor: 275_000, failed_charges_count: 1, mrr_minor: 400_000 },

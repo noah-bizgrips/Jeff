@@ -8,6 +8,8 @@ import { getSettings } from "@/lib/jeff/settings-store";
 import { listMemories, listRules } from "@/lib/jeff/rules/store";
 import { listAlerts } from "@/lib/jeff/alerts/store";
 import { listCommitments } from "@/lib/jeff/commitments/store";
+import { listObligations } from "@/lib/jeff/obligations/store";
+import { bucketOf } from "@/lib/jeff/obligations/types";
 import { loadFreshness } from "@/lib/jeff/freshness-store";
 import { loadRows } from "@/lib/jeff/monitors";
 import { plaidFlows, stripeFlows, inWindow, num } from "@/lib/jeff/monitors/finance-shared";
@@ -47,7 +49,7 @@ const DAY = 86_400_000;
 export async function buildBundle(ownerId: string, kind: BriefingKind, period: { period_start: string; period_end: string }, now = new Date()): Promise<BriefingBundle> {
   const settings = await getSettings(ownerId);
   const { start, end } = periodInstants(period.period_start, period.period_end, settings.timezone);
-  const [alerts, goals, commitments, rows, freshness, memories, rules] = await Promise.all([
+  const [alerts, goals, commitmentsAll, rows, freshness, memories, rules, obligations] = await Promise.all([
     listAlerts(ownerId, { status: ["open", "acknowledged"], limit: 100 }).catch(() => []),
     listGoals(ownerId, ["active"]).catch(() => []),
     listCommitments(ownerId, { status: ["open", "overdue"], limit: 50 }).catch(() => []),
@@ -55,7 +57,11 @@ export async function buildBundle(ownerId: string, kind: BriefingKind, period: {
     loadFreshness(ownerId, now).catch(() => []),
     listMemories(ownerId, { activeOnly: true }).catch(() => []),
     listRules(ownerId).catch(() => []),
+    listObligations(ownerId, { live: true, limit: 200 }).catch(() => []),
   ]);
+  // Commitments already tracked as obligations are surfaced once, through FOLLOW-THROUGH.
+  const trackedCommitmentIds = new Set(obligations.map((o) => o.commitment_id).filter(Boolean));
+  const commitments = commitmentsAll.filter((c) => !trackedCommitmentIds.has(c.id));
   const admin = createAdminClient();
   const periodStartIso = new Date(kind === "daily" ? now.getTime() - 7 * DAY : start.getTime()).toISOString();
   const { data: findingRows } = await admin
@@ -144,6 +150,23 @@ export async function buildBundle(ownerId: string, kind: BriefingKind, period: {
     goals: goalBundles,
     events_today: eventsToday,
     commitments: commitments.map((c) => ({ id: c.id, action_text: c.action_text, context_text: c.context_text, due_at: c.due_at, direction: c.direction, status: c.status })),
+    obligations: obligations.map((o) => {
+      const amount = o.completion_strategy?.match?.amount_minor;
+      return {
+        id: o.id,
+        title: o.title,
+        bucket: bucketOf(o, now) as "overdue" | "waiting_on_me" | "waiting_on_other" | "possibly_complete" | "snoozed",
+        due_at: o.due_at,
+        priority: o.priority,
+        tracking_mode: o.tracking_mode,
+        waiting_on: o.waiting_on ?? o.counterparty,
+        related_goal_id: o.related_goal_id,
+        scope: o.scope,
+        amount_label: typeof amount === "number" ? `$${(amount / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })}` : null,
+        briefing_only: Boolean(o.cadence?.briefing_only),
+        question: o.completion_question,
+      };
+    }),
     findings: (findingRows ?? []).map((f) => ({ id: f.id, category: f.category, title: f.title, severity: f.severity, status: f.status, created_at: f.created_at, proposed_mission: (f.proposed_mission as { title: string; goal: string } | null) ?? null })),
     finance,
     missions: (missionRows ?? []).map((m) => ({ id: m.id, code: m.code, title: m.title, status: m.status, completed_at: m.completed_at })),
