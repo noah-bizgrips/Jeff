@@ -282,7 +282,8 @@ export function computeBrainState(input: BrainStateInput): BrainState {
     const stale = c.freshness_level === "stale" || (c.age_hours != null && c.age_hours > BRAIN_POLICY.staleHours);
     if (!broken && !stale) continue;
     unhealthy++;
-    const tone: SourceTone = broken ? "danger" : "stale";
+    // System trouble is warning-toned (dashed), never danger: a broken sync is not business pressure (§38).
+    const tone: SourceTone = broken ? "warning" : "stale";
     bump(sources, tone, c.freshness_text, true);
     system.push({ id: `connection:${c.provider}`, kind: "connection", title: c.provider === "highlevel" ? "HighLevel" : c.provider.charAt(0).toUpperCase() + c.provider.slice(1), detail: broken ? (c.status === "reconnect_required" ? "Reconnect required" : "Sync error") : c.freshness_text, sources, href: "/connections", tone, weight: broken ? 1 : 0.6 });
   }

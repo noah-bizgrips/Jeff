@@ -9,7 +9,7 @@ import { looksSensitiveClient } from "@/lib/security/client-redact";
 import { noteAttention } from "@/lib/jeff/attention/client";
 import type { ConnectionSummary } from "@/lib/integrations/types";
 import type { BrainState } from "@/lib/jeff/brain/state";
-import { BRAIN_POLICY } from "@/lib/jeff/brain/policy";
+import { BRAIN_POLICY, resolveMotion } from "@/lib/jeff/brain/policy";
 import { sourcesForTools } from "@/lib/jeff/brain/sources";
 
 export type Mode = "demo" | "live";
@@ -133,7 +133,7 @@ export function JeffProvider({ initial, children }: { initial: JeffInitial; chil
   const [chatScope, setChatScope] = useState("all");
   const reducedMotion = useSyncExternalStore(subscribeReducedMotion, getReducedMotion, () => false);
   const [motionOverride, setMotion] = useState<boolean | null>(null);
-  const motion = motionOverride ?? !reducedMotion;
+  const motion = resolveMotion(reducedMotion, motionOverride);
   const [labels] = useState(true);
   const [busy, setBusy] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);

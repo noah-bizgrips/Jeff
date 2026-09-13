@@ -81,3 +81,11 @@ export function pulsePeriodMs(mode: BrainMode, urgency: BrainUrgency, quiet: boo
   if (mode === "degraded") return BRAIN_POLICY.pulseMs.degraded!;
   return quiet ? BRAIN_POLICY.pulseMs.quiet! : BRAIN_POLICY.pulseMs.watching!;
 }
+
+/**
+ * Whether the brain may animate. The OS "reduce motion" preference wins
+ * unless the owner explicitly pressed play/pause in the graph controls.
+ */
+export function resolveMotion(prefersReducedMotion: boolean, override: boolean | null): boolean {
+  return override ?? !prefersReducedMotion;
+}
