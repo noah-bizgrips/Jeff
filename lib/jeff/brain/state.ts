@@ -126,6 +126,16 @@ const ACTIVE_FINDING_STATUSES = new Set(["new", "open", "acknowledged", "in_prog
 const OPEN_ALERT_STATUSES = new Set(["open"]);
 const ATTENTION_IMPORTANCE = new Set(["important", "urgent", "actionable"]);
 
+/** Follow-through items that count toward "things need attention": overdue or due today. */
+export function isDueFollowThrough(r: BrainReason): boolean {
+  return r.tone === "danger" || !!r.detail?.includes("overdue") || r.detail === "Due today";
+}
+
+/** The number the status text shows; the panel lists exactly these items (§15). */
+export function attentionCountOf(reasons: { attention: BrainReason[]; followThrough: BrainReason[] }): number {
+  return reasons.attention.length + reasons.followThrough.filter(isDueFollowThrough).length;
+}
+
 function clamp01(n: number) {
   return Math.max(0, Math.min(1, n));
 }
@@ -296,7 +306,7 @@ export function computeBrainState(input: BrainStateInput): BrainState {
   // ---- Levels ----
   const attentionLevel = clamp01(attentionPressure / 2.5);
   const opportunityLevel = clamp01(opportunityEnergy / 2);
-  const attentionCount = attention.length + followThrough.filter((r) => r.tone === "danger" || r.detail?.includes("overdue") || r.detail === "Due today").length;
+  const attentionCount = attentionCountOf({ attention, followThrough });
 
   // ---- Ambient state precedence (§9) ----
   let state: BrainMode = "watching";
@@ -322,7 +332,7 @@ export function computeBrainState(input: BrainStateInput): BrainState {
   } else if (state === "attention") {
     primaryStatus = `${attentionCount} thing${attentionCount === 1 ? "" : "s"} need${attentionCount === 1 ? "s" : ""} attention`;
     const fin = attention.filter((r) => r.sources.some((s) => ["stripe", "plaid"].includes(s))).length;
-    const ft = followThrough.filter((r) => r.tone === "danger" || r.detail?.includes("overdue") || r.detail === "Due today").length;
+    const ft = followThrough.filter(isDueFollowThrough).length;
     const biz = attentionCount - fin - ft;
     const parts = [biz > 0 ? `${biz} business` : null, fin > 0 ? `${fin} financial` : null, ft > 0 ? `${ft} follow-through` : null].filter(Boolean);
     secondaryStatus = parts.length ? parts.join(" · ") : null;

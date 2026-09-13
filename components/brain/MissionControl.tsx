@@ -6,6 +6,8 @@ import { Icon, SourceIcon } from "@/components/jeff/icons";
 import { useJeff } from "@/components/jeff/store";
 import { DocModal, EmptyState, MemoryRow, ModalHeader } from "@/components/jeff/shared";
 import { BrainCanvas, type BrainHandle } from "./BrainCanvas";
+import { WhatJeffSeesModal } from "./WhatJeffSees";
+import { liteOf } from "@/lib/jeff/brain/state";
 import { sourceDef } from "@/lib/jeff/sources";
 import { linksFor } from "@/lib/jeff/retrieve";
 import { looksSensitiveClient } from "@/lib/security/client-redact";
@@ -85,6 +87,29 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
   const all = jeff.docs();
   const focused = jeff.focusSource;
   const visible = all.filter((d) => !focused || d.source === focused);
+  const brainState = jeff.brain;
+  const brainLite = useMemo(() => liteOf(brainState), [brainState]);
+  const stage = useRef<HTMLDivElement>(null);
+
+  function openWhatJeffSees() {
+    jeff.openModal(<WhatJeffSeesModal brain={jeff.brain} onScan={jeff.mode === "live" ? startScan : undefined} />);
+  }
+  function startScan() {
+    const b = document.getElementById("blindSpotScanButton") as HTMLButtonElement | null;
+    if (b && !b.disabled) {
+      b.click();
+      b.scrollIntoView({ block: "nearest", behavior: jeff.motion ? "smooth" : "auto" });
+    } else jeff.navigate("/jobs/blind-spot-scanner");
+  }
+  /** Anchor tooltip (§20): source name, what Jeff sees there, and how to learn more. */
+  function anchorTip(id: string): string {
+    const s = sourceDef(id);
+    const affected = brainState.affectedSources.find((x) => x.source === id);
+    const reading = jeff.brainActivity.sources.includes(id);
+    if (reading) return `${s.name} · ${jeff.brainActivity.kind === "ask" ? "Reading now" : jeff.brainActivity.kind === "scan" ? "Scanning now" : "In use by a job"}`;
+    if (!affected) return `${s.name} · Nothing needs attention · Click to filter`;
+    return `${s.name} · ${affected.label}${affected.count > 1 ? ` (${affected.count})` : ""} · Click to filter, open the centre to see why`;
+  }
 
   const anchors = useMemo(() => {
     const positions =
@@ -422,7 +447,7 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
             <Icon name="expand" />
           </button>
         </div>
-        <div className="brain-stage" id="brainStage">
+        <div className="brain-stage" id="brainStage" ref={stage} data-brain-state={brainState.state} data-brain-urgency={brainState.urgency}>
           <BrainCanvas
             ref={brain}
             docs={all}
@@ -431,13 +456,17 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
             motion={jeff.motion}
             anchors={anchors}
             active
+            brain={brainLite}
+            activity={jeff.brainActivity}
             onOpen={(id) => {
               const d = all.find((x) => x.id === id);
               if (d) jeff.openModal(<DocModal doc={d} />);
             }}
+            onCenter={openWhatJeffSees}
             onZoom={setZoom}
             onHover={setHover}
           />
+          <button type="button" className="brain-center-button" aria-label={`What Jeff sees: ${brainState.primaryStatus}`} title="What Jeff sees" onClick={openWhatJeffSees} />
           <div id="graphAnchors">
             {anchors.map((a) => {
               const s = sourceDef(a.id);
@@ -448,8 +477,21 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
                   type="button"
                   className={`graph-anchor ${focused === a.id ? "highlighted" : focused ? "dimmed" : ""}`}
                   style={{ left: `${a.x * 100}%`, top: `${a.y * 100}%`, ["--source-color" as string]: s.color, display: jeff.labels ? undefined : "none" }}
-                  aria-label={`Explore ${s.name}; ${count} memories`}
+                  aria-label={`Explore ${s.name}; ${count} memories. ${anchorTip(a.id)}`}
+                  data-tone={brainState.affectedSources.find((x) => x.source === a.id)?.tone ?? (jeff.brainActivity.sources.includes(a.id) ? "active" : undefined)}
                   onClick={() => jeff.setFocusSource(focused === a.id ? null : a.id)}
+                  onMouseEnter={(e) => {
+                    const r = e.currentTarget.getBoundingClientRect();
+                    const st = stage.current?.getBoundingClientRect();
+                    if (st) setHover({ title: anchorTip(a.id), x: r.left - st.left + r.width / 2 - 10, y: r.top - st.top + r.height + 30 });
+                  }}
+                  onMouseLeave={() => setHover(null)}
+                  onFocus={(e) => {
+                    const r = e.currentTarget.getBoundingClientRect();
+                    const st = stage.current?.getBoundingClientRect();
+                    if (st) setHover({ title: anchorTip(a.id), x: r.left - st.left + r.width / 2 - 10, y: r.top - st.top + r.height + 30 });
+                  }}
+                  onBlur={() => setHover(null)}
                 >
                   <SourceIcon id={a.id} />
                   <span>{s.name}</span>
@@ -469,8 +511,28 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
         </div>
         <div className="graph-bottom">
           <div className="graph-legend">
-            <span className="health-dot" />
-            <span>{focused ? `${sourceDef(focused).name} / ${visible.length} memories` : `${ids.length} sources, one connected mind`}</span>
+            <span className="health-dot" data-tone={brainState.state === "attention" ? (brainState.urgency === "urgent" ? "danger" : "warning") : brainState.state === "opportunity" ? "opportunity" : brainState.state === "degraded" ? "warning" : jeff.brainActivity.kind ? "active" : undefined} />
+            {focused ? (
+              <span>{`${sourceDef(focused).name} / ${visible.length} memories`}</span>
+            ) : (
+              <button type="button" className="brain-status" onClick={openWhatJeffSees} aria-label={`What Jeff sees: ${brainState.primaryStatus}`}>
+                <span className="brain-status-primary" aria-live="polite">
+                  {jeff.brainActivity.kind ? (jeff.brainActivity.kind === "ask" ? "Investigating…" : jeff.brainActivity.kind === "scan" ? "Scanning…" : "Running a job…") : brainState.primaryStatus}
+                </span>
+                <span className="brain-status-secondary">
+                  {jeff.brainActivity.kind
+                    ? jeff.brainActivity.sources.length
+                      ? `${jeff.brainActivity.kind === "ask" ? "Reading" : "Looking at"} ${jeff.brainActivity.sources.length} source${jeff.brainActivity.sources.length === 1 ? "" : "s"}`
+                      : jeff.brainActivity.kind === "ask"
+                        ? "Working on your question"
+                        : "Preparing"
+                    : (brainState.secondaryStatus ?? `${ids.length} sources, one connected mind`)}
+                </span>
+              </button>
+            )}
+            <button type="button" className="brain-sees-link" onClick={openWhatJeffSees}>
+              What Jeff sees
+            </button>
           </div>
           <div className="graph-controls">
             <button className="icon-button" type="button" aria-label="Zoom out" onClick={() => brain.current?.setZoom((brain.current?.getZoom() ?? 1) - 0.1)}>

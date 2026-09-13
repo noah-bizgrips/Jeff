@@ -111,7 +111,7 @@ export function BlindSpotScanButton({ disabled }: { disabled?: boolean }) {
   return (
     <div className="scan-panel">
       <div className="scan-head">
-        <button className="button primary" type="button" disabled={disabled || state.phase === "running"} onClick={start}>
+        <button className="button primary" id="blindSpotScanButton" type="button" disabled={disabled || state.phase === "running"} onClick={start}>
           {state.phase === "running" ? <span className="spinner" /> : <span aria-hidden="true">✦</span>} Find what I&apos;m missing
         </button>
         {state.phase === "running" ? (
