@@ -1,0 +1,309 @@
+/* Premium black — page-level layouts (imported after theme-black.css). */
+
+/* Mission Control: an executive attention surface, one column, hairlines. */
+.jobs-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 18px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.jobs-status-line {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 0;
+}
+.focus-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 0 48px;
+  margin: 0 0 24px;
+}
+.focus-col {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  min-width: 0;
+}
+.focus-col .section-label {
+  margin-top: 26px;
+}
+.focus-col .section-label:first-child {
+  margin-top: 8px;
+}
+.focus-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border);
+}
+.focus-row:last-of-type {
+  border-bottom: 1px solid var(--border);
+}
+.focus-row:not(.static):hover {
+  background: transparent;
+}
+.focus-row:not(.static):hover .focus-copy strong {
+  color: var(--accent-bright);
+}
+.focus-row .pill {
+  min-width: 78px;
+  padding-top: 2px;
+}
+.focus-copy strong {
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: normal;
+  line-height: 1.4;
+}
+.focus-copy small {
+  color: var(--text-muted);
+  font-size: 11.5px;
+  white-space: normal;
+  margin-top: 2px;
+}
+.focus-row > .arrow-icon {
+  color: var(--text-faint);
+  margin-left: auto;
+}
+.focus-empty {
+  font-size: 12px;
+  padding: 10px 0;
+  color: var(--text-muted);
+}
+.brief-item {
+  text-decoration: none;
+  color: inherit;
+}
+.brief-item:hover h3 {
+  color: var(--accent-bright);
+}
+.brief-item .text-button {
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 0;
+}
+.scan-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.scan-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.scan-progress {
+  color: var(--accent);
+  font-size: 12px;
+}
+.scan-results {
+  margin-top: 8px;
+}
+.scan-results .section-label {
+  border-bottom: 0;
+  margin-bottom: 0;
+}
+.job-finding {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.job-finding h3 {
+  font-size: 15px;
+  margin: 6px 0;
+}
+.scan-empty {
+  padding: 12px 0;
+}
+
+/* Jobs roster */
+.job-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 24px;
+  align-items: start;
+}
+.job-row-main {
+  display: flex;
+  gap: 14px;
+  min-width: 0;
+}
+.job-row-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.job-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Follow-through queue */
+.ft-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ft-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+/* Goals: typographic KPIs */
+.goal-card {
+  display: block;
+}
+.goal-progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.goal-options label,
+.goal-history .audit-row {
+  border-color: var(--border);
+}
+
+/* Connections as rows */
+.connection-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 24px;
+  align-items: start;
+}
+.connection-card > p,
+.connection-card > .access-caption,
+.connection-card > .powered,
+.connection-card > .status-line {
+  grid-column: 1;
+}
+.connection-card .connection-actions {
+  grid-column: 2;
+  grid-row: 1 / span 4;
+  align-self: center;
+  display: flex;
+  gap: 8px;
+}
+.connection-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.connection-top .source-icon.large {
+  width: 28px;
+  height: 28px;
+}
+.connection-top .source-icon.large svg {
+  width: 18px;
+  height: 18px;
+}
+.connections-grid {
+  display: block;
+}
+
+/* Insights / missions as feed rows */
+.insight-card,
+.mission-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mission-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.mission-card-footer {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  color: var(--text-muted);
+}
+.insight-actions {
+  margin-top: 4px;
+}
+.insight-select input {
+  width: 14px;
+  height: 14px;
+}
+
+/* Memory & rules, settings, security */
+.security-card {
+  padding: 24px 0;
+  border-bottom: 1px solid var(--border);
+}
+.security-grid > .security-card:nth-child(-n + 2) {
+  border-top: 0;
+}
+.security-card .button {
+  margin-top: 12px;
+}
+
+/* Briefings */
+.briefing-layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 40px;
+}
+.briefing-inbox .audit-row {
+  cursor: pointer;
+}
+.briefing-inbox .audit-row.active strong {
+  color: var(--accent-bright);
+}
+
+/* Alerts feed dots */
+.mission-list .mission-card .mission-code {
+  color: var(--text-muted);
+}
+
+/* Auth pages */
+.auth-card .brand {
+  font-size: 30px;
+  padding: 0 0 18px;
+}
+
+@media (max-width: 1000px) {
+  .focus-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .briefing-layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+@media (max-width: 720px) {
+  .job-row,
+  .connection-card {
+    grid-template-columns: 1fr;
+  }
+  .connection-card .connection-actions {
+    grid-column: 1;
+    grid-row: auto;
+    margin-top: 8px;
+  }
+  .jobs-strip {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .find-missing {
+    width: 100%;
+    justify-content: center;
+    min-height: 48px;
+  }
+}

@@ -92,8 +92,9 @@ export function BlindSpotScanButton({ disabled }: { disabled?: boolean }) {
   return (
     <div className="scan-panel">
       <div className="scan-head">
-        <button className="button primary" type="button" disabled={disabled || state.phase === "running"} onClick={start}>
-          {state.phase === "running" ? <span className="spinner" /> : <span aria-hidden="true">✦</span>} Find what I&apos;m missing
+        <button className={`find-missing ${state.phase === "running" ? "running" : ""}`} type="button" disabled={disabled || state.phase === "running"} onClick={start}>
+          <span className="spark" aria-hidden="true">✦</span>
+          {state.phase === "running" ? "Looking for blind spots…" : "Find what I\u2019m missing"}
         </button>
         {state.phase === "running" ? (
           <span className="scan-progress" aria-live="polite">
@@ -114,6 +115,9 @@ export function BlindSpotScanButton({ disabled }: { disabled?: boolean }) {
       {state.phase === "done" ? (
         state.findings.filter((f) => !state.dismissed.includes(f.id)).length ? (
           <div className="scan-results">
+            <div className="section-label">
+              I found {state.findings.filter((f) => !state.dismissed.includes(f.id)).length} thing{state.findings.filter((f) => !state.dismissed.includes(f.id)).length === 1 ? "" : "s"} you may be missing
+            </div>
             {state.findings
               .filter((f) => !state.dismissed.includes(f.id))
               .slice(0, 5)
