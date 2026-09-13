@@ -3,6 +3,14 @@ import type { CandidateFinding, Monitor, SourceRow } from "@/lib/jeff/monitors/t
 import { clientIdOf, clientIndex, DAY, groupBy, isActiveClient, str } from "@/lib/jeff/monitors/portal-shared";
 import { money, num, tsOf } from "@/lib/jeff/monitors/finance-shared";
 import type { DetectorContext, DetectorSpec } from "./types";
+import type { ExtendedContext } from "@/lib/jeff/monitors/types";
+import { contactResurfaced, importantDate, referralSourceDeclining, relationshipQuiet } from "@/lib/jeff/monitors/relationship-radar";
+import { timeAllocationMismatch } from "@/lib/jeff/monitors/time-allocation";
+import { attentionFragmentation } from "@/lib/jeff/monitors/attention-cost";
+import { personalProjectStalled, personalRenewalDue } from "@/lib/jeff/monitors/personal-projects";
+import { annualRenewalUpcoming, duplicateTool, newRecurringCharge, priceIncrease, unusedSoftware } from "@/lib/jeff/monitors/expense-creep";
+import { duplicateLeadEvents, manualRepetition, repeatedError, webhookBroken } from "@/lib/jeff/monitors/automation-audit";
+import { clientEngagementDrop, clientMissedMeeting, clientNegativeSignal } from "@/lib/jeff/monitors/client-health";
 
 /**
  * Detector registry: the only way a Job may "do" anything. Wraps the existing
@@ -140,7 +148,42 @@ export function clientScopeCreep(rows: SourceRow[], now: Date, windowDays = SCOP
   return out;
 }
 
+/** Adapts an ExtendedContext detector (rows, ctx) to the job DetectorContext. */
+function ext(fn: (rows: DetectorContext["rows"], ctx: ExtendedContext) => ReturnType<NonNullable<DetectorSpec["run"]>>): NonNullable<DetectorSpec["run"]> {
+  return (ctx) => fn(ctx.rows, { now: ctx.now, ownerEmail: ctx.ownerEmail ?? null, goals: ctx.goals ?? [], memories: ctx.memories ?? [], obligations: ctx.obligations ?? [], config: { timezone: ctx.timezone, ...ctx.job.config } });
+}
+
+const ANALYSTS: DetectorSpec[] = [
+  // Relationship Radar
+  { id: "relationship_quiet", label: "Important relationships going quiet", kind: "custom", sources: ["google", "highlevel", "slack"], categories: ["relationship_quiet"], needs: ["memories", "owner"], run: ext(relationshipQuiet) },
+  { id: "referral_source_declining", label: "Referral sources drying up", kind: "custom", sources: ["highlevel"], categories: ["referral_source_declining"], needs: ["owner"], run: ext(referralSourceDeclining) },
+  { id: "contact_resurfaced", label: "Contacts resurfacing after long silence", kind: "custom", sources: ["google", "slack", "highlevel"], categories: ["contact_resurfaced"], needs: ["owner"], run: ext(contactResurfaced) },
+  { id: "important_date", label: "Important dates (explicit calendar entries)", kind: "custom", sources: ["google"], categories: ["important_date"], run: ext(importantDate) },
+  // Time Allocation / Attention Cost
+  { id: "time_allocation_mismatch", label: "Calendar time vs top goal", kind: "custom", sources: ["google"], categories: ["time_allocation_mismatch"], needs: ["goals", "owner"], run: ext(timeAllocationMismatch) },
+  { id: "attention_fragmentation", label: "Fragmented weeks and missing focus blocks", kind: "custom", sources: ["google"], categories: ["attention_fragmentation"], needs: ["owner"], run: ext(attentionFragmentation) },
+  // Personal Project Tracker
+  { id: "personal_project_stalled", label: "Stalled personal projects", kind: "custom", sources: ["google"], categories: ["personal_project_stalled"], needs: ["goals", "memories"], run: ext(personalProjectStalled) },
+  { id: "personal_renewal_due", label: "Personal renewals due", kind: "custom", sources: ["plaid"], categories: ["personal_renewal_due"], needs: ["memories"], run: ext(personalRenewalDue) },
+  // Expense Creep Hunter
+  { id: "new_recurring_charge", label: "New recurring charges", kind: "custom", sources: ["plaid"], categories: ["new_recurring_charge"], run: ext(newRecurringCharge) },
+  { id: "duplicate_tool", label: "Overlapping tools", kind: "custom", sources: ["plaid"], categories: ["duplicate_tool"], run: ext(duplicateTool) },
+  { id: "price_increase", label: "Price increases", kind: "custom", sources: ["plaid"], categories: ["price_increase"], run: ext(priceIncrease) },
+  { id: "unused_software", label: "Possibly unused software", kind: "custom", sources: ["plaid", "google"], categories: ["unused_software"], run: ext(unusedSoftware) },
+  { id: "annual_renewal_upcoming", label: "Annual renewals coming up", kind: "custom", sources: ["plaid"], categories: ["annual_renewal_upcoming"], run: ext(annualRenewalUpcoming) },
+  // Automation Auditor
+  { id: "webhook_broken", label: "Broken notification channels", kind: "custom", sources: ["portal"], categories: ["webhook_broken"], run: ext(webhookBroken) },
+  { id: "repeated_error", label: "Workflows failing repeatedly", kind: "custom", sources: ["n8n"], categories: ["repeated_error"], run: ext(repeatedError) },
+  { id: "duplicate_lead_events", label: "Duplicate lead events", kind: "custom", sources: ["portal"], categories: ["automation_opportunity"], run: ext(duplicateLeadEvents) },
+  { id: "manual_repetition", label: "Repeated manual work", kind: "custom", sources: ["portal", "google"], categories: ["manual_repetition"], needs: ["owner"], run: ext(manualRepetition) },
+  // Client Health Analyst
+  { id: "client_engagement_drop", label: "Client communication dropping", kind: "custom", sources: ["portal", "google", "highlevel"], categories: ["client_engagement_drop"], run: ext(clientEngagementDrop) },
+  { id: "client_missed_meeting", label: "Cancelled / missed client meetings", kind: "custom", sources: ["portal", "highlevel"], categories: ["client_missed_meeting"], run: ext(clientMissedMeeting) },
+  { id: "client_negative_signal", label: "Negative language in client messages", kind: "custom", sources: ["portal", "google", "highlevel"], categories: ["client_negative_signal"], needs: ["owner"], run: ext(clientNegativeSignal) },
+];
+
 const CUSTOM: DetectorSpec[] = [
+  ...ANALYSTS,
   {
     id: "client_scope_creep",
     label: "Client scope creep (work vs revenue)",
@@ -154,6 +197,7 @@ const CUSTOM: DetectorSpec[] = [
 /** Subsystems the runner invokes itself (not pure over rows). */
 const SPECIAL: DetectorSpec[] = [
   { id: "goal_trajectory", label: "Goal trajectory & recommendations", kind: "special", sources: [], categories: ["goal_trajectory"] },
+  { id: "goal_coach", label: "Weekly goal coaching (constraint, indicator, next step)", kind: "special", sources: [], categories: ["goal_coach"] },
   { id: "blind_spots", label: "Blind spots (find what I'm missing)", kind: "special", sources: [], categories: ["blind_spot"] },
   { id: "quiet_client", label: "Clients going quiet", kind: "special", sources: ["portal", "highlevel", "google", "stripe"], categories: ["blind_spot"] },
   // Run B fills these in; keeping the ids reserved so jobs/rules can reference them now.

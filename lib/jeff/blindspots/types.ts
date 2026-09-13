@@ -17,6 +17,7 @@ export type BlindSpotSubtype =
   | "cross_source_contradiction"
   | "unanswered_owed_to_me"
   | "neglected_goal"
+  | "unresolved_costly_obligation"
   | "ai_observation";
 
 export type Impact = "financial" | "client" | "operational" | "data";
@@ -99,6 +100,19 @@ export interface CommitmentLite {
   status: string;
 }
 
+export interface ObligationLite {
+  id: string;
+  title: string;
+  status: string;
+  scope: string;
+  priority: string | null;
+  due_at: string | null;
+  reminder_count: number;
+  updated_at: string | null;
+  counterparty: string | null;
+  metadata: Record<string, unknown>;
+}
+
 export interface BlindSpotContext {
   now: Date;
   ownerEmail: string | null;
@@ -110,6 +124,8 @@ export interface BlindSpotContext {
   connections: ConnectionLite[];
   attention: AttentionRow[];
   commitments: CommitmentLite[];
+  /** Open Follow-Through obligations (optional; older callers omit it). */
+  obligations?: ObligationLite[];
 }
 
 export interface Detector {

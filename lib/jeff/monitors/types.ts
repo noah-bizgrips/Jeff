@@ -26,6 +26,27 @@ export interface EvidenceRef {
 }
 
 export type FindingCategory =
+  | "relationship_quiet"
+  | "relationship_promise"
+  | "referral_source_declining"
+  | "contact_resurfaced"
+  | "important_date"
+  | "time_allocation_mismatch"
+  | "attention_fragmentation"
+  | "personal_project_stalled"
+  | "personal_renewal_due"
+  | "new_recurring_charge"
+  | "duplicate_tool"
+  | "price_increase"
+  | "unused_software"
+  | "annual_renewal_upcoming"
+  | "webhook_broken"
+  | "repeated_error"
+  | "manual_repetition"
+  | "client_engagement_drop"
+  | "client_missed_meeting"
+  | "client_negative_signal"
+  | "goal_coach"
   | "lead_followup_gap"
   | "pipeline_aging"
   | "onboarding_blocker"
@@ -70,6 +91,50 @@ export interface CandidateFinding {
 
 export interface MonitorContext {
   now: Date;
+}
+
+/** Lite goal for detectors that compare behaviour with intention. */
+export interface GoalLite {
+  id: string;
+  name: string;
+  scope: string;
+  status: string;
+  trajectory: string | null;
+  /** Free-text keywords derived from the goal (name/outcome/metric keys), lowercase. */
+  keywords: string[];
+  primary_metric: string | null;
+  constraint_key: string | null;
+  recommendation: string | null;
+  end_date: string | null;
+  updated_at: string | null;
+}
+
+export interface MemoryLite {
+  category: string;
+  scope: string;
+  content: string;
+}
+
+export interface ObligationLite {
+  id: string;
+  title: string;
+  status: string;
+  scope: string;
+  priority: string;
+  due_at: string | null;
+  reminder_count: number;
+  updated_at: string;
+  counterparty: string | null;
+  metadata: Record<string, unknown>;
+}
+
+/** Richer context for job-only detectors (owner identity, goals, memories, obligations, job config). */
+export interface ExtendedContext extends MonitorContext {
+  ownerEmail?: string | null;
+  goals?: GoalLite[];
+  memories?: MemoryLite[];
+  obligations?: ObligationLite[];
+  config?: Record<string, unknown>;
 }
 
 export interface Monitor {

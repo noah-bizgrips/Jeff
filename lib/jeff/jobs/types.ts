@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { CandidateFinding, SourceRow } from "@/lib/jeff/monitors/types";
+import type { CandidateFinding, GoalLite, MemoryLite, ObligationLite, SourceRow } from "@/lib/jeff/monitors/types";
 import type { ProviderFreshness } from "@/lib/jeff/freshness";
 
 /**
@@ -155,12 +155,21 @@ export interface TestResult {
   existing: boolean;
 }
 
+/** Extra context a detector may declare via `needs`; loaded once per run. */
+export type DetectorNeed = "goals" | "memories" | "obligations" | "owner";
+
 /** What a job detector receives. Rows are already filtered by owner rules. */
 export interface DetectorContext {
   now: Date;
   rows: SourceRow[];
   freshness: ProviderFreshness[];
   job: JobRow;
+  ownerEmail?: string | null;
+  goals?: GoalLite[];
+  memories?: MemoryLite[];
+  obligations?: ObligationLite[];
+  /** Owner timezone (from settings) for calendar math. */
+  timezone?: string;
 }
 
 /**
@@ -179,6 +188,8 @@ export interface DetectorSpec {
   sources: string[];
   /** Categories it emits (for auto-resolve scoping of custom detectors). */
   categories: string[];
+  /** Extra context the detector needs beyond rows (loaded by the runner). */
+  needs?: DetectorNeed[];
   /** Pure detector (monitor/custom). Undefined for `special`. */
   run?: (ctx: DetectorContext) => CandidateFinding[];
 }

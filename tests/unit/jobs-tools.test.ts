@@ -53,7 +53,8 @@ describe("Ask Jeff job tools", () => {
     const relisted = (await runJobTool("list_jobs", {}, ctx)) as { slug: string; status: string }[];
     expect(relisted.find((j) => j.slug === "cash-flow-watchdog")!.status).toBe("ACTIVE");
     connected = ["portal", "stripe"];
-    expect(list.find((j) => j.slug === "relationship-radar")!.pending).toMatch(/relationships/i);
+    expect(list.find((j) => j.slug === "relationship-radar")!.pending).toBeNull();
+    expect(list.find((j) => j.slug === "relationship-radar")!.status).toBe("LIMITED COVERAGE");
     const got = (await runJobTool("get_job", { job: "Cash Flow Watchdog" }, ctx)) as { slug: string; recent_runs: unknown[] };
     expect(got.slug).toBe("cash-flow-watchdog");
     expect(got.recent_runs).toEqual([]);
@@ -69,7 +70,8 @@ describe("Ask Jeff job tools", () => {
     expect(run.label).toBe("Run completed");
     expect(run.results).toBeUndefined();
     // Draft jobs without detectors cannot run for real.
-    expect(await runJobTool("run_job", { job: "relationship-radar", mode: "run" }, ctx)).toMatchObject({ error: "job_has_no_detectors" });
+    db.rows("jobs").push({ ...db.rows("jobs").find((j) => j.slug === "goal-coach")!, id: "empty-draft-id", slug: "empty-draft", name: "Empty draft", status: "draft", detectors: [], system_managed: false, created_by: "owner" });
+    expect(await runJobTool("run_job", { job: "empty-draft", mode: "run" }, ctx)).toMatchObject({ error: "job_has_no_detectors" });
   });
   it("pause/resume change status and audit; drafts without detectors cannot be resumed", async () => {
     await runJobTool("list_jobs", {}, ctx);
@@ -77,7 +79,8 @@ describe("Ask Jeff job tools", () => {
     expect(db.rows("jobs").find((j) => j.slug === "goal-coach")!.status).toBe("paused");
     expect(audit).toHaveBeenCalledWith(expect.objectContaining({ event: "job_paused", metadata: expect.objectContaining({ slug: "goal-coach", via: "chat" }) }));
     expect(await runJobTool("resume_job", { job: "goal-coach" }, ctx)).toMatchObject({ ok: true, status: "active" });
-    expect(await runJobTool("resume_job", { job: "relationship-radar" }, ctx)).toMatchObject({ error: "job_has_no_detectors" });
+    db.rows("jobs").push({ ...db.rows("jobs").find((j) => j.slug === "goal-coach")!, id: "empty-draft-id", slug: "empty-draft", name: "Empty draft", status: "draft", detectors: [], system_managed: false, created_by: "owner" });
+    expect(await runJobTool("resume_job", { job: "empty-draft" }, ctx)).toMatchObject({ error: "job_has_no_detectors" });
   });
   it("create_job_from_description creates the §87 job active with the connected sources", async () => {
     const res = (await runJobTool("create_job_from_description", { description: "Create a job that checks every Friday for clients we do way more work for than they pay us for." }, ctx)) as { outcome: string; job: { slug: string; status: string; schedule: string; schedule_expression: string; sources: string[]; detectors: string[] }; guidance?: string };

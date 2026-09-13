@@ -110,7 +110,8 @@ describe("jobs routes (owner)", () => {
     expect(audit).toHaveBeenCalledWith(expect.objectContaining({ event: "job_updated" }));
     expect((await detail.PATCH(jsonReq("/api/jobs/goal-coach", { slug: "hack" }, { method: "PATCH" }), params({ slug: "goal-coach" }))).status).toBe(400);
     expect((await detail.PATCH(jsonReq("/api/jobs/goal-coach", { notification_policy: { max_per_day: 999 } }, { method: "PATCH" }), params({ slug: "goal-coach" }))).status).toBe(400);
-    expect((await detail.PATCH(jsonReq("/api/jobs/relationship-radar", { status: "active" }, { method: "PATCH" }), params({ slug: "relationship-radar" }))).status).toBe(409);
+    db.rows("jobs").push({ ...db.rows("jobs").find((j) => j.slug === "goal-coach")!, id: "00000000-0000-4000-8000-00000000d0af", slug: "empty-draft", name: "Empty draft", status: "draft", detectors: [], system_managed: false, created_by: "owner" });
+    expect((await detail.PATCH(jsonReq("/api/jobs/empty-draft", { status: "active" }, { method: "PATCH" }), params({ slug: "empty-draft" }))).status).toBe(409);
   });
   it("DELETE refuses system jobs (403) and removes user jobs (audited)", async () => {
     owner();
@@ -149,7 +150,8 @@ describe("jobs routes (owner)", () => {
     const r = await run.POST(req("/api/jobs/goal-coach/run", { method: "POST" }), params({ slug: "goal-coach" }));
     expect(r.status).toBe(200);
     expect(runJob).toHaveBeenLastCalledWith(OWNER_ID, expect.objectContaining({ slug: "goal-coach" }), { mode: "run" });
-    expect((await run.POST(req("/api/jobs/relationship-radar/run", { method: "POST" }), params({ slug: "relationship-radar" }))).status).toBe(409);
+    db.rows("jobs").push({ ...db.rows("jobs").find((j) => j.slug === "goal-coach")!, id: "00000000-0000-4000-8000-00000000d0af", slug: "empty-draft", name: "Empty draft", status: "draft", detectors: [], system_managed: false, created_by: "owner" });
+    expect((await run.POST(req("/api/jobs/empty-draft/run", { method: "POST" }), params({ slug: "empty-draft" }))).status).toBe(409);
     expect((await run.POST(req("/api/jobs/nope/run", { method: "POST" }), params({ slug: "nope" }))).status).toBe(404);
   });
   it("runs and findings are scoped to the job", async () => {

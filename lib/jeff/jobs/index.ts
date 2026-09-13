@@ -1,3 +1,4 @@
+import { ensureJobDefaultRules } from "./default-rules";
 import "server-only";
 import { listConnections } from "@/lib/integrations/store";
 import { audit } from "@/lib/audit";
@@ -23,7 +24,9 @@ export async function connectedProviders(ownerId: string): Promise<string[]> {
 /** Seeds the roster (idempotent) and returns it. */
 export async function ensureJobs(ownerId: string, now = new Date()): Promise<JobRow[]> {
   await seedSystemJobs(ownerId, now);
-  return listJobs(ownerId);
+  const jobs = await listJobs(ownerId);
+  const seeded = await ensureJobDefaultRules(ownerId, jobs).catch(() => ({ created: 0 }));
+  return seeded.created ? listJobs(ownerId) : jobs;
 }
 
 export interface JobPresentation extends JobRow {

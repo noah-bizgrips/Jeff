@@ -7,6 +7,8 @@ import { untrackedDrift } from "./detectors/untracked-drift";
 import { crossSourceContradiction } from "./detectors/cross-source-contradiction";
 import { unansweredOwedToMe } from "./detectors/unanswered-owed-to-me";
 import { neglectedGoal } from "./detectors/neglected-goal";
+import { unresolvedCostlyObligation } from "./detectors/unresolved-costly-obligation";
+import { rankScore as rankScoreImpl, THEME_OF, type NoveltyVerdict, type RankFactors } from "./novelty";
 import { decide } from "@/lib/jeff/rules/precedence";
 import type { MatchSubject } from "@/lib/jeff/rules/engine";
 import type { OperatingRule } from "@/lib/jeff/rules/schema";
@@ -18,9 +20,7 @@ import type { RuleEventInput } from "@/lib/jeff/rules/store";
  */
 
 export const BLIND_SPOT_MONITOR = "blind_spots";
-export const DETECTORS: Detector[] = [unseenFindings, quietClient, sourceVolumeDrop, staleConnection, untrackedDrift, crossSourceContradiction, unansweredOwedToMe, neglectedGoal];
-
-const IMPACT_WEIGHT: Record<BlindSpotCandidate["impact"], number> = { financial: 1.0, client: 0.9, data: 0.8, operational: 0.7 };
+export const DETECTORS: Detector[] = [unseenFindings, quietClient, sourceVolumeDrop, staleConnection, untrackedDrift, crossSourceContradiction, unansweredOwedToMe, neglectedGoal, unresolvedCostlyObligation];
 
 /** Rule subject for a blind spot: rules can target the subtype (tags) or the exact ref (metadata). */
 export function blindSpotSubject(c: BlindSpotCandidate): MatchSubject {
@@ -30,7 +30,7 @@ export function blindSpotSubject(c: BlindSpotCandidate): MatchSubject {
     category: "blind_spot",
     subject: c.title,
     tags: [c.subtype, `ref:${c.ref}`],
-    metadata: { subtype: c.subtype, ref: c.ref, impact: c.impact },
+    metadata: { subtype: c.subtype, ref: c.ref, impact: c.impact, theme: THEME_OF[c.subtype] },
     confidence: c.confidence,
     severity: severityOf(c),
     amount_minor: typeof c.metrics.current_30d === "number" && c.metrics.unit === "minor_units" ? Math.abs((c.metrics.current_30d as number) - Number(c.metrics.previous_30d ?? 0)) : null,
@@ -42,8 +42,9 @@ export function severityOf(c: BlindSpotCandidate): CandidateFinding["severity"] 
   return c.confidence >= 0.8 && (c.impact === "financial" || c.impact === "client") ? "high" : "medium";
 }
 
-export function rankScore(c: BlindSpotCandidate): number {
-  return Math.round(c.confidence * IMPACT_WEIGHT[c.impact] * 1000) / 1000;
+/** §51 ranking; without `now`/factors it is the plain confidence × impact ordering. */
+export function rankScore(c: BlindSpotCandidate, now?: Date, factors?: RankFactors): number {
+  return rankScoreImpl(c, now, factors);
 }
 
 export interface DetectResult {
@@ -88,13 +89,13 @@ export function detectBlindSpots(ctx: BlindSpotContext, rules: OperatingRule[] =
 }
 
 /** Converts a blind spot into the shared finding shape (category blind_spot). */
-export function toFinding(c: BlindSpotCandidate): CandidateFinding {
+export function toFinding(c: BlindSpotCandidate, extra: { novelty?: NoveltyVerdict; rank?: number } = {}): CandidateFinding {
   return {
     fingerprint: c.fingerprint,
     category: "blind_spot",
     title: c.title,
     observed_facts: c.observed_facts,
-    metrics: { ...c.metrics, subtype: c.subtype, ref: c.ref, impact: c.impact, attention: c.attention, rank: rankScore(c) },
+    metrics: { ...c.metrics, subtype: c.subtype, theme: THEME_OF[c.subtype], ref: c.ref, impact: c.impact, attention: c.attention, rank: extra.rank ?? rankScore(c), ...(extra.novelty ? { novelty: extra.novelty } : {}) },
     interpretation: `${c.interpretation}\n\nWhy you might be missing this: ${c.attention}`,
     evidence: c.evidence,
     range_start: c.range_start,

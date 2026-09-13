@@ -17,7 +17,7 @@ import { refreshGoals, type GoalRefreshResult } from "@/lib/jeff/goals/refresh";
 import { latestSnapshot } from "@/lib/jeff/goals/store";
 import { TRAJECTORY_LABEL } from "@/lib/jeff/goals/schema";
 import { formatMetricValue } from "@/lib/jeff/goals/metrics";
-import { loadBlindSpotContext, runBlindSpotsForOwner, detectBlindSpots, DETECTORS as BLIND_SPOT_DETECTORS } from "@/lib/jeff/blindspots";
+import { loadBlindSpotContext, loadNoveltyInputs, applyNovelty, runBlindSpotsForOwner, detectBlindSpots, DETECTORS as BLIND_SPOT_DETECTORS, EMPTY_RESULT_MESSAGE } from "@/lib/jeff/blindspots";
 import { toFinding as blindSpotToFinding } from "@/lib/jeff/blindspots/detect";
 import { computeCoverage, coverageLevel, coverageNotes } from "./coverage";
 import { getDetector } from "./detectors";
@@ -175,6 +175,103 @@ export async function goalTrajectoryCandidates(results: GoalRefreshResult[], now
   return out;
 }
 
+/** Loads the extra context declared by the job's detectors (goals, memories, obligations, owner identity). */
+export async function loadDetectorExtras(ownerId: string, specs: DetectorSpec[], now: Date): Promise<Pick<DetectorContext, "ownerEmail" | "goals" | "memories" | "obligations" | "timezone">> {
+  const needs = new Set(specs.flatMap((s) => s.needs ?? []));
+  const out: Pick<DetectorContext, "ownerEmail" | "goals" | "memories" | "obligations" | "timezone"> = {};
+  const settings = await getSettings(ownerId).catch(() => null);
+  out.timezone = settings?.timezone ?? "America/Denver";
+  if (needs.has("owner")) {
+    const { ownerIdentity } = await import("@/lib/env");
+    out.ownerEmail = ownerIdentity().email;
+  }
+  if (needs.has("goals")) {
+    const { listGoals, listGoalMetrics, listRecommendations } = await import("@/lib/jeff/goals/store");
+    const goals = await listGoals(ownerId, ["active"]).catch(() => []);
+    out.goals = await Promise.all(
+      goals.map(async (g) => {
+        const [snap, metrics, recs] = await Promise.all([latestSnapshot(g.id).catch(() => null), listGoalMetrics(g.id).catch(() => []), listRecommendations(g.id).catch(() => [])]);
+        const words = `${g.name} ${g.interpretation?.outcome ?? ""} ${metrics.map((m) => `${m.key} ${m.name}`).join(" ")}`.toLowerCase().match(/[a-z][a-z0-9-]{2,}/g) ?? [];
+        return {
+          id: g.id,
+          name: g.name,
+          scope: g.scope,
+          status: g.status,
+          trajectory: snap?.trajectory ?? null,
+          keywords: [...new Set(words)].slice(0, 40),
+          primary_metric: metrics.find((m) => m.is_primary)?.name ?? metrics[0]?.name ?? null,
+          constraint_key: snap?.constraint_key ?? null,
+          recommendation: recs.find((r) => r.status === "proposed")?.title ?? null,
+          end_date: g.end_date,
+          updated_at: g.updated_at,
+        };
+      }),
+    );
+  }
+  if (needs.has("memories")) {
+    const { listMemories } = await import("@/lib/jeff/rules/store");
+    out.memories = (await listMemories(ownerId, { activeOnly: true }).catch(() => [])).map((m) => ({ category: m.category, scope: m.scope, content: m.content }));
+  }
+  if (needs.has("obligations")) {
+    const { listObligations } = await import("@/lib/jeff/obligations/store");
+    out.obligations = (await listObligations(ownerId, { live: true, limit: 300 }).catch(() => [])).map((o) => ({ id: o.id, title: o.title, status: o.status, scope: o.scope, priority: o.priority, due_at: o.due_at, reminder_count: o.reminder_count, updated_at: o.updated_at, counterparty: o.counterparty, metadata: o.metadata }));
+  }
+  void now;
+  return out;
+}
+
+const DAY_MS = 86_400_000;
+
+/** ISO week key (UTC) used to cap Goal Coach to one finding per goal per week. */
+export function isoWeek(d: Date): string {
+  const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const day = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((date.getTime() - yearStart.getTime()) / DAY_MS + 1) / 7);
+  return `${date.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+/** Goal Coach: one finding per active goal per week — trajectory, primary constraint, leading indicator, next step. */
+export async function goalCoachCandidates(ownerId: string, now: Date): Promise<CandidateFinding[]> {
+  const { listGoals, listGoalMetrics, listRecommendations } = await import("@/lib/jeff/goals/store");
+  const goals = await listGoals(ownerId, ["active"]).catch(() => []);
+  const out: CandidateFinding[] = [];
+  const week = isoWeek(now);
+  for (const g of goals) {
+    const [snap, metrics, recs] = await Promise.all([latestSnapshot(g.id).catch(() => null), listGoalMetrics(g.id).catch(() => []), listRecommendations(g.id).catch(() => [])]);
+    if (!snap) continue;
+    const primary = metrics.find((m) => m.is_primary) ?? metrics[0];
+    const primaryResult = primary ? snap.metrics[primary.key] : undefined;
+    const rec = recs.find((r) => r.status === "proposed") ?? recs[0];
+    const trajectory = snap.trajectory;
+    const constraint = snap.constraint_key;
+    const indicator = constraint ? metrics.find((m) => m.key === constraint) : undefined;
+    const facts: string[] = [];
+    if (primary && primaryResult) facts.push(`${primary.name}: ${formatMetricValue(primaryResult)} (target ${primary.target_value ?? "—"}), ${primaryResult.freshness}, sample ${primaryResult.sample_size}.`);
+    facts.push(`Trajectory: ${TRAJECTORY_LABEL[trajectory] ?? trajectory}; elapsed ${Math.round((snap.elapsed_pct ?? 0) * 100)}%, completion ${Math.round((snap.completion_pct ?? 0) * 100)}%.`);
+    if (constraint) facts.push(`Primary constraint: ${indicator?.name ?? constraint}${indicator && snap.metrics[indicator.key] ? ` (currently ${formatMetricValue(snap.metrics[indicator.key]!)})` : ""}.`);
+    const severity: CandidateFinding["severity"] = trajectory === "severely_at_risk" ? "high" : trajectory === "at_risk" ? "medium" : trajectory === "slightly_at_risk" ? "low" : "info";
+    out.push({
+      fingerprint: `goal_coach:${g.id}:${week}`,
+      category: "goal_coach",
+      title: `${g.name}: ${TRAJECTORY_LABEL[trajectory] ?? trajectory}${constraint ? ` · constraint ${indicator?.name ?? constraint}` : ""}`,
+      observed_facts: facts,
+      metrics: { week, trajectory, constraint_key: constraint, observed_pace: snap.observed_pace, required_pace: snap.required_pace, forecast: snap.forecast, formula: "weekly coaching from the latest goal snapshot" },
+      interpretation: rec ? `Next step: ${rec.title}. ${rec.why}`.slice(0, 600) : constraint ? `Move "${indicator?.name ?? constraint}" first — it is the driver furthest from what the goal needs.` : "On pace. Keep the current cadence and watch the leading indicators.",
+      evidence: [],
+      range_start: snap.taken_at,
+      range_end: now.toISOString(),
+      confidence: primaryResult?.freshness === "fresh" ? 0.7 : 0.5,
+      limitations: primaryResult?.limitations?.join("; ") || "Linear pace forecast; small samples widen the error band.",
+      severity,
+      proposed_mission: rec ? { title: rec.title, goal: rec.jeff_can_prepare ?? rec.why } : null,
+      goal_id: g.id,
+    });
+  }
+  return out;
+}
+
 const SEV_TO_IMPORTANCE_RANK: Record<string, number> = { informational: 0, briefing: 1, important: 2, actionable: 2, urgent: 3 };
 
 /**
@@ -254,7 +351,8 @@ export async function runJob(ownerId: string, job: JobRow, opts: { mode: RunMode
     if (runnable.length) {
       rows = await loadRows(ownerId);
       stats.records_considered = rows.length;
-      const r = runDetectors(job, runnable, { now, rows, freshness }, rules);
+      const extras = await loadDetectorExtras(ownerId, runnable, now);
+      const r = runDetectors(job, runnable, { now, rows, freshness, ...extras }, rules);
       candidates.push(...r.candidates);
       events = r.events;
       stats.rules_matched = r.events.length;
@@ -277,11 +375,15 @@ export async function runJob(ownerId: string, job: JobRow, opts: { mode: RunMode
         candidates.push(...(await goalTrajectoryCandidates(refreshed, now)));
       }
     }
+    if (specials.includes("goal_coach")) {
+      await progress("reviewing_goals");
+      candidates.push(...(await goalCoachCandidates(ownerId, now)));
+    }
     if (specials.includes("quiet_client")) {
       const ctx = await loadBlindSpotContext(ownerId, now);
       const quiet = BLIND_SPOT_DETECTORS.filter((d) => d.id === "quiet_client");
       const detected = detectBlindSpots(ctx, rulesForJob(rules, job.slug), quiet);
-      candidates.push(...detected.candidates.map(blindSpotToFinding));
+      candidates.push(...detected.candidates.map((c) => blindSpotToFinding(c)));
       events.push(...detected.events);
     }
 
@@ -328,12 +430,19 @@ export async function runJob(ownerId: string, job: JobRow, opts: { mode: RunMode
         await progress("business_signals");
         const detected = detectBlindSpots(ctx, rulesForJob(rules, job.slug));
         await progress("ranking");
-        candidates.push(...detected.candidates.map(blindSpotToFinding));
+        const inputs = await loadNoveltyInputs(ownerId, ctx, now);
+        const ranked = applyNovelty(detected.candidates, inputs, now);
+        candidates.push(...ranked.kept.map((k) => blindSpotToFinding(k.c, { novelty: k.novelty, rank: k.rank })));
         events.push(...detected.events);
+        stats.duplicates_suppressed += ranked.suppressed;
         notes.push("Test mode skips the AI review pass; results are the deterministic detectors only.");
+        if (ranked.suppressed) notes.push(`${ranked.suppressed} candidate(s) already visible elsewhere (findings, alerts, missions, goals, obligations or a recent brief) were not surfaced.`);
+        if (!ranked.kept.some((k) => k.novelty.novel)) notes.push(EMPTY_RESULT_MESSAGE);
       } else {
         const summary = await runBlindSpotsForOwner(ownerId, now, { force: true, onProgress: (step) => progress(step) });
         blindSpotSummary = { candidates: summary.candidates, created: summary.created, updated: summary.updated, resolved: summary.resolved, usedModel: summary.usedModel };
+        stats.duplicates_suppressed += summary.suppressedByNovelty;
+        if (summary.message) notes.push(summary.message);
         stats.ai_calls += summary.usedModel ? 1 : 0;
         stats.findings_created += summary.created;
         stats.findings_updated += summary.updated;

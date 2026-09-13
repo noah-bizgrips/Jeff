@@ -107,8 +107,10 @@ describe("seedSystemJobs", () => {
     const scanner = db.rows("jobs").find((j) => j.slug === "blind-spot-scanner")!;
     expect(scanner.system_managed).toBe(true);
     expect(scanner.next_run_at).toBe("2026-09-14T13:15:00.000Z"); // Monday 07:15 Denver
-    const drafts = db.rows("jobs").filter((j) => j.status === "draft").map((j) => j.slug);
-    expect(drafts).toEqual(expect.arrayContaining(["relationship-radar", "time-allocation-auditor", "attention-cost-detector", "personal-project-tracker"]));
+    // Run C: every system job is active with detectors (LIMITED COVERAGE when sources are missing, never DRAFT).
+    expect(db.rows("jobs").filter((j) => j.status === "draft")).toEqual([]);
+    for (const j of db.rows("jobs")) expect((j.detectors as string[]).length, j.slug as string).toBeGreaterThan(0);
+    expect(db.rows("jobs").find((j) => j.slug === "relationship-radar")!.detectors).toEqual(["relationship_quiet", "referral_source_declining", "contact_resurfaced", "important_date"]);
     expect(db.rows("jobs").find((j) => j.slug === "follow-through-watchdog")!.status).toBe("active");
   });
   it("preserves owner-owned state (status, schedule, policy) and only refreshes descriptive fields", async () => {
@@ -123,23 +125,19 @@ describe("seedSystemJobs", () => {
     expect(after.notification_policy).toEqual({ min_importance: "urgent", push: false, briefing_only: true, max_per_day: 1 });
     expect(after.description).not.toBe("owner scribble");
   });
-  it("promotes a pending draft to active once its detectors arrive (extension point for runs B/C)", async () => {
+  it("promotes a pending draft to active once its detectors arrive (rows seeded before run C)", async () => {
     await store.seedSystemJobs(OWNER, NOW);
     const row = db.rows("jobs").find((j) => j.slug === "relationship-radar")!;
-    expect(row.status).toBe("draft");
-    expect(row.detectors).toEqual([]);
-    // Simulate a later deploy where the registry gained a detector for this job.
-    const def = SYSTEM_JOBS.find((j) => j.slug === "relationship-radar")!;
-    const saved = { detectors: def.detectors, status: def.status };
-    Object.assign(def, { detectors: ["quiet_client"], status: "active" });
-    try {
-      await store.seedSystemJobs(OWNER, NOW);
-    } finally {
-      Object.assign(def, saved);
-    }
+    // Simulate a row seeded by an earlier deploy: draft, no detectors.
+    Object.assign(row, { status: "draft", detectors: [] });
+    await store.seedSystemJobs(OWNER, NOW);
     const after = db.rows("jobs").find((j) => j.slug === "relationship-radar")!;
-    expect(after.detectors).toEqual(["quiet_client"]);
+    expect(after.detectors).toEqual(SYSTEM_JOBS.find((j) => j.slug === "relationship-radar")!.detectors);
     expect(after.status).toBe("active");
+    // …but a paused row stays paused.
+    Object.assign(after, { status: "paused", detectors: [] });
+    await store.seedSystemJobs(OWNER, NOW);
+    expect(db.rows("jobs").find((j) => j.slug === "relationship-radar")!.status).toBe("paused");
   });
 });
 
