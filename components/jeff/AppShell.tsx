@@ -153,7 +153,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </button>
             ))
           ) : (
-            <div style={{ padding: 10, fontSize: 10, color: "#7d93b1" }}>Your next connection starts here.</div>
+            <div className="muted" style={{ padding: 10, fontSize: 11 }}>Your next connection starts here.</div>
           )}
         </div>
         <Link className="connect-more" href="/connections">
@@ -162,15 +162,15 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Link>
         <div className="nav-label spaces-label">COLLECTIONS</div>
         <Link className="nav-item" href="/memories?collection=projects">
-          <span className="collection-dot" style={{ ["--dot" as string]: "#96b5e0" }} />
+          <span className="collection-dot" style={{ ["--dot" as string]: "var(--text-faint)" }} />
           Projects
         </Link>
         <Link className="nav-item" href="/memories?collection=people">
-          <span className="collection-dot" style={{ ["--dot" as string]: "#97a9c1" }} />
+          <span className="collection-dot" style={{ ["--dot" as string]: "var(--text-faint)" }} />
           People &amp; clients
         </Link>
         <Link className="nav-item" href="/memories?collection=ideas">
-          <span className="collection-dot" style={{ ["--dot" as string]: "#9cadc4" }} />
+          <span className="collection-dot" style={{ ["--dot" as string]: "var(--text-faint)" }} />
           Ideas &amp; inspiration
         </Link>
         <div className="sidebar-bottom">

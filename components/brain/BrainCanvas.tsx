@@ -191,7 +191,8 @@ export const BrainCanvas = forwardRef<BrainHandle, Props>(function BrainCanvas(p
         c.moveTo(pos[i]!.x, pos[i]!.y);
         c.lineTo(pos[j]!.x, pos[j]!.y);
       }
-      c.strokeStyle = `rgba(${colorRGB[gi]},${active ? (dim ? 0.025 : 0.15) : 0.015})`;
+      // Inactive connections are neutral (#202026); active ones carry a restrained source tint.
+      c.strokeStyle = active ? `rgba(${colorRGB[gi]},${dim ? 0.03 : 0.11})` : "rgba(32,32,38,0.9)";
       c.stroke();
     }
     for (let i = 0; i < s.points.length; i++) {
@@ -203,7 +204,8 @@ export const BrainCanvas = forwardRef<BrainHandle, Props>(function BrainCanvas(p
       const depth = (pt.z + 0.85) / 1.7;
       let alpha = (0.24 + depth * 0.69) * (p.inner ? 0.34 : 1) * (active ? 1 : 0.12) * (dim ? 0.19 : 1);
       if (propsRef.current.motion) alpha *= 0.91 + 0.09 * Math.sin(time * 0.001 + p.twinkle);
-      c.fillStyle = `rgba(${colorRGB[p.group]},${Math.max(0.02, Math.min(0.9, alpha))})`;
+      // Inactive nodes are neutral (#45454D); active nodes use their source tint.
+      c.fillStyle = active ? `rgba(${colorRGB[p.group]},${Math.max(0.02, Math.min(0.85, alpha))})` : `rgba(69,69,77,${Math.max(0.03, Math.min(0.45, alpha * 0.6))})`;
       c.beginPath();
       c.arc(pt.x, pt.y, p.size * (0.65 + depth * 0.5), 0, Math.PI * 2);
       c.fill();
@@ -238,7 +240,7 @@ export const BrainCanvas = forwardRef<BrainHandle, Props>(function BrainCanvas(p
       const pa = s.hitNodes.find((p) => p.id === a);
       const pb = s.hitNodes.find((p) => p.id === b);
       if (!pa || !pb) continue;
-      c.strokeStyle = focused ? "#75b7ff24" : "#8bc7ff32";
+      c.strokeStyle = focused ? "rgba(77,163,255,0.14)" : "rgba(77,163,255,0.2)";
       c.lineWidth = 0.65;
       c.beginPath();
       c.moveTo(pa.x, pa.y);
@@ -277,7 +279,7 @@ export const BrainCanvas = forwardRef<BrainHandle, Props>(function BrainCanvas(p
     const elapsed = time - s.pulseAt;
     if (s.pulseAt && elapsed < 1800) {
       const p = elapsed / 1800;
-      c.strokeStyle = `rgba(112,189,255,${(1 - p) * 0.35})`;
+      c.strokeStyle = `rgba(77,163,255,${(1 - p) * 0.3})`;
       c.lineWidth = 1;
       c.beginPath();
       c.ellipse(w / 2, h * 0.46, 40 + p * w * 0.45, 40 + p * h * 0.48, 0, 0, Math.PI * 2);

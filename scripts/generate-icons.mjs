@@ -5,8 +5,8 @@
 import { deflateSync } from "node:zlib";
 import { writeFileSync, mkdirSync } from "node:fs";
 
-const BG = [15, 32, 59]; // #0f203b
-const FG = [128, 189, 255]; // #80bdff
+const BG = [10, 10, 12]; // #0a0a0c
+const FG = [245, 245, 247]; // #f5f5f7
 
 // 5x7 glyph for "J" (1 = filled)
 const J = ["11111", "00100", "00100", "00100", "00100", "10100", "01100"];

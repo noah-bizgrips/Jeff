@@ -179,28 +179,17 @@
 
 /* Connections as rows */
 .connection-card {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 6px 24px;
-  align-items: start;
-}
-.connection-card > p,
-.connection-card > .access-caption,
-.connection-card > .powered,
-.connection-card > .status-line {
-  grid-column: 1;
-}
-.connection-card .connection-actions {
-  grid-column: 2;
-  grid-row: 1 / span 4;
-  align-self: center;
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
 }
 .connection-top {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+.connection-top .pill {
+  margin-left: auto;
 }
 .connection-top .source-icon.large {
   width: 28px;
@@ -209,6 +198,12 @@
 .connection-top .source-icon.large svg {
   width: 18px;
   height: 18px;
+}
+.connection-card .connection-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  justify-content: flex-end;
 }
 .connections-grid {
   display: block;
@@ -288,14 +283,11 @@
   }
 }
 @media (max-width: 720px) {
-  .job-row,
-  .connection-card {
+  .job-row {
     grid-template-columns: 1fr;
   }
   .connection-card .connection-actions {
-    grid-column: 1;
-    grid-row: auto;
-    margin-top: 8px;
+    justify-content: flex-start;
   }
   .jobs-strip {
     flex-direction: column;

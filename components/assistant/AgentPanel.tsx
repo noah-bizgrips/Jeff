@@ -180,7 +180,7 @@ export function AgentPanel() {
           <textarea
             ref={inputRef}
             rows={2}
-            placeholder="Ask Jeff anything..."
+            placeholder="Ask Jeff anything or give him a task..."
             aria-label="Ask Jeff a question"
             maxLength={4000}
             value={input}
