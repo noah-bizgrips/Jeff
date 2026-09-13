@@ -58,3 +58,6 @@ There is no device farm in CI. Before merging UI changes, open the page in Safar
 Design Mode at 390×844 and in the installed PWA on an iPhone, and check: no horizontal scroll,
 the bottom of every modal is reachable, the composer stays above the keyboard, and the floating
 Ask Jeff button does not cover the last action on the page.
+
+## Premium black theme
+The black theme layers (`app/theme-black.css`, `app/theme-black-pages.css`) load after the mobile rules in `globals.css`; their `@media (max-width: 720px)` blocks only adjust colours/spacing and keep the drawer, bottom-sheet modals, 16px inputs and 44px targets defined there.

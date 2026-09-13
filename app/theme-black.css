@@ -207,7 +207,7 @@ pre {
 .nav-label {
   padding: 14px 10px 6px;
   font-size: 9.5px;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 .nav-item {
   color: var(--text-muted);
@@ -1045,7 +1045,7 @@ input[type="radio"] {
   align-items: start;
 }
 .brief-item .brief-num {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -1267,7 +1267,7 @@ input[type="radio"] {
   align-self: stretch;
 }
 .message-heading {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 10px;
   letter-spacing: 0.08em;
   font-weight: 600;
