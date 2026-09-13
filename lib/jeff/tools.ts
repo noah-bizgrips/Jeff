@@ -71,6 +71,22 @@ export const JEFF_TOOLS: Anthropic.Beta.BetaTool[] = [
     },
   },
   {
+    name: "list_payments",
+    description:
+      "Lists individual Stripe invoices and payment charges (paid, open, past due, failed) for a date range, optionally filtered by customer name or amount. Use for questions like 'did X pay?', 'what invoices were paid this week?', 'was the $1,500 invoice paid?'.",
+    input_schema: {
+      type: "object",
+      properties: {
+        days: { type: "integer", minimum: 1, maximum: 365, description: "Look back this many days (default 30)" },
+        customer: { type: "string", description: "Optional customer name fragment (case-insensitive)" },
+        status: { type: "string", enum: ["paid", "open", "past_due", "failed", "any"], description: "Default any" },
+        min_amount: { type: "number", description: "Optional minimum amount in major currency units (e.g. 1500)" },
+        limit: { type: "integer", minimum: 1, maximum: 30 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "get_calendar_context",
     description: "Upcoming synced calendar events within N days.",
     input_schema: {
@@ -305,8 +321,74 @@ export async function runTool(name: string, input: ToolInput, ctx: ToolContext):
       if (ctx.mode === "live") q = q.eq("is_sample", false);
       if (typeof input.provider === "string") q = q.eq("provider", input.provider);
       if (typeof input.resource_type === "string") q = q.eq("resource_type", input.resource_type);
-      const { data } = await q;
+      let { data } = await q;
+      if (!data?.length) {
+        // Fall back to any-term matching (websearch mode ANDs terms, which misses "Seever invoice" when the row lacks "invoice").
+        const terms = query.match(/[A-Za-z0-9]{3,}/g) ?? [];
+        if (terms.length > 1) {
+          let q2 = admin
+            .from("source_items")
+            .select("provider, capability, resource_type, external_id, title, summary, author, source_url, source_timestamp, tags")
+            .eq("owner_id", ctx.ownerId)
+            .textSearch("search_text", terms.join(" or "), { type: "websearch", config: "english" })
+            .order("source_timestamp", { ascending: false })
+            .limit(limit);
+          if (ctx.mode === "live") q2 = q2.eq("is_sample", false);
+          if (typeof input.provider === "string") q2 = q2.eq("provider", input.provider);
+          if (typeof input.resource_type === "string") q2 = q2.eq("resource_type", input.resource_type);
+          data = (await q2).data;
+        }
+      }
       return evidence(redact(data ?? []));
+    }
+    case "list_payments": {
+      const days = Math.min(Number(input.days ?? 30), 365);
+      const since = new Date(Date.now() - days * 86400000).toISOString();
+      const limit = Math.min(Number(input.limit ?? 15), 30);
+      let q = admin
+        .from("source_items")
+        .select("resource_type, title, summary, author, source_url, source_timestamp, metadata")
+        .eq("owner_id", ctx.ownerId)
+        .eq("provider", "stripe")
+        .in("resource_type", ["invoice", "charge"])
+        .gte("source_timestamp", since)
+        .order("source_timestamp", { ascending: false })
+        .limit(200);
+      if (ctx.mode === "live") q = q.eq("is_sample", false);
+      const { data } = await q;
+      const customer = typeof input.customer === "string" ? input.customer.toLowerCase() : "";
+      const status = typeof input.status === "string" ? input.status : "any";
+      const minMinor = typeof input.min_amount === "number" ? Math.round(input.min_amount * 100) : 0;
+      const rows = (data ?? [])
+        .filter((r) => {
+          const m = r.metadata as Record<string, unknown>;
+          const amt = Number(m.amount_due ?? m.amount ?? 0);
+          const st = String(m.status ?? "");
+          const paid = r.resource_type === "invoice" ? st === "paid" : st === "succeeded";
+          if (customer && !`${r.title} ${r.author ?? ""}`.toLowerCase().includes(customer)) return false;
+          if (minMinor && amt < minMinor) return false;
+          if (status === "paid" && !paid) return false;
+          if (status === "open" && !(r.resource_type === "invoice" && st === "open")) return false;
+          if (status === "past_due" && !(r.resource_type === "invoice" && (st === "past_due" || (st === "open" && m.due_date && Date.parse(String(m.due_date)) < Date.now())))) return false;
+          if (status === "failed" && st !== "failed") return false;
+          return true;
+        })
+        .slice(0, limit)
+        .map((r) => {
+          const m = r.metadata as Record<string, unknown>;
+          return {
+            type: r.resource_type,
+            summary: r.summary ?? r.title,
+            customer: r.author,
+            status: m.status,
+            amount: Number(m.amount_due ?? m.amount ?? 0) / 100,
+            currency: m.currency,
+            date: r.source_timestamp,
+            due_date: m.due_date ?? null,
+            url: r.source_url,
+          };
+        });
+      return { days, count: rows.length, payments: rows, note: rows.length ? undefined : "No matching Stripe invoices or charges in this range." };
     }
     case "search_slack": {
       const query = String(input.query ?? "").trim().slice(0, 200);

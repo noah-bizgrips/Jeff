@@ -221,7 +221,7 @@ export function mapCharge(c: StripeChargeLike): SourceItemInput {
   }
   return base("charge", c.id, {
     title: `${formatMinor(c.amount, c.currency)} · ${c.status}${who ? ` · ${who}` : ""}`,
-    summary: c.description ? String(c.description).slice(0, 300) : null,
+    summary: `Payment charge${who ? ` from ${who}` : ""} — ${c.status === "succeeded" ? "paid" : c.status}, ${formatMinor(c.amount, c.currency)}${c.refunded ? " (refunded)" : ""}${c.description ? `. ${String(c.description).slice(0, 200)}` : ""}`,
     author: who,
     source_url: `${DASHBOARD}/payments/${c.id}`,
     source_timestamp: epochToIso(c.created),
@@ -234,9 +234,12 @@ export function mapCharge(c: StripeChargeLike): SourceItemInput {
 export function mapInvoice(inv: StripeInvoiceLike): SourceItemInput {
   const who = customerLabel(inv.customer, inv.customer_name, inv.customer_email);
   const status = inv.status ?? "unknown";
+  const when = epochToIso(inv.created);
+  const paidWord = status === "paid" ? "paid" : status === "open" ? "open (unpaid)" : status;
   return base("invoice", inv.id, {
     title: `${inv.number ?? inv.id} · ${status} · ${formatMinor(inv.amount_due, inv.currency)}${who ? ` · ${who}` : ""}`,
-    summary: null,
+    // Searchable, human sentence so "Seever invoice paid 1500" style questions match.
+    summary: `Invoice ${inv.number ?? inv.id}${who ? ` for ${who}` : ""} — ${paidWord}, ${formatMinor(inv.amount_due, inv.currency)}${inv.amount_paid && inv.amount_paid !== inv.amount_due ? ` (paid ${formatMinor(inv.amount_paid, inv.currency)})` : ""}${when ? `, created ${when.slice(0, 10)}` : ""}${inv.due_date ? `, due ${epochToIso(inv.due_date)?.slice(0, 10)}` : ""}.`,
     author: who,
     // Never the hosted_invoice_url / invoice_pdf (they embed access tokens).
     source_url: `${DASHBOARD}/invoices/${inv.id}`,
