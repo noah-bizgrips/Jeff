@@ -148,14 +148,8 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
     }
   }
 
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   return (
     <div className="page-view" id="brainView">
-      <section className="mc-greeting" aria-label="Greeting">
-        <h1>{greeting}, Noah.</h1>
-        <p>{jeff.mode === "live" ? "Here\u2019s what deserves your attention." : "Demo workspace \u2014 sample data only. Switch to Live in the header to see your real connections."}</p>
-      </section>
       <div className="preview-banner">
         <Icon name="info" />
         <span>
@@ -183,19 +177,14 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
           <div className="focus-col">
             <div className="section-label">WHAT NEEDS YOUR ATTENTION</div>
             {focus.attention.length ? (
-              focus.attention.slice(0, 5).map((a, i) => (
-                <Link key={a.id} href="/alerts" className="brief-item">
-                  <span className="brief-num">{String(i + 1).padStart(2, "0")}</span>
-                  <span>
-                    <h3>{a.title}</h3>
-                    {a.summary ? <p>{a.summary.slice(0, 220)}</p> : null}
-                    <span className="brief-actions">
-                      <span className="text-button">Investigate</span>
-                    </span>
+              focus.attention.slice(0, 5).map((a) => (
+                <Link key={a.id} href="/alerts" className="focus-row">
+                  <span className={`pill ${a.importance === "urgent" ? "danger" : a.importance === "important" || a.importance === "actionable" ? "amber" : "info"}`}>{a.importance}</span>
+                  <span className="focus-copy">
+                    <strong>{a.title}</strong>
+                    <small>{a.summary?.slice(0, 140)}</small>
                   </span>
-                  <span className={`brief-level ${a.importance === "urgent" ? "urgent" : a.importance === "important" || a.importance === "actionable" ? "high" : ""}`}>
-                    {a.importance === "urgent" ? "Urgent" : a.importance === "important" ? "High priority" : a.importance === "actionable" ? "Actionable" : a.importance}
-                  </span>
+                  <Icon name="arrowUpRight" className="arrow-icon" />
                 </Link>
               ))
             ) : (

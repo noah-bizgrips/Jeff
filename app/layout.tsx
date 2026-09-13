@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./theme-black.css";
-import "./theme-black-pages.css";
 
 export const metadata: Metadata = {
   title: "Jeff — Private Mission Control",

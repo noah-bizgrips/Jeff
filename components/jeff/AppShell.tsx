@@ -9,41 +9,24 @@ import { ModalHost, Toasts, AddNoteModal } from "./shared";
 import { AgentPanel } from "@/components/assistant/AgentPanel";
 import { sourceDef } from "@/lib/jeff/sources";
 
-type NavItem = { href: string; icon: string; label: string; end?: "home" | "missions" | "approvals" | "key" | "memories" | "saved" | "alerts" };
-/** Visual grouping only — routes are unchanged. */
-const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
-  {
-    label: "Core",
-    items: [
-      { href: "/", icon: "network", label: "Mission control", end: "home" },
-      { href: "/alerts", icon: "bell", label: "Alerts", end: "alerts" },
-      { href: "/briefings", icon: "inbox", label: "Briefings" },
-      { href: "/goals", icon: "target", label: "Goals" },
-      { href: "/jobs", icon: "briefcase", label: "Jeff's Jobs" },
-      { href: "/missions", icon: "compose", label: "Missions", end: "missions" },
-      { href: "/insights", icon: "sun", label: "Operations & insights" },
-      { href: "/approvals", icon: "check", label: "Approvals", end: "approvals" },
-    ],
-  },
-  {
-    label: "Memory",
-    items: [
-      { href: "/search", icon: "search", label: "Search everything", end: "key" },
-      { href: "/memories", icon: "layers", label: "Memories", end: "memories" },
-      { href: "/saved", icon: "bookmark", label: "Saved answers", end: "saved" },
-      { href: "/memory", icon: "brain", label: "Memory & rules" },
-      { href: "/follow-through", icon: "refresh", label: "Follow-Through" },
-      { href: "/connections", icon: "plug", label: "Connections" },
-    ],
-  },
-  {
-    label: "System",
-    items: [
-      { href: "/settings", icon: "sliders", label: "Settings" },
-      { href: "/security", icon: "lock", label: "Security & access" },
-      { href: "/guide", icon: "info", label: "How to use Jeff" },
-    ],
-  },
+const NAV: { href: string; icon: string; label: string; end?: "home" | "missions" | "approvals" | "key" | "memories" | "saved" | "alerts" }[] = [
+  { href: "/", icon: "network", label: "Mission control", end: "home" },
+  { href: "/alerts", icon: "bell", label: "Alerts", end: "alerts" },
+  { href: "/briefings", icon: "inbox", label: "Briefings" },
+  { href: "/goals", icon: "target", label: "Goals" },
+  { href: "/jobs", icon: "briefcase", label: "Jeff's Jobs" },
+  { href: "/follow-through", icon: "refresh", label: "Follow-Through" },
+  { href: "/missions", icon: "compose", label: "Missions", end: "missions" },
+  { href: "/insights", icon: "sun", label: "Operations & insights" },
+  { href: "/approvals", icon: "check", label: "Approvals", end: "approvals" },
+  { href: "/search", icon: "search", label: "Search everything", end: "key" },
+  { href: "/memories", icon: "layers", label: "Memories", end: "memories" },
+  { href: "/saved", icon: "bookmark", label: "Saved answers", end: "saved" },
+  { href: "/connections", icon: "plug", label: "Connections" },
+  { href: "/memory", icon: "brain", label: "Memory & rules" },
+  { href: "/settings", icon: "sliders", label: "Settings" },
+  { href: "/guide", icon: "info", label: "How to use Jeff" },
+  { href: "/security", icon: "lock", label: "Security & access" },
 ];
 
 const TITLES: Record<string, [string, string, string]> = {
@@ -109,23 +92,20 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
           <Icon name="chevrons" className="muted" />
         </Link>
+        <div className="nav-label">COMMAND CENTER</div>
         <nav className="primary-nav" aria-label="Main navigation">
-          {NAV_GROUPS.map((g) => (
-            <div key={g.label} className="nav-group">
-              <div className="nav-label">{g.label}</div>
-              {g.items.map((n) => (
-                <Link key={n.href} href={n.href} className={`nav-item ${base === n.href ? "active" : ""}`} onClick={() => jeff.setSidebarOpen(false)}>
-                  <Icon name={n.icon} />
-                  {n.label}
-                  {n.end === "missions" && jeff.missionCount > 0 ? <span className="nav-end nav-count">{jeff.missionCount}</span> : null}
-                  {n.end === "approvals" && jeff.approvalCount > 0 ? <span className="nav-end review-dot">{jeff.approvalCount}</span> : null}
-                  {n.end === "key" ? <span className="nav-end keycap">⌘K</span> : null}
-                  {n.end === "memories" && docCount > 0 ? <span className="nav-end nav-count">{docCount}</span> : null}
-                  {n.end === "saved" && jeff.saved.length > 0 ? <span className="nav-end nav-count">{jeff.saved.length}</span> : null}
-                  {n.end === "alerts" && jeff.alertCount > 0 ? <span className="nav-end review-dot">{jeff.alertCount}</span> : null}
-                </Link>
-              ))}
-            </div>
+          {NAV.map((n) => (
+            <Link key={n.href} href={n.href} className={`nav-item ${base === n.href ? "active" : ""}`} onClick={() => jeff.setSidebarOpen(false)}>
+              <Icon name={n.icon} />
+              {n.label}
+              {n.end === "home" ? <span className="nav-end small-pill">Home</span> : null}
+              {n.end === "missions" ? <span className="nav-end nav-count">{jeff.missionCount}</span> : null}
+              {n.end === "approvals" && jeff.approvalCount > 0 ? <span className="nav-end review-dot">{jeff.approvalCount}</span> : null}
+              {n.end === "key" ? <span className="nav-end keycap">K</span> : null}
+              {n.end === "memories" ? <span className="nav-end nav-count">{docCount}</span> : null}
+              {n.end === "saved" ? <span className="nav-end nav-count">{jeff.saved.length}</span> : null}
+              {n.end === "alerts" && jeff.alertCount > 0 ? <span className="nav-end review-dot">{jeff.alertCount}</span> : null}
+            </Link>
           ))}
         </nav>
         <div className="nav-label source-label">
@@ -153,7 +133,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </button>
             ))
           ) : (
-            <div className="muted" style={{ padding: 10, fontSize: 11 }}>Your next connection starts here.</div>
+            <div style={{ padding: 10, fontSize: 10, color: "#7d93b1" }}>Your next connection starts here.</div>
           )}
         </div>
         <Link className="connect-more" href="/connections">
@@ -162,15 +142,15 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Link>
         <div className="nav-label spaces-label">COLLECTIONS</div>
         <Link className="nav-item" href="/memories?collection=projects">
-          <span className="collection-dot" style={{ ["--dot" as string]: "var(--text-faint)" }} />
+          <span className="collection-dot" style={{ ["--dot" as string]: "#96b5e0" }} />
           Projects
         </Link>
         <Link className="nav-item" href="/memories?collection=people">
-          <span className="collection-dot" style={{ ["--dot" as string]: "var(--text-faint)" }} />
+          <span className="collection-dot" style={{ ["--dot" as string]: "#97a9c1" }} />
           People &amp; clients
         </Link>
         <Link className="nav-item" href="/memories?collection=ideas">
-          <span className="collection-dot" style={{ ["--dot" as string]: "var(--text-faint)" }} />
+          <span className="collection-dot" style={{ ["--dot" as string]: "#9cadc4" }} />
           Ideas &amp; inspiration
         </Link>
         <div className="sidebar-bottom">
@@ -233,24 +213,27 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
         <div className="workspace-body">
           <main className="main-area" id="mainArea">
-            {base !== "/" ? (
             <section className="page-heading">
               <div>
-                <div className="eyebrow">{title[2]}</div>
+                <div className="eyebrow">CONTEXT. CLARITY. CONTROL.</div>
                 <h1>
                   {title[0]}
                   <span>.</span>
                 </h1>
                 <p>{title[1]}</p>
               </div>
-              {base === "/memories" || base === "/search" ? (
+              {base === "/" ? (
+                <Link className="button primary add-source-button" href="/connections">
+                  <Icon name="plus" />
+                  Add source
+                </Link>
+              ) : base === "/memories" || base === "/search" ? (
                 <button className="button primary add-source-button" type="button" onClick={() => jeff.openModal(<AddNoteModal />)}>
                   <Icon name="plus" />
                   Add note
                 </button>
               ) : null}
             </section>
-            ) : null}
             {children}
           </main>
           <AgentPanel />

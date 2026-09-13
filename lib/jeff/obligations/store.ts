@@ -134,6 +134,8 @@ export async function createObligation(ownerId: string, input: ObligationInput, 
       counterparty: input.counterparty,
       fingerprint: input.fingerprint,
       metadata: redact(input.metadata),
+      // Honor an explicit clock (ingestion/replays/tests); otherwise the DB default applies.
+      ...(opts.now ? { created_at: opts.now.toISOString(), updated_at: opts.now.toISOString() } : {}),
     })
     .select(COLUMNS)
     .single();
