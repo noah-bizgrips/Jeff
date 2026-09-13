@@ -27,6 +27,7 @@ export const MONITOR_IDS = [
   "client_unpaid_invoice",
   "client_ad_spend_no_leads",
   "blind_spots",
+  "follow_through",
 ] as const;
 export type MonitorId = (typeof MONITOR_IDS)[number];
 
@@ -66,6 +67,14 @@ export const MONITOR_ALIASES: Record<string, MonitorId> = {
   blind_spot: "blind_spots",
   blindspot: "blind_spots",
   blindspots: "blind_spots",
+  follow_through: "follow_through",
+  "follow-through": "follow_through",
+  obligations: "follow_through",
+  obligation: "follow_through",
+  reminders: "follow_through",
+  reminder: "follow_through",
+  "follow-through-watchdog": "follow_through",
+  follow_through_watchdog: "follow_through",
   things_im_missing: "blind_spots",
 };
 
@@ -89,6 +98,7 @@ export const MONITOR_LABELS: Record<MonitorId, string> = {
   client_unpaid_invoice: "Client unpaid invoices",
   client_ad_spend_no_leads: "Client ad spend without leads",
   blind_spots: "Blind spots",
+  follow_through: "Follow-Through (open obligations)",
 };
 
 export function resolveMonitorId(id: string | null | undefined): MonitorId | null {
@@ -146,6 +156,11 @@ export const RuleActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("suppress_alert") }).strict(),
   z.object({ type: z.literal("require_min_confidence"), value: z.number().min(0).max(1) }).strict(),
   z.object({ type: z.literal("escalate"), level: z.enum(IMPORTANCE) }).strict(),
+  // Follow-Through actions (obligations): configuration only, never code.
+  z.object({ type: z.literal("set_tracking_mode"), mode: z.enum(["once", "persistent", "important", "critical"]) }).strict(),
+  z.object({ type: z.literal("set_daily_cap"), value: z.number().int().min(0).max(24) }).strict(),
+  z.object({ type: z.literal("briefing_only") }).strict(),
+  z.object({ type: z.literal("no_escalation") }).strict(),
 ]);
 export type RuleAction = z.infer<typeof RuleActionSchema>;
 
@@ -244,6 +259,14 @@ export function describeRule(rule: { target_monitor?: string | null; conditions:
               ? "do not alert on"
               : a.type === "require_min_confidence"
                 ? `require confidence ≥ ${a.value} for`
-                : `escalate to ${a.level}`;
+                : a.type === "escalate"
+                  ? `escalate to ${a.level}`
+                  : a.type === "set_tracking_mode"
+                    ? `track as ${a.mode} until resolved:`
+                    : a.type === "set_daily_cap"
+                      ? `at most ${a.value} reminder${a.value === 1 ? "" : "s"} per day for`
+                      : a.type === "briefing_only"
+                        ? "only mention in the daily brief:"
+                        : "never escalate reminders for";
   return `${target} → ${verb} ${where.length ? where.join(" · ") : "everything"}`;
 }

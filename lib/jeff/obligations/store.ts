@@ -3,10 +3,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { redact, redactString } from "@/lib/security/redact";
 import { audit } from "@/lib/audit";
 import { log } from "@/lib/security/log";
+import { effectiveCadence } from "./cadence";
 import {
   CadenceSchema,
   CompletionStrategySchema,
-  DEFAULT_CADENCE,
   LIVE_STATUSES,
   type Cadence,
   type EvidenceRef,
@@ -34,16 +34,6 @@ function normalize(row: Record<string, unknown>): ObligationRow {
   };
 }
 
-export function effectiveCadence(o: Pick<ObligationRow, "cadence" | "tracking_mode">): Cadence {
-  const base: Cadence = { ...DEFAULT_CADENCE };
-  if (o.tracking_mode === "important") base.follow_up_hours = 4;
-  if (o.tracking_mode === "critical") {
-    base.follow_up_hours = 3;
-    base.daily_cap = 4;
-    base.business_hours_only = false;
-  }
-  return { ...base, ...(o.cadence ?? {}) } as Cadence;
-}
 
 export interface ObligationFilters {
   statuses?: ObligationStatus[];
