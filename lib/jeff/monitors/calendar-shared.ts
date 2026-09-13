@@ -67,8 +67,9 @@ export function calendarEvents(rows: SourceRow[], start: number, end: number, tz
     const s = Date.parse(str(r.metadata.start) ?? r.source_timestamp ?? "");
     const e = Date.parse(str(r.metadata.end) ?? "");
     if (!Number.isFinite(s) || s < start || s >= end) continue;
-    const minutes = Number.isFinite(e) && e > s ? Math.min((e - s) / 60_000, 12 * 60) : 30;
-    if (minutes >= 23 * 60) continue; // all-day blocks are not meetings
+    const rawMinutes = Number.isFinite(e) && e > s ? (e - s) / 60_000 : 30;
+    if (rawMinutes >= 23 * 60) continue; // all-day blocks are not meetings
+    const minutes = Math.min(rawMinutes, 12 * 60);
     const lp = localParts(s, tz);
     out.push({ row: r, start: s, end: Number.isFinite(e) ? e : s + minutes * 60_000, minutes, category: classifyEvent(r, input), attendees: Array.isArray(r.metadata.attendees) ? (r.metadata.attendees as string[]) : [], localDate: lp.date, localHour: lp.hour });
   }

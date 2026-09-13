@@ -35,7 +35,7 @@ beforeEach(() => {
 describe("Ask Jeff job tools", () => {
   it("are registered in JEFF_TOOLS with strict schemas", () => {
     const names = JOB_TOOLS.map((t) => t.name);
-    expect(names).toEqual(["list_jobs", "get_job", "run_job", "pause_job", "resume_job", "create_job_from_description", "update_job_policy"]);
+    expect(names).toEqual(["list_jobs", "get_job", "run_job", "pause_job", "resume_job", "create_job_from_description", "jobs_health", "job_suggestions", "update_job_policy"]);
     for (const n of names) expect(JEFF_TOOLS.some((t) => t.name === n)).toBe(true);
     for (const t of JOB_TOOLS) expect((t.input_schema as { additionalProperties?: boolean }).additionalProperties).toBe(false);
   });

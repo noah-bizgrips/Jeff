@@ -8,6 +8,7 @@ import { crossSourceContradiction } from "./detectors/cross-source-contradiction
 import { unansweredOwedToMe } from "./detectors/unanswered-owed-to-me";
 import { neglectedGoal } from "./detectors/neglected-goal";
 import { unresolvedCostlyObligation } from "./detectors/unresolved-costly-obligation";
+import { referralSourceDeclining } from "./detectors/referral-source-declining";
 import { rankScore as rankScoreImpl, THEME_OF, type NoveltyVerdict, type RankFactors } from "./novelty";
 import { decide } from "@/lib/jeff/rules/precedence";
 import type { MatchSubject } from "@/lib/jeff/rules/engine";
@@ -20,7 +21,7 @@ import type { RuleEventInput } from "@/lib/jeff/rules/store";
  */
 
 export const BLIND_SPOT_MONITOR = "blind_spots";
-export const DETECTORS: Detector[] = [unseenFindings, quietClient, sourceVolumeDrop, staleConnection, untrackedDrift, crossSourceContradiction, unansweredOwedToMe, neglectedGoal, unresolvedCostlyObligation];
+export const DETECTORS: Detector[] = [unseenFindings, quietClient, sourceVolumeDrop, staleConnection, untrackedDrift, crossSourceContradiction, unansweredOwedToMe, neglectedGoal, unresolvedCostlyObligation, referralSourceDeclining];
 
 /** Rule subject for a blind spot: rules can target the subtype (tags) or the exact ref (metadata). */
 export function blindSpotSubject(c: BlindSpotCandidate): MatchSubject {

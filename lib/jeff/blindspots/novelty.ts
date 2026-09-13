@@ -66,6 +66,7 @@ export const THEME_OF: Record<BlindSpotSubtype, BlindSpotTheme> = {
   unanswered_owed_to_me: "unresolved_obligation",
   neglected_goal: "behavior_vs_intention",
   unresolved_costly_obligation: "unresolved_obligation",
+  referral_source_declining: "neglect",
   ai_observation: "opportunity",
 };
 
@@ -103,7 +104,7 @@ export const OVERLAP_THRESHOLD = 0.6;
 export const WORSEN_PCT = 25;
 export const URGENT_DAYS = 3;
 
-const WORSEN_KEY = /(_days|days$|overdue|_count|count$|_pct|pct$|drop|failures|reminders|_minor|amount)/i;
+const WORSEN_KEY = /(days|overdue|count|pct|drop|failures|reminders|minor|amount)/i;
 const WORSEN_IGNORE = /(threshold|window|lookback|formula|expected|cadence|rank|novelty)/i;
 
 /** Numeric metrics that got materially worse (≥ WORSEN_PCT larger) since the previous surfacing. */

@@ -18,6 +18,7 @@ export type BlindSpotSubtype =
   | "unanswered_owed_to_me"
   | "neglected_goal"
   | "unresolved_costly_obligation"
+  | "referral_source_declining"
   | "ai_observation";
 
 export type Impact = "financial" | "client" | "operational" | "data";

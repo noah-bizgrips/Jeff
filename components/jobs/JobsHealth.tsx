@@ -37,7 +37,9 @@ export function JobsHealth() {
   }, []);
 
   useEffect(() => {
-    void load();
+    // Fetch on mount; state updates happen in the async callback, not synchronously in the effect.
+    const t = setTimeout(() => void load(), 0);
+    return () => clearTimeout(t);
   }, [load]);
 
   if (error) {

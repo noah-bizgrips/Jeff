@@ -153,7 +153,7 @@ function ext(fn: (rows: DetectorContext["rows"], ctx: ExtendedContext) => Return
   return (ctx) => fn(ctx.rows, { now: ctx.now, ownerEmail: ctx.ownerEmail ?? null, goals: ctx.goals ?? [], memories: ctx.memories ?? [], obligations: ctx.obligations ?? [], config: { timezone: ctx.timezone, ...ctx.job.config } });
 }
 
-const ANALYSTS: DetectorSpec[] = [
+export const ANALYSTS: DetectorSpec[] = [
   // Relationship Radar
   { id: "relationship_quiet", label: "Important relationships going quiet", kind: "custom", sources: ["google", "highlevel", "slack"], categories: ["relationship_quiet"], needs: ["memories", "owner"], run: ext(relationshipQuiet) },
   { id: "referral_source_declining", label: "Referral sources drying up", kind: "custom", sources: ["highlevel"], categories: ["referral_source_declining"], needs: ["owner"], run: ext(referralSourceDeclining) },
