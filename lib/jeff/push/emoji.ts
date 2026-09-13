@@ -37,6 +37,7 @@ export function isOpportunityCategory(category: string | null | undefined): bool
 export function alertEmoji(a: { kind: string; category: string | null; importance: string }): string {
   if (a.kind === "goal") return "🎯";
   if (a.kind === "commitment") return "🤝";
+  if (a.kind === "obligation") return "⏰";
   if (a.kind === "system") return "🛠️";
   if (a.category && CATEGORY_EMOJI[a.category]) return CATEGORY_EMOJI[a.category]!;
   if (isOpportunityCategory(a.category)) return "💡";

@@ -104,7 +104,7 @@ function isImportance(v: unknown): v is Importance {
  */
 export function finalizeImportance(
   base: ReturnType<typeof baseImportance>,
-  opts: { scope: "business" | "personal" | "financial" | "all"; kind: "finding" | "goal" | "commitment" | "system"; rules?: RuleDecisionLite; settings: OwnerSettings; now: Date },
+  opts: { scope: "business" | "personal" | "financial" | "all"; kind: "finding" | "goal" | "commitment" | "system" | "obligation"; rules?: RuleDecisionLite; settings: OwnerSettings; now: Date },
 ): FinalImportance {
   let importance = base.importance;
   const rules: string[] = [];

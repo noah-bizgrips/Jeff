@@ -77,7 +77,7 @@ describe("Ask Jeff job tools", () => {
     expect(db.rows("jobs").find((j) => j.slug === "goal-coach")!.status).toBe("paused");
     expect(audit).toHaveBeenCalledWith(expect.objectContaining({ event: "job_paused", metadata: expect.objectContaining({ slug: "goal-coach", via: "chat" }) }));
     expect(await runJobTool("resume_job", { job: "goal-coach" }, ctx)).toMatchObject({ ok: true, status: "active" });
-    expect(await runJobTool("resume_job", { job: "follow-through-watchdog" }, ctx)).toMatchObject({ error: "job_has_no_detectors" });
+    expect(await runJobTool("resume_job", { job: "relationship-radar" }, ctx)).toMatchObject({ error: "job_has_no_detectors" });
   });
   it("create_job_from_description creates the §87 job active with the connected sources", async () => {
     const res = (await runJobTool("create_job_from_description", { description: "Create a job that checks every Friday for clients we do way more work for than they pay us for." }, ctx)) as { outcome: string; job: { slug: string; status: string; schedule: string; schedule_expression: string; sources: string[]; detectors: string[] }; guidance?: string };

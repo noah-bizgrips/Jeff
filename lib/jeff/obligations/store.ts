@@ -3,7 +3,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { redact, redactString } from "@/lib/security/redact";
 import { audit } from "@/lib/audit";
 import { log } from "@/lib/security/log";
-import { effectiveCadence } from "./cadence";
 import {
   CadenceSchema,
   CompletionStrategySchema,
@@ -95,7 +94,6 @@ export async function linkSource(ownerId: string, obligationId: string, src: { p
 
 /** Creates an obligation (owner reminder, ingested candidate, commitment hand-off). Dedupes by fingerprint when supplied. */
 export async function createObligation(ownerId: string, input: ObligationInput, opts: { actor?: "owner" | "system" | "jeff"; now?: Date } = {}): Promise<{ row: ObligationRow; created: boolean }> {
-  const now = opts.now ?? new Date();
   if (input.fingerprint) {
     const existing = await findByFingerprint(ownerId, input.fingerprint);
     if (existing) return { row: existing, created: false };

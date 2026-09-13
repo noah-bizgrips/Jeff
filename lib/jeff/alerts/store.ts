@@ -95,7 +95,11 @@ async function loadOverdueCommitments(ownerId: string): Promise<CommitmentInput[
     .in("status", ["open", "overdue"])
     .not("due_at", "is", null)
     .limit(200);
-  return (data ?? []) as unknown as CommitmentInput[];
+  const rows = (data ?? []) as unknown as CommitmentInput[];
+  if (!rows.length) return rows;
+  const { data: tracked } = await admin.from("obligations").select("commitment_id").eq("owner_id", ownerId).not("commitment_id", "is", null);
+  const trackedIds = new Set((tracked ?? []).map((t) => t.commitment_id as string));
+  return rows.filter((c) => !trackedIds.has(c.id));
 }
 
 /** Builds all alert candidates for an owner, applying operating rules to findings first. */

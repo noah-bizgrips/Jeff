@@ -285,6 +285,40 @@ export async function runJob(ownerId: string, job: JobRow, opts: { mode: RunMode
       events.push(...detected.events);
     }
 
+    // Follow-Through Watchdog: obligations lifecycle (ingest → dedupe → completion → reminders). TEST never writes.
+    if (specials.includes("follow_through")) {
+      await progress("obligations");
+      const { runFollowThrough } = await import("@/lib/jeff/obligations/watchdog");
+      const summary = await runFollowThrough(ownerId, { mode: mode === "test" ? "test" : "run", now });
+      stats.records_considered += summary.open;
+      stats.candidates += summary.items.length;
+      stats.rules_matched += summary.rules_applied;
+      stats.findings_created += summary.created;
+      stats.findings_updated += summary.merged + summary.auto_completed + summary.asked;
+      stats.alerts_created += summary.reminders;
+      stats.duplicates_suppressed += summary.suppressed_cap + summary.suppressed_quiet_hours;
+      notes.push(...summary.notes);
+      notes.push(`Follow-Through: ${summary.open} open · ${summary.overdue} overdue · ${summary.waiting_on_me} waiting on you · ${summary.waiting_on_other} waiting on others · ${summary.possibly_complete} possibly complete · ${summary.snoozed} snoozed · ${summary.auto_completed} completed automatically · ${summary.asked} to confirm · ${summary.reminders} reminders · ${summary.suppressed_quiet_hours} held (quiet hours) · ${summary.suppressed_cap} held (daily cap) · ${summary.duration_ms}ms.`);
+      if (mode === "test") {
+        const sevFor = (b: string): CandidateFinding["severity"] => (b === "overdue" ? "high" : b === "possibly_complete" ? "medium" : "low");
+        results.push(
+          ...summary.items.slice(0, 60).map((it) => ({
+            fingerprint: `obligation:${it.id ?? it.title}`,
+            category: "obligation",
+            title: it.title,
+            severity: sevFor(it.bucket),
+            confidence: it.confidence ?? 0.5,
+            observed_facts: [`Bucket: ${it.bucket.replace(/_/g, " ")}`],
+            interpretation: `${it.outcome.replace(/_/g, " ").toUpperCase()} — ${it.detail}`,
+            evidence_count: 0,
+            evidence: [],
+            limitations: summary.unavailable_sources.length ? `${summary.unavailable_sources.join(", ")} stale/unavailable` : "",
+            existing: !!it.id,
+          })),
+        );
+      }
+    }
+
     // Blind Spot Scanner: hands off to its own lifecycle (novelty, daily cap, single AI pass, push).
     let blindSpotSummary: { candidates: number; created: number; updated: number; resolved: number; usedModel: boolean } | null = null;
     if (specials.includes("blind_spots")) {
@@ -320,7 +354,7 @@ export async function runJob(ownerId: string, job: JobRow, opts: { mode: RunMode
       const fps = nonBlindSpot.map((c) => c.fingerprint);
       const { data } = fps.length ? await admin.from("findings").select("fingerprint, status").eq("owner_id", ownerId).in("fingerprint", fps) : { data: [] as { fingerprint: string; status: string }[] };
       const active = new Set((data ?? []).filter((r) => !["resolved", "dismissed", "suppressed_by_rule"].includes(r.status)).map((r) => r.fingerprint));
-      results = nonBlindSpot.map((c) => toTestResult(c, active.has(c.fingerprint))).slice(0, 50);
+      results = [...results, ...nonBlindSpot.map((c) => toTestResult(c, active.has(c.fingerprint)))].slice(0, 80);
       const status = coverageLevel(coverage) === "full" ? "succeeded" : "partial";
       await finishRun(runId, { status, coverage, stats, results }, now, new Date());
       await audit({ event: "job_test", ownerId, targetId: job.id, metadata: { slug: job.slug, candidates: results.length, coverage: coverageLevel(coverage) } });
@@ -395,7 +429,9 @@ export async function runDueJobs(ownerId: string, jobs: JobRow[], now = new Date
 export async function triggerJobsForEvent(ownerId: string, jobs: JobRow[], provider: string, now = new Date()): Promise<string[]> {
   const ran: string[] = [];
   for (const job of jobs) {
-    if (job.status !== "active" || job.schedule_type !== "event_driven" || !job.sources.includes(provider)) continue;
+    // event_driven jobs, plus periodic jobs that opt into event triggers (e.g. Follow-Through: hourly tick + sync events).
+    const eventDriven = job.schedule_type === "event_driven" || job.config.event_triggers === true;
+    if (job.status !== "active" || !eventDriven || !job.sources.includes(provider)) continue;
     await runJob(ownerId, job, { mode: "scheduled", now });
     ran.push(job.slug);
   }

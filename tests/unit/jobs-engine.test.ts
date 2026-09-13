@@ -108,7 +108,8 @@ describe("seedSystemJobs", () => {
     expect(scanner.system_managed).toBe(true);
     expect(scanner.next_run_at).toBe("2026-09-14T13:15:00.000Z"); // Monday 07:15 Denver
     const drafts = db.rows("jobs").filter((j) => j.status === "draft").map((j) => j.slug);
-    expect(drafts).toEqual(expect.arrayContaining(["relationship-radar", "follow-through-watchdog", "time-allocation-auditor", "attention-cost-detector", "personal-project-tracker"]));
+    expect(drafts).toEqual(expect.arrayContaining(["relationship-radar", "time-allocation-auditor", "attention-cost-detector", "personal-project-tracker"]));
+    expect(db.rows("jobs").find((j) => j.slug === "follow-through-watchdog")!.status).toBe("active");
   });
   it("preserves owner-owned state (status, schedule, policy) and only refreshes descriptive fields", async () => {
     await store.seedSystemJobs(OWNER, NOW);
@@ -124,20 +125,20 @@ describe("seedSystemJobs", () => {
   });
   it("promotes a pending draft to active once its detectors arrive (extension point for runs B/C)", async () => {
     await store.seedSystemJobs(OWNER, NOW);
-    const row = db.rows("jobs").find((j) => j.slug === "follow-through-watchdog")!;
+    const row = db.rows("jobs").find((j) => j.slug === "relationship-radar")!;
     expect(row.status).toBe("draft");
     expect(row.detectors).toEqual([]);
     // Simulate a later deploy where the registry gained a detector for this job.
-    const def = SYSTEM_JOBS.find((j) => j.slug === "follow-through-watchdog")!;
+    const def = SYSTEM_JOBS.find((j) => j.slug === "relationship-radar")!;
     const saved = { detectors: def.detectors, status: def.status };
-    Object.assign(def, { detectors: ["follow_through"], status: "active" });
+    Object.assign(def, { detectors: ["quiet_client"], status: "active" });
     try {
       await store.seedSystemJobs(OWNER, NOW);
     } finally {
       Object.assign(def, saved);
     }
-    const after = db.rows("jobs").find((j) => j.slug === "follow-through-watchdog")!;
-    expect(after.detectors).toEqual(["follow_through"]);
+    const after = db.rows("jobs").find((j) => j.slug === "relationship-radar")!;
+    expect(after.detectors).toEqual(["quiet_client"]);
     expect(after.status).toBe("active");
   });
 });
@@ -334,7 +335,7 @@ describe("scheduling helpers", () => {
     expect(tight.skipped).toEqual(["expense-creep-hunter"]);
 
     const fired = await runner.triggerJobsForEvent(OWNER, jobs, "stripe", NOW);
-    const expected = jobs.filter((j) => j.status === "active" && j.schedule_type === "event_driven" && j.sources.includes("stripe")).map((j) => j.slug);
+    const expected = jobs.filter((j) => j.status === "active" && (j.schedule_type === "event_driven" || j.config.event_triggers === true) && j.sources.includes("stripe")).map((j) => j.slug);
     expect(fired).toEqual(expected);
     expect(await runner.triggerJobsForEvent(OWNER, jobs, "nonexistent", NOW)).toEqual([]);
   });

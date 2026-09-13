@@ -8,7 +8,7 @@ import type { Importance, OwnerSettings } from "@/lib/jeff/settings";
  * grouping and owner decisions (snooze/dismiss/acknowledge preserved).
  */
 
-export type AlertKind = "finding" | "goal" | "commitment" | "system";
+export type AlertKind = "finding" | "goal" | "commitment" | "system" | "obligation";
 export type AlertStatus = "open" | "acknowledged" | "snoozed" | "dismissed" | "resolved";
 export type Scope = "business" | "personal" | "financial" | "all";
 
@@ -217,6 +217,8 @@ export interface ReconcileResult {
  * - existing open alert whose candidate disappeared → resolved
  */
 export function reconcileAlerts(existing: ExistingAlert[], candidates: AlertCandidate[], now: Date): ReconcileResult {
+  // Reminder alerts (kind obligation) are raised/resolved by the Follow-Through watchdog, never by candidate diffing.
+  existing = existing.filter((e) => !e.fingerprint.startsWith("obligation:"));
   const byFp = new Map(existing.map((a) => [a.fingerprint, a]));
   const seen = new Set<string>();
   const nowIso = now.toISOString();

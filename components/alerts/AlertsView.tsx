@@ -10,7 +10,7 @@ import { EmptyState, ModalHeader } from "@/components/jeff/shared";
 export interface AlertItem {
   id: string;
   fingerprint: string;
-  kind: "finding" | "goal" | "commitment" | "system";
+  kind: "finding" | "goal" | "commitment" | "system" | "obligation";
   ref_id: string | null;
   importance: "informational" | "briefing" | "important" | "urgent" | "actionable";
   scope: "business" | "personal" | "financial" | "all";
@@ -77,7 +77,8 @@ const TONE: Record<AlertItem["importance"], string> = { urgent: "danger", import
 function refHref(a: AlertItem): string | null {
   if (a.kind === "goal" && a.ref_id) return `/goals#${a.ref_id}`;
   if (a.kind === "finding") return "/insights";
-  if (a.kind === "commitment") return "/";
+  if (a.kind === "commitment") return "/follow-through";
+  if (a.kind === "obligation") return "/follow-through";
   return null;
 }
 

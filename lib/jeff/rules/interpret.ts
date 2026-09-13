@@ -114,6 +114,10 @@ export function interpretFeedback(text: string): RuleInterpretation | null {
     return { kind: "clarify", confidence: 0.4, question: "Which memory or preference should I forget?", summary: "Ambiguous forget request." };
   }
 
+  // Follow-Through reminder preferences (obligations). Narrow, reversible, deterministic.
+  const ft = interpretFollowThrough(t);
+  if (ft) return ft;
+
   const monitor = guessMonitor(t);
   const negative = NEGATIVE.test(t);
   // "Never alert me about…" is a suppression; "Actually, alert me about…" is an exception.
@@ -188,6 +192,61 @@ export function interpretFeedback(text: string): RuleInterpretation | null {
 
   if (negative && !monitor && !hasPattern) {
     return { kind: "clarify", confidence: 0.4, question: "Which monitor or pattern should this apply to? For example: GitHub notification emails in Open commitments, or failed payments under $50.", summary: "Too broad to apply safely." };
+  }
+  return null;
+}
+
+/* ------------------------------------------------------------------ */
+/* Follow-Through preferences                                          */
+/* ------------------------------------------------------------------ */
+
+const FT_CUE = /\b(remind(?:er|ing|s)?|nag|bug me|follow[- ]?through|obligation|task|errand|to-?do|commitment)/i;
+
+function ftTags(t: string): string[] {
+  const tags: string[] = [];
+  if (/\bpersonal\b/i.test(t)) tags.push("personal");
+  if (/\bbusiness\b/i.test(t)) tags.push("business");
+  if (/\b(financial|invoice|payment|bill)/i.test(t)) tags.push("financial");
+  if (/\bclient/i.test(t)) tags.push("client");
+  if (/\blow[- ]priority\b/i.test(t)) tags.push("low");
+  if (/\bwaiting on (?:someone|others|other people)/i.test(t)) tags.push("waiting_on_other");
+  return tags;
+}
+
+export function interpretFollowThrough(t: string): RuleInterpretation | null {
+  if (!FT_CUE.test(t)) return null;
+  const tags = ftTags(t);
+  const subjectHints: string[] = [];
+  const m = t.match(/\b(?:about|for|on)\s+(?:my |the |any )?([a-z][a-z -]{3,40}?)(?:\s+(?:tasks?|errands?|reminders?|stuff|things))?\s*(?:until|unless|,|\.|$)/i);
+  if (m && !tags.length) subjectHints.push(`*${m[1]!.trim().toLowerCase()}*`);
+  const conditions: RuleCondition = {};
+  if (tags.length) conditions.tags_any = tags;
+  if (subjectHints.length) conditions.subject_patterns = subjectHints;
+  const build = (action: RuleInput["action"], name: string, confidence: number, ruleType: RuleInput["rule_type"] = "alert_policy"): RuleInterpretation => {
+    const rule = RuleInputSchema.parse({ name: name.slice(0, 140), description: t.slice(0, 1000), rule_type: ruleType, target_system: "alerts", target_monitor: "follow_through", conditions, action, priority: 100, enabled: true });
+    return { kind: "rule", confidence, rule, summary: rule.name };
+  };
+  const what = tags.length ? tags.join(" ") : subjectHints.length ? subjectHints[0]!.replace(/\*/g, "") : "";
+  if (/\b(don'?t|do not|stop|never|quit) (?:keep )?(?:remind|nag|bug)/i.test(t) && what) {
+    // "Don't keep reminding me about low-priority personal errands" → only mention in the brief, never a separate reminder.
+    return build({ type: "briefing_only" }, `Follow-Through → only mention ${what} items in the daily brief`, 0.85);
+  }
+  if (/\b(persistent|until (?:it'?s |they'?re |i'?m )?(?:done|complete|completed)|keep (?:them|it|those) (?:alive|open))\b/i.test(t) && what) {
+    return build({ type: "set_tracking_mode", mode: /\bcritical\b/i.test(t) ? "critical" : "important" }, `Follow-Through → keep ${what} commitments persistent until complete`, 0.85);
+  }
+  const cap = t.match(/\b(?:no more than|at most|max(?:imum)?(?: of)?)\s+(\d+|once|twice)\b[^.]*\b(?:per|a|each) day/i);
+  if (cap) {
+    const n = cap[1] === "once" ? 1 : cap[1] === "twice" ? 2 : Number(cap[1]);
+    return build({ type: "set_daily_cap", value: Math.min(24, n) }, `Follow-Through → at most ${n} reminder${n === 1 ? "" : "s"} per day${what ? ` for ${what} items` : ""}`, 0.85);
+  }
+  if (/\b(don'?t|do not|never) escalate\b/i.test(t)) {
+    return build({ type: "no_escalation" }, `Follow-Through → never escalate ${what || "these"} reminders`, 0.85);
+  }
+  if (/\b(in|into) (?:my |the )?(?:morning|daily) brief/i.test(t) && /\b(overdue|late)\b/i.test(t)) {
+    return build({ type: "briefing_only" }, `Follow-Through → overdue ${what || "business"} tasks appear in the daily brief`, 0.7, "briefing_pref");
+  }
+  if (/\b(anything|everything|all)\b.*\b(client|payment|invoice)\b.*\bimportant\b/i.test(t)) {
+    return build({ type: "set_tracking_mode", mode: "important" }, `Follow-Through → ${what || "client/payment"} obligations are important`, 0.8);
   }
   return null;
 }

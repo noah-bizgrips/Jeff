@@ -10,6 +10,7 @@ import { OPS_TOOLS, runOpsTool } from "@/lib/jeff/ops/tools";
 import { CLIENT_TOOLS, runClientTool } from "@/lib/jeff/clients/tools";
 import { BLIND_SPOT_TOOLS, runBlindSpotTool } from "@/lib/jeff/blindspots/tools";
 import { JOB_TOOLS, runJobTool } from "@/lib/jeff/jobs/tools";
+import { OBLIGATION_TOOLS, runObligationTool } from "@/lib/jeff/obligations/tools";
 
 /**
  * Narrow, server-side tools exposed to the model. Each tool:
@@ -138,6 +139,7 @@ export const JEFF_TOOLS: Anthropic.Beta.BetaTool[] = [
   ...CLIENT_TOOLS,
   ...BLIND_SPOT_TOOLS,
   ...JOB_TOOLS,
+  ...OBLIGATION_TOOLS,
 ];
 
 type ToolInput = Record<string, unknown>;
@@ -426,6 +428,8 @@ export async function runTool(name: string, input: ToolInput, ctx: ToolContext):
       if (blind !== undefined) return blind;
       const job = await runJobTool(name, input, ctx);
       if (job !== undefined) return job;
+      const obligation = await runObligationTool(name, input, ctx);
+      if (obligation !== undefined) return obligation;
       return { error: `unknown_tool:${name}` };
     }
   }
