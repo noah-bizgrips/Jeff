@@ -112,6 +112,8 @@ Last updated: 2026-09-11
 | Alert engine + Alert center (`/alerts`) | DONE | |
 | Daily/weekly/monthly briefings (`/briefings`), cron every 15 min | DONE | 7:30 AM America/Denver default; configurable in `/settings`. |
 | Commitments, outcome measurement, data freshness, Settings | DONE | |
+| Web Push (PWA), mobile pass, blind spots | DONE | |
+| Jeff's Jobs (13 system jobs, Test/Run now, NL job creation), Find what I'm missing, Follow-Through (obligations, persistent reminders, completion detection) | DONE | Production 2026-09-12; see `JEFF_JOBS_STATUS.md`. |
 
 ## Phase 27–30
 
