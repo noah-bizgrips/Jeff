@@ -92,7 +92,7 @@ export function nextCursor(prev: string | null, maxCreated: number | null): stri
 type Resource = {
   key: string;
   probe: string;
-  fetch: (stripe: Stripe, since: number) => Stripe.ApiListPromise<{ created: number }>;
+  fetch: (stripe: Stripe, since: number, firstRun: boolean) => Stripe.ApiListPromise<{ created: number }>;
   map: (obj: unknown) => SourceItemInput | null;
 };
 
@@ -119,7 +119,9 @@ const RESOURCES: Resource[] = [
   {
     key: "customers",
     probe: "customers",
-    fetch: (s, since) => s.customers.list({ limit: PAGE, created: { gte: since } }),
+    // Customers are the join key to portal clients and are few: backfill ALL of them on the first run
+    // (no created filter), then incremental by created. Existing rows update in place via upsert.
+    fetch: (s, since, firstRun) => s.customers.list(firstRun ? { limit: PAGE } : { limit: PAGE, created: { gte: since } }),
     map: (o) => mapCustomer(o as unknown as Parameters<typeof mapCustomer>[0]),
   },
   {
@@ -167,8 +169,11 @@ const reporting: CapabilityFetch = async (conn, cursor) => {
   for (const r of RESOURCES) {
     if (probeFailed(conn, r.probe)) continue;
     const since = sinceFrom(cursors[r.key] ?? null);
+    // A customers backfill needs the whole list once; mark the cursor so the next run is incremental.
+    const firstRun = r.key === "customers" && !cursors[r.key] && !cursors["customers_backfilled"];
     try {
-      const res = await walk(() => r.fetch(stripe, since), r.key);
+      const res = await walk(() => r.fetch(stripe, since, firstRun), r.key);
+      if (firstRun) cursors["customers_backfilled"] = String(Math.floor(Date.now() / 1000));
       seen += res.seen;
       for (const obj of res.objects) {
         const mapped = r.map(obj);
