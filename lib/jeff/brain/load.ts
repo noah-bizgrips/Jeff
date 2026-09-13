@@ -37,12 +37,13 @@ export async function getBrainState(ownerId: string, now = new Date()): Promise<
       admin.from("job_runs").select("job_id, mode, status, finished_at, error, created_at").eq("owner_id", ownerId).gte("created_at", since).order("created_at", { ascending: false }).limit(100),
     ]);
 
-    const goalInputs: BrainStateInput["goals"] = [];
-    for (const g of goals) {
-      const [snap, metrics] = await Promise.all([latestSnapshot(g.id).catch(() => null), listGoalMetrics(g.id).catch(() => [])]);
-      const sources = [...new Set(metrics.flatMap((m) => Object.values(m.source_mappings ?? {}).map((i) => i.provider)))];
-      goalInputs.push({ id: g.id, name: g.name, status: g.status, trajectory: snap?.trajectory ?? null, constraint_key: snap?.constraint_key ?? null, sources });
-    }
+    const goalInputs: BrainStateInput["goals"] = await Promise.all(
+      goals.slice(0, 20).map(async (g) => {
+        const [snap, metrics] = await Promise.all([latestSnapshot(g.id).catch(() => null), listGoalMetrics(g.id).catch(() => [])]);
+        const sources = [...new Set(metrics.flatMap((m) => Object.values(m.source_mappings ?? {}).map((i) => i.provider)))];
+        return { id: g.id, name: g.name, status: g.status, trajectory: snap?.trajectory ?? null, constraint_key: snap?.constraint_key ?? null, sources };
+      }),
+    );
 
     const freshByProvider = new Map(freshness.map((f) => [f.provider, f]));
     const jobById = new Map(jobs.map((j) => [j.id, j]));
