@@ -234,9 +234,10 @@ export function interpretFollowThrough(t: string): RuleInterpretation | null {
   if (/\b(persistent|until (?:it'?s |they'?re |i'?m )?(?:done|complete|completed)|keep (?:them|it|those) (?:alive|open))\b/i.test(t) && what) {
     return build({ type: "set_tracking_mode", mode: /\bcritical\b/i.test(t) ? "critical" : "important" }, `Follow-Through → keep ${what} commitments persistent until complete`, 0.85);
   }
-  const cap = t.match(/\b(?:no more than|at most|max(?:imum)?(?: of)?)\s+(\d+|once|twice)\b[^.]*\b(?:per|a|each) day/i);
+  const cap = t.match(/\b(?:no more than|at most|max(?:imum)?(?: of)?)\s+(\d+|once|twice|one|two|three|four)\b[^.]*\b(?:per|a|each) day/i);
   if (cap) {
-    const n = cap[1] === "once" ? 1 : cap[1] === "twice" ? 2 : Number(cap[1]);
+    const WORDS: Record<string, number> = { once: 1, one: 1, twice: 2, two: 2, three: 3, four: 4 };
+    const n = WORDS[cap[1]!.toLowerCase()] ?? Number(cap[1]);
     return build({ type: "set_daily_cap", value: Math.min(24, n) }, `Follow-Through → at most ${n} reminder${n === 1 ? "" : "s"} per day${what ? ` for ${what} items` : ""}`, 0.85);
   }
   if (/\b(don'?t|do not|never) escalate\b/i.test(t)) {

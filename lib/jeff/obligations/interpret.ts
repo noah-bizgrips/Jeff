@@ -135,7 +135,9 @@ function detectCadence(t: string): { follow_up_hours: number | null; daily_cap: 
 /** Extracts capitalised names after send/email/call/follow up with/for/to. Lower-case sentences still work for common patterns. */
 export function extractPeople(text: string): string[] {
   const out = new Set<string>();
-  for (const m of text.matchAll(/\b(?:send|email|e-mail|text|call|message|ping|follow up with|follow-up with|chase|reply to|get back to|ask|remind|invoice|pay|meet(?: with)?|schedule(?: with)?)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/g)) out.add(m[1]!);
+  // Lower-case only the leading character so a sentence-initial verb ("Waiting on Dana") still matches; names stay capitalised.
+  const lead = text.charAt(0).toLowerCase() + text.slice(1);
+  for (const m of lead.matchAll(/\b(?:send|email|e-mail|text|call|message|ping|follow up with|follow-up with|chase|reply to|get back to|ask|remind|invoice|pay|meet(?: with)?|schedule(?: with)?|waiting (?:on|for))\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/g)) out.add(m[1]!);
   for (const m of text.matchAll(/\b(?:to|for|from|with)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/g)) {
     const name = m[1]!;
     if (!/^(Friday|Monday|Tuesday|Wednesday|Thursday|Saturday|Sunday|Jeff|Stripe|Notion|Gmail|Slack|Calendly)$/.test(name)) out.add(name);
@@ -154,7 +156,7 @@ export function inferStrategy(text: string, people: string[]): { strategy: Compl
     return { strategy: base("outbound_message", { keywords: proposal }, `An outbound message to ${people[0] ?? "the person"}${proposal.length ? ` mentioning ${proposal[0]}` : ""}`), uncertain: people.length === 0 };
   }
   if (/\b(cancel|unsubscribe|terminate|close the account)\b/.test(t)) {
-    const vendor = text.match(/\b(?:cancel|unsubscribe from|terminate)\s+(?:my |the |our )?([A-Z][A-Za-z0-9]+)/)?.[1] ?? null;
+    const vendor = text.match(/\b(?:cancel|unsubscribe from|terminate)\s+(?:my |the |our )?([A-Z][A-Za-z0-9]+)/i)?.[1] ?? null;
     return { strategy: base("cancellation", { vendor, keywords: ["cancel", "cancellation", "confirmed"] }, `A cancellation confirmation${vendor ? ` from ${vendor}` : ""} OR the recurring charge disappearing`, 0.8), uncertain: !vendor };
   }
   if (/\b(pay|payment|invoice|bill|settle|wire|transfer)\b/.test(t)) {

@@ -77,7 +77,8 @@ export const calendarSource: ObligationSourceAdapter = {
       if (!tagged && !taskLike && !isAllDayDeadline) continue;
       // Passed meeting-style events are not obligations; passed deadline events are (they may still be unresolved).
       if (!tagged && !taskLike && !isAllDayDeadline && r.source_timestamp && Date.parse(r.source_timestamp) < now.getTime()) continue;
-      const clean = title.replace(JEFF_TAG, "").trim();
+      const stripped = title.replace(JEFF_TAG, "").trim();
+      const clean = stripped.charAt(0).toUpperCase() + stripped.slice(1);
       out.push(base({ title: clean, origin: "calendar", source_provider: "google", source_external_id: r.external_id, source_url: r.source_url, due_at: r.source_timestamp, scope: "business", metadata: { calendar_event: true, tagged } }));
     }
     return out;
@@ -189,6 +190,8 @@ export interface DedupeMatch {
   candidate: SourceCandidate;
   matchesExistingId: string | null;
   confidence: number;
+  /** Same fingerprint as an earlier candidate in this batch (e.g. Notion + calendar): link as a source of that one. */
+  duplicateOfFingerprint?: string;
 }
 
 /**
@@ -218,8 +221,11 @@ export function dedupeCandidates(candidates: SourceCandidate[], existing: { id: 
       }
     }
     // Within-batch duplicates: keep the first, link the rest to it later via fingerprint equality.
-    const dupInBatch = seenInBatch.find((s) => s.fingerprint === c.fingerprint);
-    if (dupInBatch) continue;
+    const dupInBatch = c.fingerprint ? seenInBatch.find((s) => s.fingerprint === c.fingerprint) : undefined;
+    if (dupInBatch) {
+      out.push({ candidate: c, matchesExistingId: null, confidence: 1, duplicateOfFingerprint: dupInBatch.fingerprint! });
+      continue;
+    }
     seenInBatch.push(c);
     out.push({ candidate: c, matchesExistingId: bestScore >= 0.75 ? bestId : null, confidence: bestScore });
   }

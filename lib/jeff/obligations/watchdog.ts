@@ -177,8 +177,8 @@ async function raiseReminderAlert(ownerId: string, o: ObligationRow, decision: R
   if (existing) await admin.from("alerts").update({ ...payload, occurrences: (existing.occurrences ?? 1) + 1 }).eq("id", existing.id);
   else await admin.from("alerts").insert({ owner_id: ownerId, fingerprint, first_seen: iso, occurrences: 1, ...payload });
   await patchObligation(ownerId, o.id, { last_reminded_at: iso, reminder_count: o.reminder_count + 1, escalation_level: decision.escalation_level, next_reminder_at: null, status: o.status === "open" && o.due_at && Date.parse(o.due_at) < now.getTime() ? "overdue" : o.status });
-  await recordEvent(ownerId, o.id, decision.reason === "context trigger" ? "context_trigger" : "reminded", { importance, reason: decision.reason, level: decision.escalation_level });
-  if (decision.escalation_level > o.escalation_level) await recordEvent(ownerId, o.id, "escalated", { level: decision.escalation_level });
+  await recordEvent(ownerId, o.id, decision.reason === "context trigger" ? "context_trigger" : "reminded", { importance, reason: decision.reason, level: decision.escalation_level }, now);
+  if (decision.escalation_level > o.escalation_level) await recordEvent(ownerId, o.id, "escalated", { level: decision.escalation_level }, now);
   await audit({ event: "obligation_reminded", ownerId, actor: "system", targetId: o.id, metadata: { importance, reason: decision.reason } });
 }
 
@@ -217,10 +217,19 @@ export async function runFollowThrough(ownerId: string, opts: { mode: "test" | "
   const fps = matches.map((m) => m.candidate.fingerprint).filter((f): f is string => !!f);
   const { data: terminalRows } = fps.length ? await admin.from("obligations").select("fingerprint, status").eq("owner_id", ownerId).in("fingerprint", fps).in("status", ["completed", "dismissed", "cancelled"]) : { data: [] as { fingerprint: string; status: string }[] };
   const terminal = new Set((terminalRows ?? []).map((r) => r.fingerprint));
+  const createdByFingerprint = new Map<string, ObligationRow>();
 
   for (const m of matches) {
     const c = m.candidate;
     if (c.fingerprint && terminal.has(c.fingerprint)) continue;
+    if (m.duplicateOfFingerprint) {
+      const primary = createdByFingerprint.get(m.duplicateOfFingerprint);
+      if (mode === "run" && primary && c.source_provider && c.source_external_id) await linkSource(ownerId, primary.id, { provider: c.source_provider, external_id: c.source_external_id, url: c.source_url, kind: c.origin });
+      if (mode === "run" && !primary) continue; // primary was excluded or already existed; nothing to link
+      summary.merged++;
+      items.push({ id: primary?.id ?? null, title: c.title, bucket: c.assigned_to === "other" ? "waiting_on_other" : "waiting_on_me", outcome: "would_merge", detail: `Also found in ${c.origin}; linked as an additional source of the same obligation.` });
+      continue;
+    }
     const ruled = applyRulesToObligation(ctx.rules, c);
     if (ruled.excluded) {
       summary.rules_applied++;
@@ -245,6 +254,7 @@ export async function runFollowThrough(ownerId: string, opts: { mode: "test" | "
       if (res.created) {
         summary.created++;
         liveById.set(res.row.id, res.row);
+        if (c.fingerprint) createdByFingerprint.set(c.fingerprint, res.row);
         items.push({ id: res.row.id, title: res.row.title, bucket: bucketName(res.row, now), outcome: "would_create", detail: `Created from ${c.origin}.` });
       }
     } else {
@@ -255,7 +265,7 @@ export async function runFollowThrough(ownerId: string, opts: { mode: "test" | "
 
   // 2. Evaluate every live obligation: completion, then reminders.
   const current = mode === "run" ? await listObligations(ownerId, { live: true, limit: 500 }) : live;
-  for (const o of current) {
+  for (let o of current) {
     if (!LIVE_STATUSES.includes(o.status)) continue;
     const bucket = bucketName(o, now);
     summary.open++;
@@ -267,8 +277,9 @@ export async function runFollowThrough(ownerId: string, opts: { mode: "test" | "
 
     // Snoozed items resume automatically when the snooze expires.
     if (o.status === "snoozed" && o.snoozed_until && Date.parse(o.snoozed_until) <= now.getTime() && mode === "run") {
-      await patchObligation(ownerId, o.id, { status: o.assigned_to === "other" ? "waiting_on_other" : o.due_at && Date.parse(o.due_at) < now.getTime() ? "overdue" : "open", snoozed_until: null, next_reminder_at: now.toISOString() });
-      await recordEvent(ownerId, o.id, "reopened", { reason: "snooze_expired" });
+      const reopened = await patchObligation(ownerId, o.id, { status: o.assigned_to === "other" ? "waiting_on_other" : o.due_at && Date.parse(o.due_at) < now.getTime() ? "overdue" : "open", snoozed_until: null, next_reminder_at: now.toISOString() });
+      await recordEvent(ownerId, o.id, "reopened", { reason: "snooze_expired" }, now);
+      if (reopened) o = reopened;
     }
     if (bucket === "snoozed") {
       items.push({ id: o.id, title: o.title, bucket, outcome: "snoozed", detail: `Snoozed until ${o.snoozed_until?.slice(0, 16) ?? "?"}.` });

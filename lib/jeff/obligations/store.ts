@@ -66,9 +66,9 @@ export async function findByFingerprint(ownerId: string, fingerprint: string): P
   return data ? normalize(data as Record<string, unknown>) : null;
 }
 
-export async function recordEvent(ownerId: string, obligationId: string, kind: ObligationEventKind, payload: Record<string, unknown> = {}): Promise<void> {
+export async function recordEvent(ownerId: string, obligationId: string, kind: ObligationEventKind, payload: Record<string, unknown> = {}, at?: Date): Promise<void> {
   const admin = createAdminClient();
-  const { error } = await admin.from("obligation_events").insert({ owner_id: ownerId, obligation_id: obligationId, kind, payload: redact(payload) });
+  const { error } = await admin.from("obligation_events").insert({ owner_id: ownerId, obligation_id: obligationId, kind, payload: redact(payload), ...(at ? { created_at: at.toISOString() } : {}) });
   if (error) log.warn("obligation_event_failed", { kind, message: error.message });
 }
 
