@@ -51,6 +51,17 @@ export const JOB_TOOLS: Anthropic.Beta.BetaTool[] = [
     strict: true,
   },
   {
+    name: "jobs_health",
+    description: "Observability for Jeff's Jobs over the last 30 days: runs per day and success/partial/failed per job, AI calls and cost by job, findings created and suppressed, feedback counts and false-positive rate, and Follow-Through metrics. Use for 'how are my jobs doing', 'what is Jeff spending on jobs', 'which job is noisiest'.",
+    input_schema: { type: "object", properties: { days: { type: "integer", minimum: 1, maximum: 90 } }, additionalProperties: false },
+  },
+  {
+    name: "job_suggestions",
+    description: "Pending suggestions Jeff learned from repeated snoozes/dismissals (e.g. 'stop alerting on X', 'personal errands only in the brief'). Each is a pending rule in Memory & Rules; the owner confirms or discards it. Use for 'anything you've noticed about how I use jobs?' or when the owner asks why Jeff proposed a rule.",
+    input_schema: { type: "object", properties: {}, additionalProperties: false },
+    strict: true,
+  },
+  {
     name: "update_job_policy",
     description: "Change Tier-1 job settings: schedule (type/expression), notification policy (min_importance, push, briefing_only, max_per_day), scope, minimum severity.",
     input_schema: {
@@ -75,6 +86,9 @@ export const JOB_TOOLS: Anthropic.Beta.BetaTool[] = [
 async function resolveJob(ownerId: string, ref: string) {
   const jobs = await ensureJobs(ownerId);
   const key = ref.trim().toLowerCase();
+  const alias: Record<string, string> = { "find what i'm missing": "blind-spot-scanner", "find what im missing": "blind-spot-scanner", "blind spots": "blind-spot-scanner", "what am i missing": "blind-spot-scanner", "follow through": "follow-through-watchdog", "follow-through": "follow-through-watchdog", radar: "relationship-radar", coach: "goal-coach" };
+  const aliased = alias[key];
+  if (aliased) return jobs.find((j) => j.slug === aliased) ?? null;
   return jobs.find((j) => j.slug === key) ?? jobs.find((j) => j.name.toLowerCase() === key) ?? jobs.find((j) => j.name.toLowerCase().includes(key) || j.slug.includes(key.replace(/\s+/g, "-"))) ?? null;
 }
 
@@ -135,6 +149,16 @@ export async function runJobTool(name: string, input: Record<string, unknown>, c
                 ? "Ask the owner the ambiguity question; do not create anything yet."
                 : undefined,
       };
+    }
+    case "jobs_health": {
+      const { loadJobsMetrics } = await import("./metrics");
+      const days = typeof input.days === "number" ? input.days : 30;
+      return loadJobsMetrics(ctx.ownerId, new Date(), Math.min(90, Math.max(1, days)));
+    }
+    case "job_suggestions": {
+      const { listPendingSuggestions } = await import("./learning-store");
+      const items = await listPendingSuggestions(ctx.ownerId);
+      return { count: items.length, suggestions: items.map((s) => ({ rule_id: s.rule_id, job: s.job_slug, suggestion: s.suggestion, since: s.created_at })), guidance: items.length ? "Read the one-liner to the owner; they confirm or discard it in Memory & Rules (or say 'yes, do that' → confirm the rule)." : "Nothing learned yet — proposals appear after 3 snoozes/dismissals of the same kind within 14 days." };
     }
     case "update_job_policy": {
       const job = await resolveJob(ctx.ownerId, String(input.job ?? ""));

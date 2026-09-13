@@ -174,6 +174,7 @@ export async function buildBundle(ownerId: string, kind: BriefingKind, period: {
     freshness: freshness.map((f) => f.text),
     memories: memoryTexts,
     briefing_rules: briefingRules,
+    learning_suggestions: rules.filter((r) => r.pending_confirmation && r.name.startsWith("Learned:")).map((r) => r.source_quote ?? r.description ?? r.name),
     max_items: maxItemsFromMemories(memoryTexts, settings.brief_max_items),
   };
 }

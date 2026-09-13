@@ -3,6 +3,7 @@ import { safeEqual } from "@/lib/crypto/secrets";
 import { hasEnv, requireEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ensureJobs, runDueJobs } from "@/lib/jeff/jobs";
+import { runJobLearning } from "@/lib/jeff/jobs/learning-store";
 import { log } from "@/lib/security/log";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,14 @@ export const GET = withErrorBoundary(async (req) => {
   const now = new Date();
   const jobs = await ensureJobs(owner.user_id, now);
   const result = await runDueJobs(owner.user_id, jobs, now, 240_000);
-  log.info("cron_jobs", { ran: result.ran.length, skipped: result.skipped.length });
-  return json({ ok: true, ...result });
+  // Job learning (§64): repeated snoozes/dismissals → pending proposals. Best-effort; never fails the cron.
+  let learning: { signals: number; proposals: number; created: string[] } | { error: string } = { error: "skipped" };
+  try {
+    learning = await runJobLearning(owner.user_id, now);
+  } catch (err) {
+    learning = { error: err instanceof Error ? err.message : "unknown" };
+    log.warn("cron_job_learning_failed", { message: learning.error });
+  }
+  log.info("cron_jobs", { ran: result.ran.length, skipped: result.skipped.length, proposals: "created" in learning ? learning.created.length : 0 });
+  return json({ ok: true, ...result, learning });
 });

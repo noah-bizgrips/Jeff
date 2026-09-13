@@ -48,6 +48,7 @@ export type AuditEvent =
   | "obligation_reminded"
   | "job_test"
   | "rule_created"
+  | "rule_proposed"
   | "rule_updated"
   | "rule_disabled"
   | "rule_deleted"

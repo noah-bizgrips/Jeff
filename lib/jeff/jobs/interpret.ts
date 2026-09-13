@@ -271,7 +271,7 @@ export async function interpretJob(ownerId: string, text: string, connected: str
         },
       ],
     });
-    await recordUsage(ownerId, response.model, { input_tokens: response.usage.input_tokens, output_tokens: response.usage.output_tokens, cache_read_tokens: response.usage.cache_read_input_tokens ?? 0, cache_write_tokens: response.usage.cache_creation_input_tokens ?? 0 }, "other");
+    await recordUsage(ownerId, response.model, { input_tokens: response.usage.input_tokens, output_tokens: response.usage.output_tokens, cache_read_tokens: response.usage.cache_read_input_tokens ?? 0, cache_write_tokens: response.usage.cache_creation_input_tokens ?? 0 }, "job:create-from-description");
     const tool = response.content.find((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use" && b.name === "job_definition");
     if (!tool) throw new Error("no_tool_output");
     const parsed = JobDefinitionInterpretationSchema.safeParse(tool.input);

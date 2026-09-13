@@ -29,6 +29,8 @@ export interface JobFinding {
   job_run_id: string | null;
   first_seen_at: string | null;
   last_seen_at: string | null;
+  /** Present for blind spots: theme (§48), novelty verdict (§47), rank (§51). */
+  metrics?: { theme?: string; novelty?: { novel: boolean; reason: string; exception: string | null }; rank?: number } | null;
 }
 
 export interface RunOutcome {

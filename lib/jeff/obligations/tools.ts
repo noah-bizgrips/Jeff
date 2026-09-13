@@ -1,4 +1,5 @@
 import "server-only";
+import { bestMatch } from "./match";
 import type Anthropic from "@anthropic-ai/sdk";
 import { getSettings } from "@/lib/jeff/settings-store";
 import { interpretReminder, toObligationInput } from "./interpret";
@@ -107,16 +108,12 @@ async function resolve(ownerId: string, input: Record<string, unknown>): Promise
     const o = await getObligation(ownerId, input.id);
     return o ?? { error: "obligation_not_found" };
   }
-  const match = typeof input.match === "string" ? input.match.toLowerCase().split(/\W+/).filter((w) => w.length > 2) : [];
-  if (!match.length) return { error: "id_or_match_required" };
+  const query = typeof input.match === "string" ? input.match.trim() : "";
+  if (!query) return { error: "id_or_match_required" };
   const live = await listObligations(ownerId, { live: true, limit: 300 });
-  const scored = live
-    .map((o) => ({ o, score: match.filter((w) => o.title.toLowerCase().includes(w)).length }))
-    .filter((x) => x.score > 0)
-    .sort((a, b) => b.score - a.score);
-  if (!scored.length) return { error: "no_matching_obligation" };
-  if (scored.length > 1 && scored[0]!.score === scored[1]!.score) return { error: "ambiguous_match", candidates: scored.slice(0, 5).map((x) => ({ id: x.o.id, title: x.o.title })) };
-  return scored[0]!.o;
+  const res = bestMatch(query, live);
+  if (!res.ok) return res.error === "ambiguous_match" ? { error: res.error, candidates: res.candidates } : { error: res.error };
+  return res.item;
 }
 
 export async function runObligationTool(name: string, input: Record<string, unknown>, ctx: ObligationToolContext): Promise<unknown> {

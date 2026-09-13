@@ -120,11 +120,16 @@ export function BlindSpotScanButton({ disabled }: { disabled?: boolean }) {
               .map((f) => (
                 <article key={f.id} className="job-finding">
                   <div className="mission-card-top">
-                    <span className="mission-code">👁️ {f.category.replace(/_/g, " ").toUpperCase()}</span>
+                    <span className="mission-code">👁️ {(f.metrics?.theme ?? f.category).replace(/_/g, " ").toUpperCase()}</span>
                     <span className={`pill ${f.severity === "high" ? "danger" : f.severity === "medium" ? "amber" : "neutral"}`}>{f.severity}</span>
                   </div>
                   <strong>{f.title}</strong>
                   {f.summary ? <p className="muted">{f.summary}</p> : null}
+                  {f.metrics?.novelty?.reason ? (
+                    <p className="muted" style={{ fontSize: 11 }}>
+                      {f.metrics.novelty.exception ? `Shown again: ${f.metrics.novelty.reason}` : f.metrics.novelty.reason}
+                    </p>
+                  ) : null}
                   <div className="connection-actions feedback-actions">
                     <button className="button secondary" type="button" onClick={() => jeff.ask(`Tell me more about this blind spot and what to check: "${f.title}"`)}>
                       Ask Jeff about this

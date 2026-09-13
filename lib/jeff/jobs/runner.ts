@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { audit } from "@/lib/audit";
 import { errorMessage, log } from "@/lib/security/log";
 import { loadRows, persistFindings } from "@/lib/jeff/monitors";
-import type { CandidateFinding, SourceRow } from "@/lib/jeff/monitors/types";
+import type { CandidateFinding, GoalLite, SourceRow } from "@/lib/jeff/monitors/types";
 import { listRules, recordRuleEvents, type RuleEventInput } from "@/lib/jeff/rules/store";
 import { ensureSystemRules } from "@/lib/jeff/rules/apply";
 import { decide } from "@/lib/jeff/rules/precedence";
@@ -188,7 +188,7 @@ export async function loadDetectorExtras(ownerId: string, specs: DetectorSpec[],
   if (needs.has("goals")) {
     const { listGoals, listGoalMetrics, listRecommendations } = await import("@/lib/jeff/goals/store");
     const goals = await listGoals(ownerId, ["active"]).catch(() => []);
-    out.goals = await Promise.all(
+    out.goals = await Promise.all<GoalLite>(
       goals.map(async (g) => {
         const [snap, metrics, recs] = await Promise.all([latestSnapshot(g.id).catch(() => null), listGoalMetrics(g.id).catch(() => []), listRecommendations(g.id).catch(() => [])]);
         const words = `${g.name} ${g.interpretation?.outcome ?? ""} ${metrics.map((m) => `${m.key} ${m.name}`).join(" ")}`.toLowerCase().match(/[a-z][a-z0-9-]{2,}/g) ?? [];
@@ -206,15 +206,23 @@ export async function loadDetectorExtras(ownerId: string, specs: DetectorSpec[],
           updated_at: g.updated_at,
         };
       }),
-    );
+    ).catch(() => [] as GoalLite[]);
   }
   if (needs.has("memories")) {
-    const { listMemories } = await import("@/lib/jeff/rules/store");
-    out.memories = (await listMemories(ownerId, { activeOnly: true }).catch(() => [])).map((m) => ({ category: m.category, scope: m.scope, content: m.content }));
+    try {
+      const { listMemories } = await import("@/lib/jeff/rules/store");
+      out.memories = (await listMemories(ownerId, { activeOnly: true })).map((m) => ({ category: m.category, scope: m.scope, content: m.content }));
+    } catch {
+      out.memories = [];
+    }
   }
   if (needs.has("obligations")) {
-    const { listObligations } = await import("@/lib/jeff/obligations/store");
-    out.obligations = (await listObligations(ownerId, { live: true, limit: 300 }).catch(() => [])).map((o) => ({ id: o.id, title: o.title, status: o.status, scope: o.scope, priority: o.priority, due_at: o.due_at, reminder_count: o.reminder_count, updated_at: o.updated_at, counterparty: o.counterparty, metadata: o.metadata }));
+    try {
+      const { listObligations } = await import("@/lib/jeff/obligations/store");
+      out.obligations = (await listObligations(ownerId, { live: true, limit: 300 })).map((o) => ({ id: o.id, title: o.title, status: o.status, scope: o.scope, priority: o.priority, due_at: o.due_at, reminder_count: o.reminder_count, updated_at: o.updated_at, counterparty: o.counterparty, metadata: o.metadata }));
+    } catch {
+      out.obligations = [];
+    }
   }
   void now;
   return out;

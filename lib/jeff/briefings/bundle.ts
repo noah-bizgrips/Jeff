@@ -123,6 +123,8 @@ export interface BriefingBundle {
   memories: string[];
   /** Names of briefing rules that apply. */
   briefing_rules: string[];
+  /** One-line proposals learned from repeated snoozes/dismissals (pending in Memory & Rules). */
+  learning_suggestions?: string[];
   /** Max attention items (owner setting, overridable by memory). */
   max_items: number;
 }
@@ -274,7 +276,10 @@ export function buildTemplate(b: BriefingBundle): BriefingSummary {
   const recommends: BriefingItem[] = [
     ...b.goals.filter((g) => g.constraint && ["at_risk", "severely_at_risk", "slightly_at_risk"].includes(g.trajectory)).slice(0, 3).map((g) => ({ title: `Work the constraint on "${g.name}"`, detail: `The binding constraint is ${g.constraint}. Review the goal's recommendations and prepare a mission.`, ref_kind: "goal" as const, ref_id: g.id, importance: "actionable" as const })),
     ...b.findings.filter((f) => f.proposed_mission && ["open", "new", "accepted"].includes(f.status)).slice(0, 3).map((f) => ({ title: f.proposed_mission!.title, detail: f.proposed_mission!.goal.slice(0, 400), ref_kind: "finding" as const, ref_id: f.id, importance: "actionable" as const })),
-  ].slice(0, 5);
+  ].slice(0, 4);
+  // One learned suggestion at most (§64): pending until confirmed in Memory & Rules.
+  const suggestion = (b.learning_suggestions ?? [])[0];
+  if (suggestion) recommends.push({ title: "A suggestion from Jeff's Jobs", detail: `${suggestion.slice(0, 500)} Confirm or discard it in Memory & Rules.`, ref_kind: "none", ref_id: null, importance: "informational" });
 
   const summary: BriefingSummary = {
     title,

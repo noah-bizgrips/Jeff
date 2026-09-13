@@ -105,12 +105,17 @@ export async function reviewBlindSpots(ownerId: string, candidates: BlindSpotCan
       tools: [{ name: "review", description: "Return the review.", input_schema: REVIEW_JSON_SCHEMA as unknown as Anthropic.Beta.BetaTool["input_schema"], strict: true }],
       messages: [{ role: "user", content: `Candidates:\n${JSON.stringify(redact(compact)).slice(0, 30_000)}\n\nEvidence bundle (id → label):\n${JSON.stringify(redact(bundle.slice(0, 200))).slice(0, 20_000)}` }],
     });
-    await recordUsage(ownerId, response.model, {
-      input_tokens: response.usage.input_tokens,
-      output_tokens: response.usage.output_tokens,
-      cache_read_tokens: response.usage.cache_read_input_tokens ?? 0,
-      cache_write_tokens: response.usage.cache_creation_input_tokens ?? 0,
-    });
+    await recordUsage(
+      ownerId,
+      response.model,
+      {
+        input_tokens: response.usage.input_tokens,
+        output_tokens: response.usage.output_tokens,
+        cache_read_tokens: response.usage.cache_read_input_tokens ?? 0,
+        cache_write_tokens: response.usage.cache_creation_input_tokens ?? 0,
+      },
+      "job:blind-spot-scanner",
+    );
     const tool = response.content.find((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use" && b.name === "review");
     if (!tool) throw new Error("no_tool_output");
     const parsed = BlindSpotReviewSchema.safeParse(tool.input);

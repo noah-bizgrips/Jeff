@@ -7,6 +7,7 @@ import { useJeff } from "@/components/jeff/store";
 import { EmptyState } from "@/components/jeff/shared";
 import { AddJobModal } from "./AddJobModal";
 import { TestModePanel } from "./TestModePanel";
+import { JobsHealth } from "./JobsHealth";
 import { api, fmtWhen, SOURCE_LABEL, STATUS_TONE, type JobItem, type RunOutcome } from "./types";
 
 /** Jeff's Jobs roster (spec §6): one row per analyst with coverage, schedule, last run, findings and Test · Run now · Open. */
@@ -71,6 +72,8 @@ export function JobsView({ initial }: { initial: JobItem[] }) {
           </button>
         </div>
       </div>
+
+      <JobsHealth />
 
       {!jobs.length ? (
         <EmptyState icon="briefcase" title="No jobs yet.">

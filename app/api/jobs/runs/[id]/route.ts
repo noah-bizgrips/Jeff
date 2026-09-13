@@ -9,7 +9,7 @@ import { redact } from "@/lib/security/redact";
 
 export const dynamic = "force-dynamic";
 
-const FINDING_COLUMNS = "id, category, severity, title, summary, evidence, status, job_id, job_run_id, goal_id, first_seen_at, last_seen_at";
+const FINDING_COLUMNS = "id, category, severity, title, summary, evidence, status, job_id, job_run_id, goal_id, first_seen_at, last_seen_at, metrics";
 
 /**
  * GET /api/jobs/runs/{id} — poll a run. While running: status + progress step
