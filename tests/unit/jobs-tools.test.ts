@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeDb } from "../fake-db";
 
 const OWNER = "11111111-1111-4111-8111-111111111111";
-const NOW = new Date("2026-09-12T18:00:00Z");
 let db = new FakeDb();
 const audit = vi.fn(async () => {});
 const runJob = vi.fn(async (_o: string, job: { slug: string }, opts: { mode: string }) => ({
