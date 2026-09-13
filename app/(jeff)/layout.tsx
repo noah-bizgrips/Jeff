@@ -13,6 +13,8 @@ import { PushManager } from "@/components/jeff/PushManager";
 import { surfacedAlerts } from "@/lib/jeff/alerts/store";
 import { getSettings } from "@/lib/jeff/settings-store";
 import { atLeast } from "@/lib/jeff/alerts/importance";
+import { getBrainState } from "@/lib/jeff/brain/load";
+import { EMPTY_BRAIN_STATE } from "@/lib/jeff/brain/state";
 
 async function countSurfacedAlerts(ownerId: string): Promise<number> {
   const [alerts, settings] = await Promise.all([surfacedAlerts(ownerId, new Date(), 50), getSettings(ownerId).catch(() => null)]);
@@ -35,13 +37,14 @@ export default async function JeffLayout({ children }: { children: React.ReactNo
   if (session.aal !== "aal2") redirect("/mfa");
 
   const mode = await effectiveMode();
-  const [connections, liveDocs, notes, saved, counts, alertCount] = await Promise.all([
+  const [connections, liveDocs, notes, saved, counts, alertCount, brain] = await Promise.all([
     listConnections(session.userId).catch(() => []),
     mode === "live" ? loadLiveDocs(supabase) : Promise.resolve([]),
     mode === "live" ? loadNotes(supabase) : Promise.resolve([]),
     mode === "live" ? loadSaved(supabase) : Promise.resolve([]),
     loadCounts(supabase),
     mode === "live" ? countSurfacedAlerts(session.userId) : Promise.resolve(0),
+    mode === "live" ? getBrainState(session.userId) : Promise.resolve(EMPTY_BRAIN_STATE),
   ]);
 
   const initial: JeffInitial = {
@@ -57,6 +60,7 @@ export default async function JeffLayout({ children }: { children: React.ReactNo
     missionCount: mode === "demo" ? DEMO_MISSIONS.length + counts.missions : counts.missions,
     approvalCount: mode === "demo" ? DEMO_MISSIONS.filter((m) => m.status === "review").length + counts.approvals : counts.approvals,
     alertCount,
+    brain,
   };
 
   return (

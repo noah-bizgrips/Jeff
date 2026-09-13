@@ -8,6 +8,9 @@ import { retrieve, extractiveAnswer } from "@/lib/jeff/retrieve";
 import { looksSensitiveClient } from "@/lib/security/client-redact";
 import { noteAttention } from "@/lib/jeff/attention/client";
 import type { ConnectionSummary } from "@/lib/integrations/types";
+import type { BrainState } from "@/lib/jeff/brain/state";
+import { BRAIN_POLICY } from "@/lib/jeff/brain/policy";
+import { sourcesForTools } from "@/lib/jeff/brain/sources";
 
 export type Mode = "demo" | "live";
 
@@ -43,6 +46,18 @@ export interface JeffInitial {
   approvalCount: number;
   /** Open alerts at or above the owner's minimum importance (live mode). */
   alertCount: number;
+  /** What Jeff currently sees (read-only aggregate, spec §6). */
+  brain: BrainState;
+}
+
+/**
+ * Live activity the brain should show right now. `kind` non-null means Jeff is
+ * working (investigating). `sources` are the sources actually being read
+ * (chat tools) or examined (scan stages / job declared sources) — never guessed.
+ */
+export interface BrainActivity {
+  kind: "ask" | "scan" | "job" | null;
+  sources: string[];
 }
 
 interface JeffStore extends JeffInitial {
@@ -77,6 +92,14 @@ interface JeffStore extends JeffInitial {
   setMode: (m: Mode) => Promise<void>;
   refreshConnections: () => Promise<void>;
   navigate: (path: string) => void;
+  brain: BrainState;
+  brainActivity: BrainActivity;
+  /** Re-fetch the brain state (throttled to one call per 10s; callers may fire freely after actions). */
+  refreshBrain: (opts?: { force?: boolean }) => Promise<void>;
+  /** Mark live activity on the brain. Pass `{ kind: null, sources: [] }` to clear. */
+  setBrainActivity: (a: BrainActivity) => void;
+  /** Briefly illuminate sources Jeff actually read (≤1.5s), then clear. */
+  flashBrainSources: (sources: string[]) => void;
 }
 
 const Ctx = createContext<JeffStore | null>(null);
@@ -119,6 +142,69 @@ export function JeffProvider({ initial, children }: { initial: JeffInitial; chil
   const [modal, setModal] = useState<ReactNode | null>(null);
   const [toasts, setToasts] = useState<{ id: number; text: string }[]>([]);
   const lastFocus = useRef<Element | null>(null);
+  const [brain, setBrain] = useState<BrainState>(initial.brain);
+  const [brainActivity, setBrainActivityState] = useState<BrainActivity>({ kind: null, sources: [] });
+  const brainFetchedAt = useRef(0);
+  const brainInFlight = useRef<Promise<void> | null>(null);
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const refreshBrain = useCallback(
+    async (opts?: { force?: boolean }) => {
+      if (mode !== "live") return;
+      const now = Date.now();
+      if (!opts?.force && now - brainFetchedAt.current < BRAIN_POLICY.refreshMinGapMs) return;
+      if (brainInFlight.current) return brainInFlight.current;
+      brainFetchedAt.current = now;
+      brainInFlight.current = (async () => {
+        try {
+          const res = await fetch("/api/brain/state", { cache: "no-store" });
+          if (!res.ok) return;
+          const data = (await res.json().catch(() => null)) as { brain?: BrainState } | null;
+          if (data?.brain) setBrain(data.brain);
+        } catch {
+          /* keep the last known state */
+        } finally {
+          brainInFlight.current = null;
+        }
+      })();
+      return brainInFlight.current;
+    },
+    [mode],
+  );
+
+  // Keep the brain current: every 60s while the tab is visible, and on return to the tab.
+  useEffect(() => {
+    if (mode !== "live") return;
+    brainFetchedAt.current = Date.now(); // the server already rendered a fresh state
+    const tick = () => {
+      if (document.visibilityState === "visible") void refreshBrain();
+    };
+    const id = setInterval(tick, BRAIN_POLICY.refreshEveryMs);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [mode, refreshBrain]);
+
+  const setBrainActivity = useCallback((a: BrainActivity) => {
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    flashTimer.current = null;
+    setBrainActivityState(a);
+  }, []);
+
+  const flashBrainSources = useCallback((srcs: string[]) => {
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    if (!srcs.length) {
+      setBrainActivityState({ kind: null, sources: [] });
+      return;
+    }
+    setBrainActivityState({ kind: null, sources: srcs });
+    flashTimer.current = setTimeout(() => {
+      flashTimer.current = null;
+      setBrainActivityState({ kind: null, sources: [] });
+    }, BRAIN_POLICY.retrievalFlashMs);
+  }, []);
 
   useEffect(() => {
     document.body.dataset.jeffMode = mode;
@@ -216,6 +302,9 @@ export function JeffProvider({ initial, children }: { initial: JeffInitial; chil
       const history = [...messages, { role: "user" as const, text: q }];
       setMessages(history);
       setBusy(true);
+      // The brain shows Jeff investigating while the answer is pending; sources light up only once we know which were read.
+      setBrainActivity({ kind: "ask", sources: [] });
+      let used: string[] = [];
       try {
         const refs = retrieve(docs(), q, chatScope, 4);
         if (initial.aiEnabled) {
@@ -233,16 +322,20 @@ export function JeffProvider({ initial, children }: { initial: JeffInitial; chil
             setMessages([...history, { role: "assistant", text: msg, question: q, ai: true }]);
           } else {
             setMessages([...history, { role: "assistant", text: data.text, refs: mode === "demo" ? refs : [], citations: data.citations, toolsUsed: data.toolsUsed, question: q, ai: true }]);
+            used = mode === "demo" ? [...new Set(refs.map((r) => r.source))] : sourcesForTools(data.toolsUsed ?? [], connectedSources());
           }
         } else {
           await new Promise((r) => setTimeout(r, 250));
           setMessages([...history, { role: "assistant", text: extractiveAnswer(q, refs, mode), refs, question: q, ai: false }]);
+          used = [...new Set(refs.map((r) => r.source))];
         }
       } finally {
         setBusy(false);
+        flashBrainSources(used);
+        void refreshBrain();
       }
     },
-    [busy, messages, docs, chatScope, initial.aiEnabled, mode, toast, closeModal],
+    [busy, messages, docs, chatScope, initial.aiEnabled, mode, toast, closeModal, connectedSources, setBrainActivity, flashBrainSources, refreshBrain],
   );
 
   const newChat = useCallback(() => {
@@ -349,11 +442,12 @@ export function JeffProvider({ initial, children }: { initial: JeffInitial; chil
       if (res?.ok) {
         const data = (await res.json()) as { connections: ConnectionSummary[] };
         setConnections(data.connections);
+        void refreshBrain({ force: true });
         return;
       }
       await new Promise((r) => setTimeout(r, 800));
     }
-  }, []);
+  }, [refreshBrain]);
 
   const setMode = useCallback(
     async (m: Mode) => {
@@ -405,6 +499,11 @@ export function JeffProvider({ initial, children }: { initial: JeffInitial; chil
     setMode,
     refreshConnections,
     navigate,
+    brain,
+    brainActivity,
+    refreshBrain,
+    setBrainActivity,
+    flashBrainSources,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

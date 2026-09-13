@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/jeff/icons";
 import { useJeff } from "@/components/jeff/store";
+import { sourcesForJob } from "@/lib/jeff/brain/sources";
 import { ModalHeader } from "@/components/jeff/shared";
 import { RuleEditor } from "@/components/memory/MemoryRulesView";
 import type { PresentedRule } from "@/lib/jeff/rules/present";
@@ -63,8 +64,18 @@ export function JobDetailView({ initialJob, initialRuns, obligations = null }: {
     }
   }
 
+  // While a run/test is in flight the brain shows the job's declared sources being examined; afterwards it re-reads state.
+  function jobStarted() {
+    jeff.setBrainActivity({ kind: "job", sources: sourcesForJob(job.sources, jeff.connectedSources()) });
+  }
+  function jobFinished() {
+    jeff.setBrainActivity({ kind: null, sources: [] });
+    void jeff.refreshBrain({ force: true });
+  }
+
   async function test() {
     setBusy("test");
+    jobStarted();
     try {
       const res = await api<RunOutcome>(`/api/jobs/${job.slug}/test`, { method: "POST" });
       if (!res.ok || !res.data) return jeff.toast(`Test failed (${res.error ?? res.status}).`);
@@ -72,11 +83,13 @@ export function JobDetailView({ initialJob, initialRuns, obligations = null }: {
       await reload();
     } finally {
       setBusy(null);
+      jobFinished();
     }
   }
 
   async function runNow() {
     setBusy("run");
+    jobStarted();
     try {
       const res = await api<RunOutcome>(`/api/jobs/${job.slug}/run`, { method: "POST" });
       if (!res.ok || !res.data) return jeff.toast(`Run failed (${res.error ?? res.status}).`);
@@ -85,6 +98,7 @@ export function JobDetailView({ initialJob, initialRuns, obligations = null }: {
       await reload();
     } finally {
       setBusy(null);
+      jobFinished();
     }
   }
 
@@ -414,6 +428,7 @@ function FindingRow({ finding, job, onChanged }: { finding: JobFinding; job: Job
     try {
       const res = await api<{ rule?: { name: string }; suppressed?: number; proposed?: RuleProposal | null }>(`/api/findings/${finding.id}/feedback`, { method: "POST", body: JSON.stringify({ verdict }) });
       if (!res.ok) return jeff.toast(`Could not record feedback (${res.error ?? res.status}).`);
+      void jeff.refreshBrain({ force: true });
       const d = res.data;
       if (verdict === "useful") {
         setStatus("accepted");

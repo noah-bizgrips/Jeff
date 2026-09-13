@@ -97,6 +97,7 @@ export function AlertsView({ initial }: { initial: AlertItem[] }) {
       const data = (await res.json().catch(() => null)) as { alert?: AlertItem; rule?: { name: string } | null; suppressed?: number; error?: string } | null;
       if (!res.ok || !data?.alert) return jeff.toast(`Could not update the alert (${data?.error ?? res.status}).`);
       setAlerts((xs) => xs.map((x) => (x.id === a.id ? { ...x, ...data.alert! } : x)));
+      void jeff.refreshBrain({ force: true });
       jeff.toast(data.rule ? `${okText} Rule added: "${data.rule.name}"${data.suppressed ? ` (${data.suppressed} findings suppressed)` : ""}. Review under Memory & rules.` : okText);
       jeff.closeModal();
     } finally {
@@ -120,6 +121,7 @@ export function AlertsView({ initial }: { initial: AlertItem[] }) {
       const res = await fetch("/api/alerts", { cache: "no-store" });
       const data = (await res.json().catch(() => null)) as { alerts?: AlertItem[] } | null;
       if (data?.alerts) setAlerts(data.alerts);
+      void jeff.refreshBrain({ force: true });
       jeff.toast(`Re-evaluated: ${summary?.created ?? 0} new, ${summary?.updated ?? 0} updated, ${summary?.resolved ?? 0} resolved.`);
     } finally {
       setBusy(null);

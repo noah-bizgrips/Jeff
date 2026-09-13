@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/jeff/icons";
 import { useJeff } from "@/components/jeff/store";
+import { sourcesForScanStage } from "@/lib/jeff/brain/sources";
 import { RuleEditor } from "@/components/memory/MemoryRulesView";
 import type { RuleAction, RuleCondition } from "@/lib/jeff/rules/schema";
 import { api, fmtWhen, type JobFinding, type JobRunRow } from "./types";
@@ -50,6 +51,16 @@ export function BlindSpotScanButton({ disabled }: { disabled?: boolean }) {
     if (timer.current) clearTimeout(timer.current);
   }, []);
 
+  // The brain shows the scan examining sources by stage ("scanning", not retrieval) and refreshes when it finishes.
+  const goalSources = jeff.brain.reasons.attention.filter((r) => r.kind === "goal").flatMap((r) => r.sources);
+  function scanning(stage: string) {
+    jeff.setBrainActivity({ kind: "scan", sources: sourcesForScanStage(stage, jeff.connectedSources(), goalSources) });
+  }
+  function scanFinished() {
+    jeff.setBrainActivity({ kind: null, sources: [] });
+    void jeff.refreshBrain({ force: true });
+  }
+
   async function poll(scanId: string, attempt = 0) {
     const res = await api<Poll>(`/api/jobs/runs/${scanId}`);
     if (!res.ok || !res.data) {
@@ -58,22 +69,29 @@ export function BlindSpotScanButton({ disabled }: { disabled?: boolean }) {
         return;
       }
       setState({ phase: "error", message: res.error ?? `HTTP ${res.status}` });
+      scanFinished();
       return;
     }
     const d = res.data;
     if (d.run.status === "running" || d.run.status === "queued") {
       setState({ phase: "running", scanId, label: d.progress_label });
+      scanning(d.progress);
       timer.current = setTimeout(() => poll(scanId, 0), 1500);
       return;
     }
+    scanFinished();
     if (d.run.status === "failed") return setState({ phase: "error", message: d.run.error ?? "The scan failed." });
     setState({ phase: "done", run: d.run, findings: d.findings, dismissed: [] });
   }
 
   async function start() {
     setState({ phase: "running", scanId: "", label: "Preparing scan" });
+    scanning("preparing");
     const res = await api<{ scanId: string }>("/api/jobs/blind-spot-scan", { method: "POST" });
-    if (!res.ok || !res.data?.scanId) return setState({ phase: "error", message: res.error ?? `HTTP ${res.status}` });
+    if (!res.ok || !res.data?.scanId) {
+      scanFinished();
+      return setState({ phase: "error", message: res.error ?? `HTTP ${res.status}` });
+    }
     void poll(res.data.scanId);
   }
 
@@ -81,6 +99,7 @@ export function BlindSpotScanButton({ disabled }: { disabled?: boolean }) {
     const res = await api<{ ok: boolean }>(`/api/findings/${f.id}/feedback`, { method: "POST", body: JSON.stringify({ verdict: "not_useful" }) });
     if (!res.ok) return jeff.toast(`Could not dismiss (${res.error ?? res.status}).`);
     setState((s) => (s.phase === "done" ? { ...s, dismissed: [...s.dismissed, f.id] } : s));
+    void jeff.refreshBrain({ force: true });
   }
 
   async function createRule(f: JobFinding) {

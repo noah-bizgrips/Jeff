@@ -122,7 +122,7 @@ export interface BrainState {
   computedAt: string;
 }
 
-const ACTIVE_FINDING_STATUSES = new Set(["new", "open", "reviewing", "accepted", "action_planned", "action_in_progress", "monitoring"]);
+const ACTIVE_FINDING_STATUSES = new Set(["new", "open", "acknowledged", "in_progress", "reviewing", "accepted", "action_planned", "action_in_progress", "monitoring"]);
 const OPEN_ALERT_STATUSES = new Set(["open"]);
 const ATTENTION_IMPORTANCE = new Set(["important", "urgent", "actionable"]);
 

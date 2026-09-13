@@ -63,6 +63,7 @@ export function FollowThroughView({ initial, counts: initialCounts }: { initial:
       if (!res.ok) return jeff.toast(`Could not update (${d?.error ?? res.status}).`);
       jeff.toast(toast);
       jeff.closeModal();
+      void jeff.refreshBrain({ force: true });
       await refresh("live");
       if (view === "done") await refresh("done");
     } finally {

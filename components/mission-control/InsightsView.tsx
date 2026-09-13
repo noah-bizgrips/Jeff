@@ -161,6 +161,7 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
       if (!res.ok) return jeff.toast(`Could not update findings (${d?.error ?? res.status}).`);
       setFindings((list) => list.map((x) => (ids.includes(x.id) ? { ...x, status } : x)));
       setSelected(new Set());
+      void jeff.refreshBrain({ force: true });
       jeff.toast(`${d?.changed ?? ids.length} finding${(d?.changed ?? ids.length) === 1 ? "" : "s"} ${status}.`);
     } finally {
       setBulkBusy(false);
@@ -177,6 +178,7 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
       const list = await fetch("/api/findings", { cache: "no-store" });
       const body = (await list.json().catch(() => null)) as { findings?: Record<string, unknown>[] } | null;
       if (list.ok && body?.findings) setFindings(body.findings.map(rowToFinding));
+      void jeff.refreshBrain({ force: true });
     } finally {
       setRunning(false);
     }
@@ -193,6 +195,7 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
       const body = (await list.json().catch(() => null)) as { findings?: Record<string, unknown>[] } | null;
       if (list.ok && body?.findings) setFindings(body.findings.map(rowToFinding));
       setView("blind");
+      void jeff.refreshBrain({ force: true });
     } finally {
       setRunningBlind(false);
     }
@@ -414,6 +417,7 @@ function FindingModal({ f, onPrepare, onStatus }: { f: FindingItem; onPrepare: (
     const res = await fetch(`/api/findings/${f.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: s }) });
     if (!res.ok) return jeff.toast("Could not update the finding.");
     setStatus(s);
+    void jeff.refreshBrain({ force: true });
     jeff.toast("Finding updated.");
   }
   const [feedbackBusy, setFeedbackBusy] = useState(false);
