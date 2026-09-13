@@ -54,7 +54,7 @@ export interface Interpretation {
   notification_policy: NotificationPolicy;
   minimum_severity: string;
   limitations: string[];
-  ambiguities: string[];
+  ambiguities: { field: string; question: string; options: string[] }[];
   matches_system_job: string | null;
   safe: boolean;
   config?: Record<string, unknown>;

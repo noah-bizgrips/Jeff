@@ -68,23 +68,23 @@ export const JobInputSchema = z
   .strict();
 export type JobInput = z.infer<typeof JobInputSchema>;
 
-/** Fields the owner may change on any job (system jobs included). */
-export const JobPatchSchema = JobInputSchema.pick({
-  name: true,
-  description: true,
-  purpose: true,
-  scope: true,
-  status: true,
-  schedule_type: true,
-  schedule_expression: true,
-  timezone: true,
-  notification_policy: true,
-  minimum_severity: true,
-  sources: true,
-  detectors: true,
-  config: true,
-})
-  .partial()
+/** Fields the owner may change on any job (system jobs included). Declared without defaults so a partial patch never resets untouched fields. */
+export const JobPatchSchema = z
+  .object({
+    name: z.string().trim().min(3).max(80).optional(),
+    description: z.string().trim().max(600).optional(),
+    purpose: z.string().trim().max(2000).optional(),
+    scope: z.enum(JOB_SCOPES).optional(),
+    status: z.enum(JOB_STATUSES).optional(),
+    schedule_type: z.enum(SCHEDULE_TYPES).optional(),
+    schedule_expression: z.string().trim().max(60).nullable().optional(),
+    timezone: z.string().trim().max(64).nullable().optional(),
+    notification_policy: NotificationPolicySchema.optional(),
+    minimum_severity: z.enum(["info", "low", "medium", "high"]).optional(),
+    sources: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
+    detectors: z.array(z.string().trim().min(1).max(60)).max(40).optional(),
+    config: z.record(z.string(), z.unknown()).optional(),
+  })
   .strict();
 export type JobPatch = z.infer<typeof JobPatchSchema>;
 

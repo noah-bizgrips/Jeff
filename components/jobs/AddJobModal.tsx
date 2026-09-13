@@ -131,7 +131,7 @@ function DescribeTab({ onCreated }: { onCreated: (job?: JobItem) => Promise<void
           ) : null}
           {proposal.ambiguities.length ? (
             <div className="callout">
-              <strong>Jeff would ask:</strong> {proposal.ambiguities.join(" ")}
+              <strong>Jeff would ask:</strong> {proposal.ambiguities.map((a) => a.question).join(" ")}
             </div>
           ) : null}
           {proposal.matches_system_job ? <div className="callout">This matches an existing system job ({proposal.matches_system_job}). Creating will point you there instead of duplicating it.</div> : null}

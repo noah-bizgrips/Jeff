@@ -196,6 +196,18 @@ describe("finding feedback", () => {
     await feedbackRoute.POST(jsonReq("/api/findings/22222222-2222-4222-8222-000000000002/feedback", { verdict: "useful" }), { params: Promise.resolve({ id: "22222222-2222-4222-8222-000000000002" }) });
     expect(db.findings.find((f) => f.id.endsWith("0002"))?.status).toBe("accepted");
   });
+  it("'Already knew this' acknowledges quietly, proposes a narrow rule, and stamps the finding's job on the feedback row", async () => {
+    db.findings.find((f) => f.id.endsWith("0002"))!.job_id = "job-commitment-watchdog";
+    const r = await feedbackRoute.POST(jsonReq("/api/findings/22222222-2222-4222-8222-000000000002/feedback", { verdict: "already_knew" }), { params: Promise.resolve({ id: "22222222-2222-4222-8222-000000000002" }) });
+    expect(r.status).toBe(200);
+    const body = (await r.json()) as { verdict: string; rule: unknown; proposed: { conditions: { sender_matches?: string[] } } | null };
+    expect(body.verdict).toBe("already_knew");
+    expect(body.rule).toBeNull();
+    expect(body.proposed?.conditions.sender_matches).toEqual(["oliver@atlasclient.com"]);
+    expect(db.findings.find((f) => f.id.endsWith("0002"))?.status).toBe("acknowledged");
+    expect(db.operating_rules).toHaveLength(0);
+    expect(db.finding_feedback.at(-1)).toMatchObject({ verdict: "already_knew", job_id: "job-commitment-watchdog" });
+  });
 });
 
 describe("memories", () => {

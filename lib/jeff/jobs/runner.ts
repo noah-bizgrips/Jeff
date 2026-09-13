@@ -195,14 +195,17 @@ export async function applyNotificationPolicy(ownerId: string, job: JobRow, find
   const createdToday = await alertsCreatedToday(ownerId, job.id, dayStart);
   let overflow = Math.max(0, createdToday - policy.max_per_day);
   let adjusted = 0;
-  for (const a of alerts.sort((x, y) => x.created_at.localeCompare(y.created_at))) {
+  // Newest first: the alerts beyond today's cap are the latest ones, never the ones already surfaced.
+  for (const a of alerts.sort((x, y) => y.created_at.localeCompare(x.created_at))) {
     const patch: Record<string, unknown> = {};
-    if (policy.briefing_only && (SEV_TO_IMPORTANCE_RANK[a.importance] ?? 0) > 1) patch.importance = "briefing";
-    if (overflow > 0 && a.created_at >= dayStart && (SEV_TO_IMPORTANCE_RANK[a.importance] ?? 0) >= 1) {
-      patch.importance = "informational";
+    let importance = a.importance;
+    if (policy.briefing_only && (SEV_TO_IMPORTANCE_RANK[importance] ?? 0) > 1) importance = "briefing";
+    if (overflow > 0 && a.created_at >= dayStart && (SEV_TO_IMPORTANCE_RANK[importance] ?? 0) >= 1) {
+      importance = "informational";
       overflow--;
     }
-    if ((SEV_TO_IMPORTANCE_RANK[a.importance] ?? 0) < (SEV_TO_IMPORTANCE_RANK[policy.min_importance] ?? 2) && !a.pushed_at) {
+    if (importance !== a.importance) patch.importance = importance;
+    if ((SEV_TO_IMPORTANCE_RANK[importance] ?? 0) < (SEV_TO_IMPORTANCE_RANK[policy.min_importance] ?? 2) && !a.pushed_at) {
       // Below the push floor: stored, never pushed.
       patch.pushed_at = now.toISOString();
       patch.pushed_importance = a.importance;

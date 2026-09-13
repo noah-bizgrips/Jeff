@@ -94,7 +94,9 @@ export async function seedSystemJobs(ownerId: string, now = new Date()): Promise
   for (const def of SYSTEM_JOBS) {
     const prev = bySlug.get(def.slug);
     if (!prev) {
-      const input = JobInputSchema.parse({ ...def, template_category: undefined, looks_for: undefined, pending: undefined, ui_name: undefined });
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { template_category, looks_for, pending, ui_name, ...plain } = def;
+      const input = JobInputSchema.parse(plain);
       const { error } = await admin.from("jobs").insert({
         ...input,
         owner_id: ownerId,
