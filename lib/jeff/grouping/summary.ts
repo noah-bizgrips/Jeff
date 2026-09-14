@@ -88,10 +88,10 @@ function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-/** Record count a member represents: listed items, else the finding's own count, else 1. */
+/** Record count a member represents: the finding's own count (authoritative), else the listed items, else 1. */
 export function recordCount(d: MemberDetail): number {
-  if (d.items?.length) return d.items.length;
   if (typeof d.count === "number" && d.count > 0) return d.count;
+  if (d.items?.length) return d.items.length;
   return 1;
 }
 
