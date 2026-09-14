@@ -227,6 +227,13 @@ export async function applyAction(ownerId: string, id: string, action: Obligatio
   if (row && event) await recordEvent(ownerId, id, event, payload);
   if (row) {
     await audit({ event: "obligation_updated", ownerId, actor: opts.actor === "jeff" ? "system" : "owner", targetId: id, request: opts.request, metadata: { action: action.action, status: row.status } });
+    // Mirror terminal decisions onto the originating commitment so Mission Control's
+    // TODAY list (built from commitments) agrees with Follow-Through.
+    const mirrored = row.status === "completed" ? "done" : row.status === "dismissed" || row.status === "cancelled" ? "dismissed" : action.action === "reopen" ? "open" : null;
+    if (current.commitment_id && mirrored) {
+      const admin = createAdminClient();
+      await admin.from("commitments").update({ status: mirrored }).eq("owner_id", ownerId).eq("id", current.commitment_id);
+    }
     // Resolve any open reminder alert for terminal states so the alert center stays honest.
     if (["completed", "dismissed", "cancelled", "snoozed"].includes(row.status)) {
       const admin = createAdminClient();

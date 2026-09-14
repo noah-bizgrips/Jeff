@@ -82,12 +82,14 @@ export default async function Home() {
         .slice(0, 4)
         .map(({ o, bucket }) => ({ id: o.id, title: o.title, bucket, due_at: o.due_at, waiting_on: o.waiting_on ?? o.counterparty, question: o.completion_question }));
       const fmt = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" }).format(new Date(iso)) : "");
+      // Live Follow-Through obligation per commitment, so TODAY actions hit the obligation when one exists.
+      const obligationByCommitment = new Map(obligations.filter((o) => o.commitment_id).map((o) => [o.commitment_id as string, o.id]));
       focus = {
         attention: alerts.map((a) => ({ id: a.id, kind: a.kind, importance: a.importance, title: a.title, summary: a.summary, occurrences: a.occurrences })),
         opportunities: findings.filter((f) => ["open", "new", "accepted"].includes(f.status)).slice(0, 6).map((f) => ({ id: f.id, category: f.category, title: f.title, severity: f.severity })),
         today: [
           ...(events.data ?? []).map((e) => ({ kind: "event" as const, id: e.id, title: e.title ?? "Event", detail: fmt(e.source_timestamp), when: e.source_timestamp })),
-          ...commitments.filter((c) => c.status === "overdue" || (c.due_at && c.due_at.slice(0, 10) <= today)).slice(0, 6).map((c) => ({ kind: "commitment" as const, id: c.id, title: c.action_text, detail: c.context_text ?? "", when: c.due_at, overdue: c.status === "overdue" })),
+          ...commitments.filter((c) => c.status === "overdue" || (c.due_at && c.due_at.slice(0, 10) <= today)).slice(0, 6).map((c) => ({ kind: "commitment" as const, id: c.id, title: c.action_text, detail: c.context_text ?? "", when: c.due_at, overdue: c.status === "overdue", obligationId: obligationByCommitment.get(c.id) ?? null })),
         ],
         missions: (missions.data ?? []).map((m) => ({ id: m.id, code: m.code, title: m.title, status: m.status })),
         freshness: freshness.filter((f) => f.level !== "fresh").map((f) => f.text),

@@ -4055,6 +4055,25 @@ dialog::backdrop {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.focus-copy strong a:hover {
+  color: var(--accent);
+}
+/* Inline Done · Dismiss on TODAY commitment rows (same compact text-button as elsewhere). */
+.focus-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  align-self: center;
+}
+.focus-actions .text-button {
+  min-height: 28px;
+  padding: 0 2px;
+  font-size: 10px;
+}
+.focus-actions .text-button:disabled {
+  opacity: 0.5;
+}
 .focus-empty {
   font-size: 11px;
   padding: 6px;

@@ -47,7 +47,10 @@ export interface FocusToday {
   title: string;
   detail: string;
   when: string | null;
+  /** Commitments only — calendar events are never "overdue". */
   overdue?: boolean;
+  /** Live Follow-Through obligation for this commitment, when one exists. */
+  obligationId?: string | null;
 }
 export interface FocusMission {
   id: string;
@@ -82,6 +85,31 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
   const [commandMode, setCommandMode] = useState<CommandMode>("prepare");
   const [goal, setGoal] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // TODAY rows the owner has cleared this session (server state follows via refreshBrain).
+  const [todayCleared, setTodayCleared] = useState<Set<string>>(() => new Set());
+  const [todayBusy, setTodayBusy] = useState<string | null>(null);
+  const todayRows = useMemo(() => (focus?.today ?? []).filter((t) => !todayCleared.has(`${t.kind}:${t.id}`)), [focus, todayCleared]);
+
+  async function resolveToday(t: FocusToday, action: "done" | "dismiss") {
+    if (t.kind !== "commitment") return;
+    setTodayBusy(t.id);
+    try {
+      // Follow-Through owns the record when an obligation exists (it mirrors the decision onto the commitment);
+      // otherwise the commitment itself is updated.
+      const res = t.obligationId
+        ? await fetch(`/api/obligations/${t.obligationId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: action === "done" ? "complete" : "dismiss" }) })
+        : await fetch(`/api/commitments/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: action === "done" ? "done" : "dismissed" }) });
+      if (!res.ok) {
+        jeff.toast("Couldn't update that commitment. Try again.");
+        return;
+      }
+      setTodayCleared((prev) => new Set(prev).add(`${t.kind}:${t.id}`));
+      jeff.toast(action === "done" ? "Marked done." : "Dismissed. It stays in Follow-Through history.");
+      void jeff.refreshBrain({ force: true });
+    } finally {
+      setTodayBusy(null);
+    }
+  }
 
   const ids = jeff.connectedSources();
   const all = jeff.docs();
@@ -253,14 +281,25 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
           </div>
           <div className="focus-col">
             <div className="section-label">TODAY</div>
-            {focus.today.length ? (
-              focus.today.slice(0, 6).map((t) => (
+            {todayRows.length ? (
+              todayRows.slice(0, 6).map((t) => (
                 <div key={`${t.kind}:${t.id}`} className="focus-row static">
-                  <span className={`pill ${t.overdue ? "amber" : "neutral"}`}>{t.kind === "event" ? "event" : t.overdue ? "overdue" : "due"}</span>
+                  <span className={`pill ${t.kind === "commitment" && t.overdue ? "amber" : "neutral"}`}>{t.kind === "event" ? "event" : t.overdue ? "overdue" : "due"}</span>
                   <span className="focus-copy">
-                    <strong>{t.title}</strong>
+                    <strong>{t.kind === "commitment" ? <Link href="/follow-through">{t.title}</Link> : t.title}</strong>
                     <small>{t.detail}</small>
                   </span>
+                  {t.kind === "commitment" ? (
+                    <span className="focus-actions">
+                      <button className="text-button" type="button" disabled={todayBusy === t.id} onClick={() => resolveToday(t, "done")} title="Mark this commitment done">
+                        Done
+                      </button>
+                      <span className="muted">·</span>
+                      <button className="text-button" type="button" disabled={todayBusy === t.id} onClick={() => resolveToday(t, "dismiss")} title="Dismiss — stop tracking this commitment">
+                        Dismiss
+                      </button>
+                    </span>
+                  ) : null}
                 </div>
               ))
             ) : (
