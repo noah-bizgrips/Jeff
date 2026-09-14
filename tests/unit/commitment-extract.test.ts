@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { composeContext, extractCommitments, isOverdue } from "@/lib/jeff/commitments/extract";
 import type { SourceRow } from "@/lib/jeff/monitors/types";
+import { emailHash } from "@/lib/jeff/clients/client-leads";
 
 const NOW = new Date("2026-09-16T18:00:00.000Z");
 
@@ -22,6 +23,11 @@ function row(over: Partial<SourceRow>): SourceRow {
   };
 }
 
+/** HighLevel contact rows make these senders known counterparties (classifier v2). */
+const contact = (id: string, address: string): SourceRow =>
+  row({ id: `hl-${id}`, provider: "highlevel", capability: "contacts", resource_type: "contact", external_id: id, title: id, author: null, source_url: null, metadata: { email_hash: emailHash(address) } });
+const KNOWN = [contact("sam", "sam@example.com"), contact("jordan", "jordan@client.com")];
+
 describe("commitment extraction", () => {
   it("extracts a human promise with a due date and who owes whom", () => {
     const rows = [
@@ -35,7 +41,7 @@ describe("commitment extraction", () => {
     expect(out[0]!.context_text).toContain("You promised");
   });
   it("counterparty promise → owed_to_me, with counterparty name", () => {
-    const rows = [row({ id: "m2", summary: "Jordan will send the access details tomorrow.", author: "Jordan Lee <jordan@client.com>" })];
+    const rows = [...KNOWN, row({ id: "m2", summary: "Jordan will send the access details tomorrow.", author: "Jordan Lee <jordan@client.com>" })];
     const out = extractCommitments(rows, { ownAddresses: ["noah@bizgrips.com"], now: NOW });
     expect(out).toHaveLength(1);
     expect(out[0]!.direction).toBe("owed_to_me");
@@ -45,7 +51,7 @@ describe("commitment extraction", () => {
     const bot = row({ id: "b1", author: "notifications@github.com", title: "[BizGrips-Site-Builds/site-x] change webhook destination to n8n", summary: "I'll merge this by Friday." });
     const promise = row({ id: "p1", author: "sam@example.com", summary: "I'll send the deposit tomorrow.", metadata: { threadId: "t9" } });
     const reply = row({ id: "p2", author: "noah@bizgrips.com", summary: "Got it, thanks.", metadata: { threadId: "t9" }, source_timestamp: new Date(NOW.getTime() - 3 * 86_400_000).toISOString() });
-    const out = extractCommitments([bot, promise, reply], { ownAddresses: ["noah@bizgrips.com"], now: NOW });
+    const out = extractCommitments([...KNOWN, bot, promise, reply], { ownAddresses: ["noah@bizgrips.com"], now: NOW });
     // The bot is excluded; the human promise was replied to, so its confidence drops below the floor.
     expect(out.find((c) => c.source_item_id === "b1")).toBeUndefined();
     expect(out.filter((c) => c.confidence >= 0.45).every((c) => c.source_item_id !== "p1" || c.confidence < 0.6)).toBe(true);
@@ -53,7 +59,7 @@ describe("commitment extraction", () => {
   it("dedupes the same sentence from the same message and sorts by due date", () => {
     const a = row({ id: "d1", summary: "I'll send the contract by Friday.", metadata: { threadId: "ta" } });
     const b = row({ id: "d2", summary: "We'll call you tomorrow.", metadata: { threadId: "tb" } });
-    const out = extractCommitments([a, a, b], { ownAddresses: [], now: NOW });
+    const out = extractCommitments([...KNOWN, a, a, b], { ownAddresses: [], now: NOW });
     expect(out.map((c) => c.source_item_id)).toEqual(["d2", "d1"]);
   });
   it("composes context from the linked CRM opportunity", () => {

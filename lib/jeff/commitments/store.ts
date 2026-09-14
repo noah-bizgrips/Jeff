@@ -7,6 +7,7 @@ import { listRules } from "@/lib/jeff/rules/store";
 import { decide } from "@/lib/jeff/rules/precedence";
 import { subjectFromRow } from "@/lib/jeff/rules/engine";
 import { ownerIdentity } from "@/lib/env";
+import { ClientLeadIndex } from "@/lib/jeff/clients/client-leads";
 import { extractCommitments, isOverdue, type CommitmentCandidate } from "./extract";
 
 export interface CommitmentRow {
@@ -37,15 +38,21 @@ export interface CommitmentRunSummary {
   excludedByRules: number;
 }
 
+/** Enabled rules that can affect the commitment pipeline (global or targeting Open commitments). */
+export function commitmentRules<T extends { enabled: boolean; pending_confirmation: boolean; target_monitor: string | null; target_job?: string | null }>(rules: T[]): T[] {
+  return rules.filter((r) => r.enabled && !r.pending_confirmation && !r.target_job && (!r.target_monitor || ["missed_commitment", "open_commitments", "commitments"].includes(r.target_monitor)));
+}
+
 export async function runCommitmentsForOwner(ownerId: string, now = new Date()): Promise<CommitmentRunSummary> {
   const admin = createAdminClient();
   const rows = await loadRows(ownerId);
-  const rules = (await listRules(ownerId).catch(() => [])).filter((r) => r.enabled && !r.pending_confirmation && (!r.target_monitor || ["missed_commitment", "open_commitments", "commitments"].includes(r.target_monitor)));
+  const rules = commitmentRules(await listRules(ownerId).catch(() => []));
   let excludedByRules = 0;
+  const subjectCtx = { clientLeads: ClientLeadIndex.from(rows) };
   const input = rules.length
     ? rows.filter((r) => {
         if (r.resource_type !== "email" && r.resource_type !== "message") return true;
-        const d = decide(rules, subjectFromRow(r, "missed_commitment"));
+        const d = decide(rules, subjectFromRow(r, "missed_commitment", subjectCtx));
         if (d.excluded) excludedByRules++;
         return !d.excluded;
       })

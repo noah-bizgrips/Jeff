@@ -7,6 +7,7 @@ import { errorMessage, log } from "@/lib/security/log";
 import { runMonitorsForOwner } from "@/lib/jeff/monitors";
 import { refreshGoals } from "@/lib/jeff/goals/refresh";
 import { runCommitmentsForOwner } from "@/lib/jeff/commitments/store";
+import { reclassifyCommitments } from "@/lib/jeff/commitments/reclassify";
 import { runAlertsForOwner } from "@/lib/jeff/alerts/store";
 import { rebuildClientMap } from "@/lib/jeff/clients/map";
 import { attributeSourceItems } from "@/lib/jeff/clients/attribution";
@@ -74,6 +75,15 @@ export const GET = withErrorBoundary(async (req) => {
     commitments = { error: errorMessage(err) };
     log.warn("cron_commitments_failed", { message: errorMessage(err) });
   }
+  // Retire commitments the current classifier no longer accepts (marketing/vendor/system noise).
+  // Idempotent and cheap once caught up; dismisses, never deletes.
+  let reclassified: Awaited<ReturnType<typeof reclassifyCommitments>> | { error: string } = { error: "skipped" };
+  try {
+    reclassified = await reclassifyCommitments(owner.user_id);
+  } catch (err) {
+    reclassified = { error: errorMessage(err) };
+    log.warn("cron_reclassify_failed", { message: errorMessage(err) });
+  }
   let alerts: Awaited<ReturnType<typeof runAlertsForOwner>> | { error: string } = { error: "skipped" };
   try {
     alerts = await runAlertsForOwner(owner.user_id);
@@ -96,6 +106,7 @@ export const GET = withErrorBoundary(async (req) => {
     attribution,
     goals,
     commitments,
+    reclassified,
     alerts,
     synced: summaries.map((s) => ({ provider: s.provider, results: s.results.map((r) => ({ capability: r.capability, seen: r.seen, upserted: r.upserted, error: r.error ?? null })) })),
     monitors,

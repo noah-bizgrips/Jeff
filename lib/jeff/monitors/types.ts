@@ -91,6 +91,8 @@ export interface CandidateFinding {
 
 export interface MonitorContext {
   now: Date;
+  /** Owner's primary address when known; lets monitors tell the owner's own messages apart. */
+  ownerEmail?: string | null;
 }
 
 /** Lite goal for detectors that compare behaviour with intention. */
@@ -130,7 +132,6 @@ export interface ObligationLite {
 
 /** Richer context for job-only detectors (owner identity, goals, memories, obligations, job config). */
 export interface ExtendedContext extends MonitorContext {
-  ownerEmail?: string | null;
   goals?: GoalLite[];
   memories?: MemoryLite[];
   obligations?: ObligationLite[];

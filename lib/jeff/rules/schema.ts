@@ -257,8 +257,12 @@ export const RuleConditionSchema = z
     amount_max: z.number().int().min(0).optional(),
     confidence_max: z.number().min(0).max(1).optional(),
     monitor: z.string().min(1).max(60).optional(),
+    /** Any-of list of monitors (ids or aliases) the rule applies to; lets one rule cover several monitors. */
+    monitors: z.array(z.string().min(1).max(60)).max(20).optional(),
     category: z.string().min(1).max(60).optional(),
     severity_min: z.enum(SEVERITIES).optional(),
+    /** True = only leads that belong to a client-portal client (see lib/jeff/clients/client-leads.ts); false = only everything else. */
+    client_lead: z.boolean().optional(),
   })
   .strict();
 export type RuleCondition = z.infer<typeof RuleConditionSchema>;
@@ -359,7 +363,12 @@ export function describeRule(rule: { target_monitor?: string | null; conditions:
   if (c.confidence_max != null) where.push(`confidence ≤ ${c.confidence_max}`);
   if (c.severity_min) where.push(`severity ≥ ${c.severity_min}`);
   if (c.metadata_equals) where.push(Object.entries(c.metadata_equals).map(([k, v]) => `${k} = ${String(v)}`).join(", "));
-  const target = rule.target_monitor ? (MONITOR_LABELS[resolveMonitorId(rule.target_monitor) ?? "missed_commitment"] ?? rule.target_monitor) : "all monitors";
+  if (c.client_lead != null) where.push(c.client_lead ? "leads that belong to a client portal client" : "leads that are not a client's");
+  const target = rule.target_monitor
+    ? (MONITOR_LABELS[resolveMonitorId(rule.target_monitor) ?? "missed_commitment"] ?? rule.target_monitor)
+    : c.monitors?.length
+      ? c.monitors.map((m) => MONITOR_LABELS[resolveMonitorId(m) ?? "missed_commitment"] ?? m).join(", ")
+      : "all monitors";
   const a = rule.action;
   const verb =
     a.type === "exclude"

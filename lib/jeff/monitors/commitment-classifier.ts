@@ -13,7 +13,18 @@ import type { SourceRow } from "./types";
  * 2. Commitment extraction: a sentence needs an actor, an action verb and a
  *    future marker (or explicit date). "I'll send the proposal Thursday."
  * 3. Confidence 0..1 from the extracted parts and thread context.
+ *
+ * Classifier v2 additions: promotional copy ("15% off ends tonight"), vendor /
+ * transactional mailboxes (servicing@, billing@, no-reply@) and social
+ * notifications are hard-excluded as `system` sources, and a promise made TO
+ * the owner only counts when the sender is a known counterparty (CRM contact,
+ * portal user/lead, calendar attendee, Slack member, or someone the owner has
+ * written to) — otherwise confidence is capped below the monitor threshold.
  */
+
+export const CLASSIFIER_VERSION = 2;
+/** Confidence ceiling for a promise from someone Jeff has no relationship record for. */
+export const UNKNOWN_COUNTERPARTY_CAP = 0.4;
 
 export interface CommitmentSignal {
   sender_class: AuthorType;
@@ -129,6 +140,11 @@ export interface ClassifyOptions {
   ownAddresses?: string[];
   /** True when a later message from a different participant exists in the thread. */
   repliedByOther?: boolean;
+  /**
+   * Whether the sender is a known counterparty (see commitments/counterparties.ts).
+   * `false` caps the confidence of a promise owed to the owner; `undefined` = not evaluated.
+   */
+  knownCounterparty?: boolean;
 }
 
 export function classifyCommitment(row: SourceRow, opts: ClassifyOptions = {}): CommitmentSignal {
@@ -148,7 +164,12 @@ export function classifyCommitment(row: SourceRow, opts: ClassifyOptions = {}): 
     reasons.push("a later reply from another participant exists");
   }
   const sender = bareAddress(row.author);
-  if (sender && opts.ownAddresses?.includes(sender)) reasons.push("promise made by the owner");
+  const fromOwner = !!sender && !!opts.ownAddresses?.includes(sender);
+  if (fromOwner) reasons.push("promise made by the owner");
+  if (!fromOwner && opts.knownCounterparty === false && confidence > UNKNOWN_COUNTERPARTY_CAP) {
+    confidence = UNKNOWN_COUNTERPARTY_CAP;
+    reasons.push("sender is not a known counterparty (no CRM, portal, calendar, Slack or reply history)");
+  }
   confidence = Math.max(0, Math.min(0.95, Math.round(confidence * 100) / 100));
   return { sender_class, sentence: ex.sentence, actor: ex.actor, action: ex.action, future_marker: ex.future_marker, due_date: ex.due_date, confidence, reasons };
 }

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { classifyCommitment } from "@/lib/jeff/monitors/commitment-classifier";
 import { bareAddress } from "@/lib/jeff/rules/engine";
+import { isKnownCounterparty, knownCounterparties } from "./counterparties";
 import type { SourceRow } from "@/lib/jeff/monitors/types";
 
 /**
@@ -8,6 +9,8 @@ import type { SourceRow } from "@/lib/jeff/monitors/types";
  * CRM conversation items, extracts "actor will do X by Y", decides who owes
  * whom, and composes a context-rich reminder from linked CRM records.
  * Operating rules are applied by the caller before rows reach this function.
+ * A promise owed to the owner needs a known counterparty (classifier v2);
+ * a promise made by the owner needs actor + action + future marker as before.
  */
 
 export interface CommitmentCandidate {
@@ -80,6 +83,7 @@ export function extractCommitments(rows: SourceRow[], opts: ExtractOptions): Com
   const lookback = (opts.lookbackDays ?? 30) * 86_400_000;
   const minConf = opts.minConfidence ?? 0.45;
   const own = new Set(opts.ownAddresses.map((a) => a.toLowerCase()));
+  const known = knownCounterparties(rows, opts.ownAddresses);
   const opportunities = rows.filter((r) => r.resource_type === "opportunity");
   const conversational = rows.filter((r) => (r.resource_type === "email" || r.resource_type === "message") && r.source_timestamp && opts.now.getTime() - Date.parse(r.source_timestamp) <= lookback);
   // Group by thread to detect replies.
@@ -96,9 +100,9 @@ export function extractCommitments(rows: SourceRow[], opts: ExtractOptions): Com
       const at = Date.parse(m.source_timestamp!);
       const sender = bareAddress(m.author);
       const repliedByOther = sorted.some((x) => Date.parse(x.source_timestamp!) > at && bareAddress(x.author) !== sender);
-      const signal = classifyCommitment(m, { ownAddresses: [...own], repliedByOther });
-      if (signal.sender_class !== "human" || !signal.sentence || signal.confidence < minConf) continue;
       const fromOwner = !!sender && own.has(sender);
+      const signal = classifyCommitment(m, { ownAddresses: [...own], repliedByOther, knownCounterparty: fromOwner || isKnownCounterparty(m, known) });
+      if (signal.sender_class !== "human" || !signal.sentence || signal.confidence < minConf) continue;
       // HighLevel conversations: direction is stored as lastMessageDirection (outbound = owner side).
       const outbound = m.provider === "highlevel" && m.metadata.lastMessageDirection === "outbound";
       const direction: CommitmentCandidate["direction"] = fromOwner || outbound ? "owed_by_me" : "owed_to_me";

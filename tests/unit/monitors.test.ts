@@ -60,8 +60,10 @@ describe("missed_commitment", () => {
   const email = (id: string, thread: string, author: string, title: string, at: string) =>
     row({ id, provider: "google", resource_type: "email", title, author, source_timestamp: at, metadata: { threadId: thread } });
   it("flags a commitment cue with no later reply from someone else", () => {
-    const rows = [email("e1", "t1", "Maya <maya@x.io>", "Proposal — will send by Friday", daysAgo(5))];
-    const out = missedCommitment.run(rows, { now: NOW });
+    // Maya is a known counterparty: the owner has written to her before (classifier v2 requirement).
+    const ownerMail = row({ id: "o1", provider: "google", resource_type: "email", title: "Intro", author: "Noah <noah@bizgrips.com>", source_timestamp: daysAgo(20), metadata: { threadId: "t0", to: ["maya@x.io"] } });
+    const rows = [ownerMail, email("e1", "t1", "Maya <maya@x.io>", "Proposal — will send by Friday", daysAgo(5))];
+    const out = missedCommitment.run(rows, { now: NOW, ownerEmail: "noah@bizgrips.com" });
     expect(out).toHaveLength(1);
     expect(out[0]!.fingerprint).toBe("missed_commitment:t1");
     // Classifier-scored: explicit "by Friday" without a named actor lands mid-range.

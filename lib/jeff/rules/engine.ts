@@ -1,5 +1,7 @@
 import { compilePattern, resolveMonitorId, type OperatingRule, type RuleCondition } from "./schema";
+import { hasMarketingLabel, isPromotionalText, isSocialNotification, isVendorAddress } from "./marketing";
 import type { CandidateFinding, SourceRow } from "@/lib/jeff/monitors/types";
+import type { ClientLeadIndex } from "@/lib/jeff/clients/client-leads";
 
 /**
  * Deterministic rule matcher. Pure functions only — no I/O, no LLM.
@@ -23,6 +25,13 @@ export interface MatchSubject {
   confidence?: number | null;
   severity?: "info" | "low" | "medium" | "high" | null;
   category?: string | null;
+  /** True when the row/finding is a lead that belongs to a client-portal client (see clients/client-leads.ts). */
+  client_lead?: boolean | null;
+}
+
+/** Optional context for building subjects (client-lead index, ...). */
+export interface SubjectContext {
+  clientLeads?: ClientLeadIndex | null;
 }
 
 const SEVERITY_RANK = { info: 0, low: 1, medium: 2, high: 3 } as const;
@@ -64,6 +73,11 @@ export function conditionsMatch(c: RuleCondition, s: MatchSubject): boolean {
     const have = resolveMonitorId(s.monitor ?? undefined);
     if (want && have !== want) return false;
   }
+  if (c.monitors?.length) {
+    const have = resolveMonitorId(s.monitor ?? undefined);
+    if (!c.monitors.some((m) => resolveMonitorId(m) === have)) return false;
+  }
+  if (c.client_lead != null && (s.client_lead ?? false) !== c.client_lead) return false;
   if (c.source_type && c.source_type !== "any" && (s.source_type ?? "") !== c.source_type) return false;
   if (c.provider && (s.provider ?? "") !== c.provider) return false;
   if (c.sender_matches?.length && !senderMatches(c.sender_matches, s.sender ?? null)) return false;
@@ -120,6 +134,8 @@ const WEIGHT: Record<string, number> = {
   category: 1,
   severity_min: 0.8,
   monitor: 1,
+  monitors: 1,
+  client_lead: 1.2,
 };
 
 export function specificity(rule: Pick<OperatingRule, "target_monitor" | "conditions">): number {
@@ -200,10 +216,17 @@ export function classifyAuthor(row: Pick<SourceRow, "author" | "title" | "tags" 
   if (BOT_DISPLAY_PATTERNS.some((re) => re.test(display))) return "bot";
   if (row.resource_type === "email" && SYSTEM_SUBJECTS.some((re) => re.test(row.title ?? ""))) return "system";
   if (row.resource_type === "email" && !sender) return "system";
+  // Marketing / vendor / social-notification mail is never a human counterparty (classifier v2).
+  if (row.resource_type === "email") {
+    if (hasMarketingLabel(row)) return "system";
+    if (isVendorAddress(sender)) return "system";
+    if (isSocialNotification(display, row.title)) return "system";
+    if (isPromotionalText(`${row.title ?? ""}\n${(row as { summary?: string | null }).summary ?? ""}`)) return "system";
+  }
   return "human";
 }
 
-export function subjectFromRow(row: SourceRow, monitor: string | null): MatchSubject {
+export function subjectFromRow(row: SourceRow, monitor: string | null, ctx: SubjectContext = {}): MatchSubject {
   const m = row.metadata ?? {};
   const amount = typeof m.amount === "number" ? m.amount : typeof m.amount_due === "number" ? m.amount_due : typeof m.monetaryValue === "number" ? Math.round(m.monetaryValue * 100) : null;
   return {
@@ -217,10 +240,11 @@ export function subjectFromRow(row: SourceRow, monitor: string | null): MatchSub
     tags: row.tags ?? [],
     metadata: m,
     amount_minor: amount,
+    client_lead: ctx.clientLeads ? ctx.clientLeads.isClientLead(row) : null,
   };
 }
 
-export function subjectFromCandidate(c: CandidateFinding, rows?: Map<string, SourceRow>): MatchSubject {
+export function subjectFromCandidate(c: CandidateFinding, rows?: Map<string, SourceRow>, ctx: SubjectContext = {}): MatchSubject {
   const first = c.evidence[0] ? rows?.get(c.evidence[0].source_item_id) : undefined;
   const amount = typeof c.metrics.amount_minor === "number" ? c.metrics.amount_minor : typeof c.metrics.total_minor === "number" ? c.metrics.total_minor : first ? subjectFromRow(first, c.category).amount_minor : null;
   return {
@@ -237,5 +261,6 @@ export function subjectFromCandidate(c: CandidateFinding, rows?: Map<string, Sou
     amount_minor: amount,
     confidence: c.confidence,
     severity: c.severity,
+    client_lead: ctx.clientLeads && first ? ctx.clientLeads.isClientLead(first) : null,
   };
 }

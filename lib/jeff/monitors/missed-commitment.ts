@@ -1,5 +1,6 @@
 import { daysBetween, evidenceOf, type CandidateFinding, type Monitor, type SourceRow } from "./types";
 import { classifyCommitment } from "./commitment-classifier";
+import { isKnownCounterparty, knownCounterparties } from "@/lib/jeff/commitments/counterparties";
 
 /**
  * Open commitments (monitor id kept as `missed_commitment` for existing
@@ -9,8 +10,9 @@ import { classifyCommitment } from "./commitment-classifier";
  * commitment (actor + action + future marker/date) and no later reply from
  * another participant in the same thread. Bot and system notifications
  * (repository events, deployments, receipts, newsletters) are excluded by the
- * classifier before scoring, and operating rules run before the monitor sees
- * the rows at all.
+ * classifier before scoring (marketing, vendor and social mail included), a
+ * promise from an unknown sender is capped below threshold, and operating
+ * rules run before the monitor sees the rows at all.
  */
 export const LOOKBACK_DAYS = 14;
 export const MIN_AGE_DAYS = 2;
@@ -33,6 +35,7 @@ export const missedCommitment: Monitor = {
         r.source_timestamp &&
         Date.parse(r.source_timestamp) >= since,
     );
+    const known = knownCounterparties(rows, ctx.ownerEmail ? [ctx.ownerEmail] : []);
     const byThread = new Map<string, SourceRow[]>();
     for (const e of emails) {
       const t =
@@ -52,7 +55,7 @@ export const missedCommitment: Monitor = {
         const repliedByOther = sorted.some((x) => Date.parse(x.source_timestamp!) > at && authorKey(x.author) !== authorKey(m.author));
         // A later reply from another participant closes the loop as far as we can see.
         if (repliedByOther) continue;
-        const signal = classifyCommitment(m, { repliedByOther });
+        const signal = classifyCommitment(m, { repliedByOther, ownAddresses: ctx.ownerEmail ? [ctx.ownerEmail] : [], knownCounterparty: isKnownCounterparty(m, known) });
         if (signal.sender_class !== "human" || !signal.sentence) continue;
         if (!best || signal.confidence > best.signal.confidence) best = { msg: m, signal };
       }

@@ -8,6 +8,7 @@ import { listRules, recordRuleEvents, type RuleEventInput } from "@/lib/jeff/rul
 import { ensureSystemRules } from "@/lib/jeff/rules/apply";
 import { decide } from "@/lib/jeff/rules/precedence";
 import { subjectFromCandidate, subjectFromRow } from "@/lib/jeff/rules/engine";
+import { ClientLeadIndex } from "@/lib/jeff/clients/client-leads";
 import { resolveMonitorId, type OperatingRule } from "@/lib/jeff/rules/schema";
 import { loadFreshness } from "@/lib/jeff/freshness-store";
 import { runAlertsForOwner } from "@/lib/jeff/alerts/store";
@@ -78,6 +79,7 @@ export function runDetectors(
   let excludedRows = 0;
   let suppressed = 0;
   const active = rulesForJob(rules, job.slug);
+  const subjectCtx = { clientLeads: ClientLeadIndex.from(ctx.rows) };
   for (const spec of specs) {
     if (!spec.run) continue;
     const monitorId = resolveMonitorId(spec.id) ?? spec.id;
@@ -86,7 +88,7 @@ export function runDetectors(
     if (relevant.some((r) => r.action.type === "exclude" || r.action.type === "include")) {
       const seen = new Set<string>();
       input = ctx.rows.filter((row) => {
-        const v = decide(relevant, subjectFromRow(row, monitorId));
+        const v = decide(relevant, subjectFromRow(row, monitorId, subjectCtx));
         if (v.excluded && v.decidedBy) {
           const key = `${v.decidedBy.id}:${row.id}`;
           if (!seen.has(key)) {
@@ -102,7 +104,7 @@ export function runDetectors(
     try {
       const index = new Map(input.map((r) => [r.id, r]));
       for (const c of spec.run({ ...ctx, rows: input, job })) {
-        const v = decide(relevant, subjectFromCandidate(c, index));
+        const v = decide(relevant, subjectFromCandidate(c, index, subjectCtx));
         if (v.excluded && v.decidedBy) {
           events.push({ ruleId: v.decidedBy.id, monitor: monitorId, effect: "excluded", detail: c.title });
           suppressed++;

@@ -7,6 +7,7 @@ import { classifyTier } from "@/lib/jeff/rules/tiers";
 import { inferNarrowRule } from "@/lib/jeff/rules/feedback";
 import type { OperatingRule } from "@/lib/jeff/rules/schema";
 import type { SourceRow } from "@/lib/jeff/monitors/types";
+import { emailHash } from "@/lib/jeff/clients/client-leads";
 
 const NOW = new Date("2026-09-12T12:00:00.000Z");
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000).toISOString();
@@ -22,6 +23,9 @@ const NEWSLETTER = email({ id: "nl", title: "This week in growth", author: "Grow
 const CLIENT_PROMISE = email({ id: "cl", title: "Re: Atlas proposal", author: "Oliver Chen <oliver@atlasclient.com>", summary: "Thanks Noah. I'll send the signed proposal Thursday and loop in Maya." });
 const OWN_PROMISE = email({ id: "own", title: "Fence estimate", author: "Noah <noah@bizgrips.com>", summary: "Great talking today. We will send the revised estimate by 9/15." });
 const QUESTION = email({ id: "q", title: "Quick question", author: "Sam <sam@client.com>", summary: "Will you send the estimate tomorrow?" });
+/** A HighLevel contact for an address: makes that sender a known counterparty (classifier v2). */
+const contact = (id: string, address: string): SourceRow => ({ id: `hl-${id}`, provider: "highlevel", capability: "contacts", resource_type: "contact", external_id: id, title: id, summary: null, author: null, source_url: null, source_timestamp: daysAgo(30), tags: [], metadata: { email_hash: emailHash(address) } });
+const KNOWN = [contact("oliver", "oliver@atlasclient.com"), contact("pat", "pat@vendor.com")];
 
 describe("commitment classifier (spec §15–16)", () => {
   it("excludes GitHub repo notifications, PR mail, deploy notices and newsletters even without a rule", () => {
@@ -62,7 +66,7 @@ describe("commitment classifier (spec §15–16)", () => {
 
 describe("open commitments monitor", () => {
   it("produces findings only for human commitments and records sender class + due date", () => {
-    const out = missedCommitment.run([GITHUB_NOISE, PR_NOISE, DEPLOY_NOISE, CLIENT_PROMISE, OWN_PROMISE], { now: NOW });
+    const out = missedCommitment.run([...KNOWN, GITHUB_NOISE, PR_NOISE, DEPLOY_NOISE, CLIENT_PROMISE, OWN_PROMISE], { now: NOW, ownerEmail: "noah@bizgrips.com" });
     expect(out.map((f) => f.fingerprint).sort()).toEqual(["missed_commitment:cl", "missed_commitment:own"]);
     const cl = out.find((f) => f.fingerprint === "missed_commitment:cl")!;
     expect(cl.observed_facts[0]).toMatch(/human sender/);
@@ -87,22 +91,22 @@ describe("rules run before monitors (spec §14)", () => {
     // A human-looking sender the classifier would accept, excluded purely by an owner rule.
     const vendor = email({ id: "v", title: "Invoice reminder", author: "Pat <pat@vendor.com>", summary: "I'll send the updated invoice tomorrow." });
     const excl = rule({ name: "Ignore vendor.com in Open commitments", target_monitor: "open_commitments", conditions: { sender_domain: ["vendor.com"] } });
-    const without = runMonitors([vendor, CLIENT_PROMISE], NOW, [missedCommitment], []);
+    const without = runMonitors([...KNOWN, vendor, CLIENT_PROMISE], NOW, [missedCommitment], []);
     expect(without.candidates.map((c) => c.fingerprint).sort()).toEqual(["missed_commitment:cl", "missed_commitment:v"]);
-    const withRule = runMonitors([vendor, CLIENT_PROMISE], NOW, [missedCommitment], [excl]);
+    const withRule = runMonitors([...KNOWN, vendor, CLIENT_PROMISE], NOW, [missedCommitment], [excl]);
     expect(withRule.candidates.map((c) => c.fingerprint)).toEqual(["missed_commitment:cl"]);
     expect(withRule.trace.excludedRows).toBe(1);
     expect(withRule.trace.events[0]).toMatchObject({ ruleId: excl.id, sourceItemId: "v", monitor: "missed_commitment", effect: "excluded" });
     const exception = rule({ name: "Keep Pat", target_monitor: "open_commitments", conditions: { sender_domain: ["vendor.com"], sender_matches: ["pat@vendor.com"] }, action: { type: "include" } });
-    const withException = runMonitors([vendor, CLIENT_PROMISE], NOW, [missedCommitment], [excl, exception]);
+    const withException = runMonitors([...KNOWN, vendor, CLIENT_PROMISE], NOW, [missedCommitment], [excl, exception]);
     expect(withException.candidates).toHaveLength(2);
     expect(withException.trace.events.some((e) => e.effect === "allowed_by_exception")).toBe(true);
   });
   it("applies post-candidate rules: confidence floor and severity override", () => {
     const floor = rule({ name: "High bar", target_monitor: "open_commitments", conditions: {}, action: { type: "require_min_confidence", value: 0.99 } });
-    expect(runMonitors([CLIENT_PROMISE], NOW, [missedCommitment], [floor]).candidates).toEqual([]);
+    expect(runMonitors([...KNOWN, CLIENT_PROMISE], NOW, [missedCommitment], [floor]).candidates).toEqual([]);
     const sev = rule({ name: "Client promises are high", target_monitor: "open_commitments", conditions: { sender_domain: ["atlasclient.com"] }, action: { type: "set_severity", severity: "high" } });
-    const out = runMonitors([CLIENT_PROMISE], NOW, [missedCommitment], [sev]);
+    const out = runMonitors([...KNOWN, CLIENT_PROMISE], NOW, [missedCommitment], [sev]);
     expect(out.candidates[0]!.severity).toBe("high");
     expect(out.trace.events.some((e) => e.effect === "reclassified")).toBe(true);
   });

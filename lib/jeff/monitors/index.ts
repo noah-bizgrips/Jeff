@@ -8,6 +8,8 @@ import { ensureSystemRules } from "@/lib/jeff/rules/apply";
 import { decide } from "@/lib/jeff/rules/precedence";
 import { subjectFromCandidate, subjectFromRow } from "@/lib/jeff/rules/engine";
 import { resolveMonitorId, type OperatingRule } from "@/lib/jeff/rules/schema";
+import { ClientLeadIndex } from "@/lib/jeff/clients/client-leads";
+import { ownerIdentity } from "@/lib/env";
 import { leadFollowupGap } from "./lead-followup-gap";
 import { pipelineAging } from "./pipeline-aging";
 import { missedCommitment } from "./missed-commitment";
@@ -99,12 +101,16 @@ export function runMonitors(
   now = new Date(),
   monitors: Monitor[] = MONITORS,
   rules: OperatingRule[] = [],
+  opts: { ownerEmail?: string | null } = {},
 ): { candidates: CandidateFinding[]; errors: { monitor: string; message: string }[]; trace: RuleTrace } {
   const candidates: CandidateFinding[] = [];
   const errors: { monitor: string; message: string }[] = [];
   const trace: RuleTrace = { events: [], excludedRows: 0, candidatesSuppressed: 0 };
   const active = rules.filter((r) => r.enabled && !r.pending_confirmation);
   const seenExcluded = new Set<string>();
+  // Client-lead index (portal leads ↔ CRM rows) so rules with `client_lead` can match.
+  const subjectCtx = { clientLeads: ClientLeadIndex.from(rows) };
+  const ctx = { now, ownerEmail: opts.ownerEmail ?? null };
 
   for (const m of monitors) {
     const monitorId = resolveMonitorId(m.id) ?? m.id;
@@ -113,7 +119,7 @@ export function runMonitors(
     let input = rows;
     if (relevant.some((r) => r.action.type === "exclude" || r.action.type === "include")) {
       input = rows.filter((row) => {
-        const verdict = decide(relevant, subjectFromRow(row, monitorId));
+        const verdict = decide(relevant, subjectFromRow(row, monitorId, subjectCtx));
         if (verdict.excluded && verdict.decidedBy) {
           const key = `${verdict.decidedBy.id}:${row.id}`;
           if (!seenExcluded.has(key)) {
@@ -128,8 +134,8 @@ export function runMonitors(
     }
     try {
       const rowIndex = new Map(input.map((r) => [r.id, r]));
-      for (const c of m.run(input, { now })) {
-        const verdict = decide(relevant, subjectFromCandidate(c, rowIndex));
+      for (const c of m.run(input, ctx)) {
+        const verdict = decide(relevant, subjectFromCandidate(c, rowIndex, subjectCtx));
         if (verdict.excluded && verdict.decidedBy) {
           trace.events.push({ ruleId: verdict.decidedBy.id, monitor: monitorId, effect: "excluded", detail: c.title });
           trace.candidatesSuppressed++;
@@ -268,7 +274,7 @@ export async function runMonitorsForOwner(ownerId: string, now = new Date()): Pr
     log.warn("rules_load_failed", { message: errorMessage(err) });
   }
   // Job-scoped rules only apply inside their job's runs.
-  const { candidates, errors, trace } = runMonitors(rows, now, MONITORS, rules.filter((r) => !r.target_job));
+  const { candidates, errors, trace } = runMonitors(rows, now, MONITORS, rules.filter((r) => !r.target_job), { ownerEmail: ownerIdentity().email });
   const { created, updated, resolved } = await persistFindings(ownerId, candidates, now, { resolveScope: { categories: GLOBAL_MONITOR_CATEGORIES } });
   await recordRuleEvents(ownerId, trace.events);
   log.info("monitors_run", { rows: rows.length, candidates: candidates.length, created, updated, resolved, excludedByRules: trace.excludedRows, candidatesSuppressed: trace.candidatesSuppressed, errors: errors.length });

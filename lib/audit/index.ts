@@ -68,6 +68,7 @@ export type AuditEvent =
   | "briefing_generated"
   | "briefing_updated"
   | "commitment_updated"
+  | "commitments_reprocessed"
   | "settings_updated"
   | "mission_completed"
   | "outcome_recorded";
