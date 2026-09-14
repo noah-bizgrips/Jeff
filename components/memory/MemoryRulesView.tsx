@@ -299,7 +299,9 @@ export function RuleEditor({ rule, proposed, onSaved, targetJob }: { rule?: Pres
   const [error, setError] = useState<string | null>(null);
 
   function buildConditions(): RuleCondition {
-    const c: RuleCondition = {};
+    // Conditions the form does not edit (monitor lists, client-lead flags, tags, metadata…) survive an edit.
+    const managed = new Set(["source_type", "sender_matches", "sender_domain", "author_type", "subject_patterns", "amount_min", "amount_max"]);
+    const c: RuleCondition = Object.fromEntries(Object.entries(seed?.conditions ?? {}).filter(([k]) => !managed.has(k))) as RuleCondition;
     if (sourceType) c.source_type = sourceType as RuleCondition["source_type"];
     const list = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
     if (list(senders).length) c.sender_matches = list(senders);

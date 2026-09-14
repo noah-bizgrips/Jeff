@@ -26,7 +26,7 @@ function mentionsProtected(text: string): string | null {
 /** Counts how narrow the conditions are (0 = whole monitor). */
 function narrowness(rule: RuleInput): number {
   const c = rule.conditions;
-  return [c.sender_matches?.length, c.sender_domain?.length, c.author_type?.length, c.subject_patterns?.length, c.tags_any?.length, c.metadata_equals && Object.keys(c.metadata_equals).length, c.amount_min != null ? 1 : 0, c.amount_max != null ? 1 : 0, c.confidence_max != null ? 1 : 0, c.provider ? 1 : 0].filter((n) => (n ?? 0) > 0).length;
+  return [c.sender_matches?.length, c.sender_domain?.length, c.author_type?.length, c.subject_patterns?.length, c.tags_any?.length, c.metadata_equals && Object.keys(c.metadata_equals).length, c.amount_min != null ? 1 : 0, c.amount_max != null ? 1 : 0, c.confidence_max != null ? 1 : 0, c.provider ? 1 : 0, c.client_lead != null ? 1 : 0, c.monitors?.length].filter((n) => (n ?? 0) > 0).length;
 }
 
 export function classifyTier(rule: RuleInput): TierResult {

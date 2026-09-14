@@ -1,10 +1,11 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { log } from "@/lib/security/log";
-import { matchesRule, subjectFromCandidate, type MatchSubject } from "./engine";
+import { errorMessage, log } from "@/lib/security/log";
+import { matchesRule, subjectFromCandidate, type MatchSubject, type SubjectContext } from "./engine";
 import { decide } from "./precedence";
 import { getRule, listRules, recordRuleEvents, createRule } from "./store";
 import type { OperatingRule } from "./schema";
+import { loadClientLeadIndex } from "@/lib/jeff/clients/client-leads-store";
 import type { CandidateFinding, EvidenceRef, SourceRow } from "@/lib/jeff/monitors/types";
 
 /**
@@ -49,7 +50,7 @@ async function loadEvidenceRows(ids: string[]): Promise<Map<string, SourceRow>> 
 }
 
 /** Builds a match subject for a stored finding from its first evidence record. */
-export function subjectFromFindingRow(f: FindingRow, rows: Map<string, SourceRow>): MatchSubject {
+export function subjectFromFindingRow(f: FindingRow, rows: Map<string, SourceRow>, ctx: SubjectContext = {}): MatchSubject {
   const candidate: CandidateFinding = {
     fingerprint: "",
     category: f.category as CandidateFinding["category"],
@@ -65,7 +66,7 @@ export function subjectFromFindingRow(f: FindingRow, rows: Map<string, SourceRow
     severity: f.severity,
     proposed_mission: null,
   };
-  return subjectFromCandidate(candidate, rows);
+  return subjectFromCandidate(candidate, rows, ctx);
 }
 
 /**
@@ -80,11 +81,13 @@ export async function reprocessFindingsForRule(ownerId: string, ruleId: string):
   const allRules = await listRules(ownerId, { enabledOnly: true });
   const findings = await loadActiveFindings(ownerId);
   const rows = await loadEvidenceRows(findings.flatMap((f) => (f.evidence ?? []).slice(0, 1).map((e) => e.source_item_id)));
+  // Only rules that look at client leads need the (portal ↔ CRM) index.
+  const ctx: SubjectContext = allRules.some((r) => r.conditions.client_lead != null) ? { clientLeads: await loadClientLeadIndex(ownerId).catch(() => null) } : {};
   const admin = createAdminClient();
   const hits: string[] = [];
   const events: Parameters<typeof recordRuleEvents>[1] = [];
   for (const f of findings) {
-    const subject = subjectFromFindingRow(f, rows);
+    const subject = subjectFromFindingRow(f, rows, ctx);
     if (!matchesRule(rule, subject)) continue;
     const verdict = decide(allRules, subject);
     if (rule.action.type === "exclude" && (!verdict.excluded || verdict.decidedBy?.id !== rule.id)) {
@@ -151,17 +154,15 @@ export async function explainFinding(ownerId: string, findingId: string) {
 /* ------------------------------------------------------------------ */
 
 export const GITHUB_NOTIFICATION_RULE_NAME = "Ignore GitHub repo notifications in Open commitments";
+export const CLIENT_LEAD_RULE_NAME = "Client leads are the client's responsibility — don't flag follow-ups for leads that belong to a client portal client";
+/** Monitors the client-lead rule silences: follow-up nagging, not client-health or ad-spend accounting. */
+export const CLIENT_LEAD_RULE_MONITORS = ["lead_followup_gap", "pipeline_aging", "lead_not_contacted", "missed_commitment"] as const;
 
-/**
- * Creates the default Tier-1 system rule once per owner so the GitHub-noise
- * behaviour is visible and editable in Memory & Rules. Idempotent.
- */
-export async function ensureSystemRules(ownerId: string, existing?: OperatingRule[]): Promise<OperatingRule[]> {
-  const rules = existing ?? (await listRules(ownerId));
-  if (rules.some((r) => r.created_by === "system" && r.name === GITHUB_NOTIFICATION_RULE_NAME)) return rules;
-  const res = await createRule(
-    ownerId,
-    {
+const SYSTEM_RULE_SEEDS: { name: string; input: Record<string, unknown>; reprocess: boolean }[] = [
+  {
+    name: GITHUB_NOTIFICATION_RULE_NAME,
+    reprocess: false,
+    input: {
       name: GITHUB_NOTIFICATION_RULE_NAME,
       description: "Repository notification emails (pull requests, issues, deployments, bot activity) are operational noise, not human commitments. Work happens in GitHub, not in an email reply.",
       rule_type: "monitor_filter",
@@ -173,11 +174,50 @@ export async function ensureSystemRules(ownerId: string, existing?: OperatingRul
       priority: 50,
       enabled: true,
     },
-    { source: "system", createdBy: "system" },
-  );
-  if (!res.ok) {
-    log.warn("system_rule_seed_failed", { reason: res.reason });
-    return rules;
+  },
+  {
+    name: CLIENT_LEAD_RULE_NAME,
+    reprocess: true,
+    input: {
+      name: CLIENT_LEAD_RULE_NAME,
+      description:
+        "A lead that came in through a client's lead sources (a homeowner wanting a bathroom) is the client's to follow up, not yours. Jeff only applies this to leads it can trace to a client portal record (portal lead ↔ HighLevel contact id, hashed email, phone + client, or a lead-source routing key); agency leads — people who might hire BizGrips — are still flagged. Disable this rule to be nagged about client leads again.",
+      rule_type: "monitor_filter",
+      scope: "business",
+      target_system: "monitors",
+      target_monitor: null,
+      conditions: { client_lead: true, monitors: [...CLIENT_LEAD_RULE_MONITORS] },
+      action: { type: "exclude" },
+      priority: 50,
+      enabled: true,
+    },
+  },
+];
+
+/**
+ * Creates the default Tier-1 system rules once per owner so the built-in
+ * behaviour is visible and editable in Memory & Rules. Idempotent by name; a
+ * rule the owner disabled stays disabled. Rules flagged `reprocess` suppress
+ * matching findings the first time they are seeded.
+ */
+export async function ensureSystemRules(ownerId: string, existing?: OperatingRule[]): Promise<OperatingRule[]> {
+  let rules = existing ?? (await listRules(ownerId));
+  for (const seed of SYSTEM_RULE_SEEDS) {
+    if (rules.some((r) => r.created_by === "system" && r.name === seed.name)) continue;
+    const res = await createRule(ownerId, seed.input, { source: "system", createdBy: "system" });
+    if (!res.ok) {
+      log.warn("system_rule_seed_failed", { name: seed.name.slice(0, 40), reason: res.reason });
+      continue;
+    }
+    rules = [...rules, res.rule];
+    if (seed.reprocess) {
+      try {
+        const { suppressed } = await reprocessFindingsForRule(ownerId, res.rule.id);
+        log.info("system_rule_seeded", { name: seed.name.slice(0, 40), suppressed });
+      } catch (err) {
+        log.warn("system_rule_reprocess_failed", { name: seed.name.slice(0, 40), message: errorMessage(err) });
+      }
+    }
   }
-  return [...rules, res.rule];
+  return rules;
 }
