@@ -11,15 +11,17 @@ import { CATEGORY_SOURCES, sourceForProvider, sourcesForProvider } from "./sourc
 
 export interface BrainAlertInput {
   id: string;
-  kind: string; // finding | goal | commitment | obligation | system
+  kind: string; // finding | goal | commitment | obligation | system | group
   category: string | null;
   importance: string; // informational | briefing | important | urgent | actionable
-  status: string; // open | acknowledged | snoozed | dismissed | resolved
+  status: string; // open | acknowledged | snoozed | dismissed | resolved | grouped
   title: string;
   summary: string | null;
   ref_id: string | null;
   evidence?: { provider?: string; capability?: string | null }[] | null;
   first_seen?: string | null;
+  /** Groups only: number of related signals bundled under this one item. */
+  member_count?: number | null;
 }
 
 export interface BrainFindingInput {
@@ -56,6 +58,9 @@ export interface BrainObligationInput {
   related_client_id: string | null;
   has_money: boolean;
   source_provider?: string | null;
+  /** Set when the obligation is a member of an open alert group (shown as one item with the group). */
+  group_id?: string | null;
+  group_title?: string | null;
 }
 
 export interface BrainConnectionInput {
@@ -89,7 +94,7 @@ export interface BrainStateInput {
 
 export interface BrainReason {
   id: string;
-  kind: "alert" | "goal" | "obligation" | "finding" | "connection" | "job";
+  kind: "alert" | "goal" | "obligation" | "finding" | "connection" | "job" | "group";
   title: string;
   detail: string | null;
   sources: string[];
@@ -214,6 +219,8 @@ export function computeBrainState(input: BrainStateInput): BrainState {
   let attentionPressure = 0;
   let urgentCount = 0;
   const seenRefs = new Set<string>();
+  // Groups already counted as ONE attention item; their member obligations must not be counted again below.
+  const groupsInAttention = new Set<string>();
   for (const a of input.alerts) {
     if (!OPEN_ALERT_STATUSES.has(a.status)) continue;
     if (!ATTENTION_IMPORTANCE.has(a.importance)) continue;
@@ -225,6 +232,12 @@ export function computeBrainState(input: BrainStateInput): BrainState {
     const sources = evidenceSources(a.evidence, a.category);
     const tone: SourceTone = a.importance === "urgent" ? "danger" : "warning";
     bump(sources, tone, a.title);
+    if (a.kind === "group") {
+      if (a.ref_id) groupsInAttention.add(a.ref_id);
+      const n = a.member_count ?? 0;
+      attention.push({ id: `group:${a.ref_id ?? a.id}`, kind: "group", title: a.title, detail: n ? `${n} related signal${n === 1 ? "" : "s"} · one situation` : a.summary, sources, href: "/alerts", tone, weight: w });
+      continue;
+    }
     attention.push({ id: `alert:${a.id}`, kind: "alert", title: a.title, detail: a.summary, sources, href: "/alerts", tone, weight: w });
   }
 
@@ -244,6 +257,9 @@ export function computeBrainState(input: BrainStateInput): BrainState {
   }
 
   // ---- Follow-Through: weighted obligations (trivial ones excluded) ----
+  // Obligations under an open group collapse into ONE follow-through row per group (or none when the
+  // group is already an attention item), so a situation is never counted per signal.
+  const groupRows = new Map<string, { reason: BrainReason; count: number }>();
   for (const o of input.obligations) {
     if (o.bucket === "done" || o.bucket === "snoozed") continue;
     const w = obligationWeight(o, now);
@@ -251,6 +267,24 @@ export function computeBrainState(input: BrainStateInput): BrainState {
     const src = o.source_provider ? sourcesForProvider(o.source_provider) : [];
     const overdue = o.bucket === "overdue";
     const tone: SourceTone = overdue && w >= BRAIN_POLICY.obligationImportantFloor ? "danger" : "warning";
+    if (o.group_id) {
+      if (groupsInAttention.has(o.group_id)) continue; // already one attention item
+      const cur = groupRows.get(o.group_id);
+      const overdueText = fmtOverdue(o.due_at, now);
+      if (!cur) groupRows.set(o.group_id, { reason: { id: `group:${o.group_id}`, kind: "group", title: o.group_title ?? o.title, detail: overdueText ?? "Open", sources: src, href: "/alerts", tone, weight: w }, count: 1 });
+      else {
+        cur.count++;
+        cur.reason.weight = Math.max(cur.reason.weight, w);
+        if (tone === "danger") cur.reason.tone = "danger";
+        if (overdueText && (!cur.reason.detail?.includes("overdue") || cur.reason.detail === "Due today")) cur.reason.detail = overdueText;
+        for (const s of src) if (!cur.reason.sources.includes(s)) cur.reason.sources.push(s);
+      }
+      if (overdue || o.bucket === "waiting_on_me") {
+        attentionPressure += w;
+        if (overdue) bump(src, tone, o.group_title ?? o.title);
+      }
+      continue;
+    }
     const detail = o.bucket === "waiting_on_other" ? "Waiting on someone else" : (fmtOverdue(o.due_at, now) ?? (o.bucket === "possibly_complete" ? "Possibly complete — confirm" : "Open"));
     const reason: BrainReason = { id: `obligation:${o.id}`, kind: "obligation", title: o.title, detail, sources: src, href: "/follow-through", tone, weight: w };
     followThrough.push(reason);
@@ -258,6 +292,10 @@ export function computeBrainState(input: BrainStateInput): BrainState {
       attentionPressure += w;
       if (overdue) bump(src, tone, o.title);
     }
+  }
+  for (const { reason, count } of groupRows.values()) {
+    reason.detail = `${count} item${count === 1 ? "" : "s"} · ${reason.detail}`;
+    followThrough.push(reason);
   }
 
   // ---- Opportunities: forward-looking findings with confidence ----

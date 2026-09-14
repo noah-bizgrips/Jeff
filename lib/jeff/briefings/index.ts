@@ -59,6 +59,8 @@ export async function buildBundle(ownerId: string, kind: BriefingKind, period: {
     listRules(ownerId).catch(() => []),
     listObligations(ownerId, { live: true, limit: 200 }).catch(() => []),
   ]);
+  const { groupMembershipForObligations } = await import("@/lib/jeff/grouping/store");
+  const grouped = await groupMembershipForObligations(ownerId);
   // Commitments already tracked as obligations are surfaced once, through FOLLOW-THROUGH.
   const trackedCommitmentIds = new Set(obligations.map((o) => o.commitment_id).filter(Boolean));
   const commitments = commitmentsAll.filter((c) => !trackedCommitmentIds.has(c.id));
@@ -154,6 +156,7 @@ export async function buildBundle(ownerId: string, kind: BriefingKind, period: {
       const amount = o.completion_strategy?.match?.amount_minor;
       return {
         id: o.id,
+        group_id: grouped.get(o.id)?.group_id ?? null,
         title: o.title,
         bucket: bucketOf(o, now) as "overdue" | "waiting_on_me" | "waiting_on_other" | "possibly_complete" | "snoozed",
         due_at: o.due_at,

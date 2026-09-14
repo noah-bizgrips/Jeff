@@ -8,9 +8,9 @@ export const dynamic = "force-dynamic";
 
 const Query = z.object({
   importance: z.array(z.enum(IMPORTANCE_LEVELS)).optional(),
-  status: z.array(z.enum(["open", "acknowledged", "snoozed", "dismissed", "resolved"])).optional(),
+  status: z.array(z.enum(["open", "acknowledged", "snoozed", "dismissed", "resolved", "grouped"])).optional(),
   scope: z.array(z.enum(["business", "personal", "financial", "all"])).optional(),
-  kind: z.array(z.enum(["finding", "goal", "commitment", "system"])).optional(),
+  kind: z.array(z.enum(["finding", "goal", "commitment", "system", "obligation", "group"])).optional(),
   category: z.array(z.string().max(60)).optional(),
 });
 

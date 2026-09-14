@@ -34,6 +34,8 @@ export interface FocusAlert {
   title: string;
   summary: string | null;
   occurrences: number;
+  /** Groups: number of related signals bundled under this one item. */
+  member_count?: number | null;
 }
 export interface FocusFinding {
   id: string;
@@ -65,6 +67,9 @@ export interface FocusObligation {
   due_at: string | null;
   waiting_on: string | null;
   question: string | null;
+  /** Set when this row stands for a whole alert group (several obligations, one situation). */
+  group_id?: string | null;
+  member_count?: number | null;
 }
 
 export interface FocusData {
@@ -235,7 +240,7 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
                   <span className={`pill ${a.importance === "urgent" ? "danger" : a.importance === "important" || a.importance === "actionable" ? "amber" : "info"}`}>{a.importance}</span>
                   <span className="focus-copy">
                     <strong>{a.title}</strong>
-                    <small>{a.summary?.slice(0, 140)}</small>
+                    <small>{a.kind === "group" && a.member_count ? `${a.member_count} related signals · one situation · ` : ""}{a.summary?.slice(0, 140)}</small>
                   </span>
                   <Icon name="arrowUpRight" className="arrow-icon" />
                 </Link>
@@ -314,11 +319,11 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
                       {focus.followThrough.unresolved} unresolved · {focus.followThrough.overdue} overdue · {focus.followThrough.waiting_on_other} waiting on someone else · {focus.followThrough.possibly_complete} possible completion{focus.followThrough.possibly_complete === 1 ? "" : "s"}
                     </p>
                     {focus.followThrough.top.map((o) => (
-                      <Link key={o.id} href="/follow-through" className="focus-row">
-                        <span className={`pill ${o.bucket === "overdue" ? "amber" : o.bucket === "possibly_complete" ? "info" : "neutral"}`}>{o.bucket === "possibly_complete" ? "confirm" : o.bucket === "waiting_on_other" ? "waiting" : o.bucket === "overdue" ? "overdue" : "open"}</span>
+                      <Link key={o.id} href={o.group_id ? "/alerts" : "/follow-through"} className="focus-row">
+                        <span className={`pill ${o.bucket === "overdue" ? "amber" : o.bucket === "possibly_complete" ? "info" : "neutral"}`}>{o.group_id ? "group" : o.bucket === "possibly_complete" ? "confirm" : o.bucket === "waiting_on_other" ? "waiting" : o.bucket === "overdue" ? "overdue" : "open"}</span>
                         <span className="focus-copy">
                           <strong>{o.title}</strong>
-                          <small>{o.bucket === "possibly_complete" && o.question ? o.question : o.bucket === "waiting_on_other" ? `Waiting on ${o.waiting_on ?? "someone else"}` : o.due_at ? `Due ${new Date(o.due_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "No due date"}</small>
+                          <small>{o.group_id ? `${o.member_count ?? 0} related items · one situation` : o.bucket === "possibly_complete" && o.question ? o.question : o.bucket === "waiting_on_other" ? `Waiting on ${o.waiting_on ?? "someone else"}` : o.due_at ? `Due ${new Date(o.due_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "No due date"}</small>
                         </span>
                         <Icon name="arrowUpRight" className="arrow-icon" />
                       </Link>

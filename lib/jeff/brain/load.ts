@@ -7,6 +7,7 @@ import { bucketOf } from "@/lib/jeff/obligations/types";
 import { loadFreshness } from "@/lib/jeff/freshness-store";
 import { listConnections } from "@/lib/integrations/store";
 import { listJobs } from "@/lib/jeff/jobs/store";
+import { groupMembershipForObligations } from "@/lib/jeff/grouping/store";
 import { computeBrainState, EMPTY_BRAIN_STATE, type BrainState, type BrainStateInput } from "./state";
 import { BRAIN_POLICY } from "./policy";
 import { log, errorMessage } from "@/lib/security/log";
@@ -19,7 +20,7 @@ export async function getBrainState(ownerId: string, now = new Date()): Promise<
   try {
     const admin = createAdminClient();
     const since = new Date(now.getTime() - BRAIN_POLICY.failedRunsWindowHours * 3_600_000).toISOString();
-    const [alerts, findingsRes, goals, obligations, freshness, connections, jobs, runsRes] = await Promise.all([
+    const [alerts, findingsRes, goals, obligations, freshness, connections, jobs, runsRes, grouped] = await Promise.all([
       listAlerts(ownerId, { status: ["open"], limit: 200 }).catch(() => []),
       admin
         .from("findings")
@@ -35,6 +36,7 @@ export async function getBrainState(ownerId: string, now = new Date()): Promise<
       listConnections(ownerId).catch(() => []),
       listJobs(ownerId).catch(() => []),
       admin.from("job_runs").select("job_id, mode, status, finished_at, error, created_at").eq("owner_id", ownerId).gte("created_at", since).order("created_at", { ascending: false }).limit(100),
+      groupMembershipForObligations(ownerId),
     ]);
 
     const goalInputs: BrainStateInput["goals"] = await Promise.all(
@@ -53,7 +55,7 @@ export async function getBrainState(ownerId: string, now = new Date()): Promise<
       alerts: alerts
         .filter((a) => !a.deferred_until || Date.parse(a.deferred_until) <= now.getTime())
         .filter((a) => !a.snoozed_until || Date.parse(a.snoozed_until) <= now.getTime())
-        .map((a) => ({ id: a.id, kind: a.kind, category: a.category, importance: a.importance, status: a.status, title: a.title, summary: a.summary, ref_id: a.ref_id, evidence: (a.evidence as { provider?: string; capability?: string | null }[]) ?? [], first_seen: a.first_seen })),
+        .map((a) => ({ id: a.id, kind: a.kind, category: a.category, importance: a.importance, status: a.status, title: a.title, summary: a.summary, ref_id: a.ref_id, evidence: (a.evidence as { provider?: string; capability?: string | null }[]) ?? [], first_seen: a.first_seen, member_count: a.kind === "group" ? a.occurrences : null })),
       findings: (findingsRes.data ?? []).map((f) => ({
         id: f.id,
         category: f.category,
@@ -79,6 +81,8 @@ export async function getBrainState(ownerId: string, now = new Date()): Promise<
         related_client_id: o.related_client_id,
         has_money: typeof o.metadata?.amount_label === "string" || typeof o.metadata?.amount === "number",
         source_provider: o.source_provider,
+        group_id: grouped.get(o.id)?.group_id ?? null,
+        group_title: grouped.get(o.id)?.title ?? null,
       })),
       connections: connections.map((c) => {
         const f = freshByProvider.get(c.provider);

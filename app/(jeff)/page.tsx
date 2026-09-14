@@ -6,6 +6,7 @@ import { MissionControl, type FocusData, type GoalRiskItem } from "@/components/
 import { surfacedAlerts } from "@/lib/jeff/alerts/store";
 import { listCommitments } from "@/lib/jeff/commitments/store";
 import { countBuckets, listObligations } from "@/lib/jeff/obligations/store";
+import { groupMembershipForObligations } from "@/lib/jeff/grouping/store";
 import { bucketOf } from "@/lib/jeff/obligations/types";
 import { loadFreshness } from "@/lib/jeff/freshness-store";
 import { getSettings } from "@/lib/jeff/settings-store";
@@ -64,7 +65,7 @@ export default async function Home() {
       const tz = settings?.timezone ?? "America/Denver";
       const today = localTime(now, tz).date;
       const { start, end } = periodInstants(today, today, tz);
-      const [alerts, commitments, freshness, findings, missions, events, obligations] = await Promise.all([
+      const [alerts, commitments, freshness, findings, missions, events, obligations, grouped] = await Promise.all([
         surfacedAlerts(session.userId, now, 8),
         listCommitments(session.userId, { status: ["open", "overdue"], limit: 20 }).catch(() => []),
         loadFreshness(session.userId, now).catch(() => []),
@@ -72,20 +73,30 @@ export default async function Home() {
         supabase.from("missions").select("id, code, title, status").in("status", ["queued", "running", "review", "approved", "action_in_progress"]).order("updated_at", { ascending: false }).limit(6),
         supabase.from("source_items").select("id, title, source_timestamp, metadata").eq("resource_type", "event").eq("is_sample", false).gte("source_timestamp", start.toISOString()).lte("source_timestamp", end.toISOString()).order("source_timestamp", { ascending: true }).limit(8),
         listObligations(session.userId, { live: true, limit: 300 }).catch(() => []),
+        groupMembershipForObligations(session.userId),
       ]);
       const obCounts = countBuckets(obligations, now);
       const rank = (b: string) => (b === "overdue" ? 0 : b === "possibly_complete" ? 1 : b === "waiting_on_me" ? 2 : b === "waiting_on_other" ? 3 : 9);
+      // Obligations bundled under an open group show as ONE row (the group), never one row per signal.
+      const attentionGroupIds = new Set(alerts.filter((a) => a.kind === "group" && a.ref_id).map((a) => a.ref_id as string));
+      const seenGroups = new Set<string>();
       const obTop = obligations
-        .map((o) => ({ o, bucket: bucketOf(o, now) }))
+        .map((o) => ({ o, bucket: bucketOf(o, now), group: grouped.get(o.id) ?? null }))
         .filter((x) => x.bucket !== "snoozed")
         .sort((a, b) => rank(a.bucket) - rank(b.bucket))
+        .filter((x) => {
+          if (!x.group) return true;
+          if (attentionGroupIds.has(x.group.group_id) || seenGroups.has(x.group.group_id)) return false; // already one item above
+          seenGroups.add(x.group.group_id);
+          return true;
+        })
         .slice(0, 4)
-        .map(({ o, bucket }) => ({ id: o.id, title: o.title, bucket, due_at: o.due_at, waiting_on: o.waiting_on ?? o.counterparty, question: o.completion_question }));
+        .map(({ o, bucket, group }) => (group ? { id: `group:${group.group_id}`, title: group.title, bucket, due_at: o.due_at, waiting_on: o.waiting_on ?? o.counterparty, question: null, group_id: group.group_id, member_count: group.member_count } : { id: o.id, title: o.title, bucket, due_at: o.due_at, waiting_on: o.waiting_on ?? o.counterparty, question: o.completion_question }));
       const fmt = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" }).format(new Date(iso)) : "");
       // Live Follow-Through obligation per commitment, so TODAY actions hit the obligation when one exists.
       const obligationByCommitment = new Map(obligations.filter((o) => o.commitment_id).map((o) => [o.commitment_id as string, o.id]));
       focus = {
-        attention: alerts.map((a) => ({ id: a.id, kind: a.kind, importance: a.importance, title: a.title, summary: a.summary, occurrences: a.occurrences })),
+        attention: alerts.map((a) => ({ id: a.id, kind: a.kind, importance: a.importance, title: a.title, summary: a.summary, occurrences: a.occurrences, member_count: a.kind === "group" ? a.occurrences : null })),
         opportunities: findings.filter((f) => ["open", "new", "accepted"].includes(f.status)).slice(0, 6).map((f) => ({ id: f.id, category: f.category, title: f.title, severity: f.severity })),
         today: [
           ...(events.data ?? []).map((e) => ({ kind: "event" as const, id: e.id, title: e.title ?? "Event", detail: fmt(e.source_timestamp), when: e.source_timestamp })),

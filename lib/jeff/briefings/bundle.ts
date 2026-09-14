@@ -49,6 +49,8 @@ export interface BundleCommitment {
 
 export interface BundleObligation {
   id: string;
+  /** Set when the obligation sits under an open alert group (surfaced once, through the group). */
+  group_id?: string | null;
   title: string;
   bucket: "overdue" | "waiting_on_me" | "waiting_on_other" | "possibly_complete" | "snoozed";
   due_at: string | null;
@@ -152,6 +154,7 @@ export function maxItemsFromMemories(memories: string[], fallback: number): numb
 }
 
 function alertItem(a: BundleAlert): BriefingItem {
+  if (a.kind === "group") return { title: a.title, detail: `${a.occurrences} related signal${a.occurrences === 1 ? "" : "s"}. ${(a.summary ?? "").slice(0, 500)}`.trim(), ref_kind: "alert", ref_id: a.id, importance: a.importance };
   return { title: a.title, detail: (a.summary ?? "").slice(0, 600), ref_kind: a.kind === "goal" ? "goal" : a.kind === "commitment" ? "commitment" : a.ref_id ? "finding" : "alert", ref_id: a.ref_id ?? a.id, importance: a.importance };
 }
 
@@ -216,7 +219,10 @@ export function buildTemplate(b: BriefingBundle): BriefingSummary {
   const title = b.kind === "daily" ? `Daily brief · ${b.period_start}` : b.kind === "weekly" ? `Weekly operating review · ${b.period_start} → ${b.period_end}` : `Monthly owner review · ${b.period_start.slice(0, 7)}`;
 
   // FOLLOW-THROUGH: at most 3 unresolved obligations, ranked by importance/overdue/goal/financial/client — never a dump.
+  // Obligations bundled under an open group are surfaced once, through the group's attention item.
+  const openGroupIds = new Set(b.alerts.filter((a) => a.kind === "group" && ["open", "acknowledged"].includes(a.status)).map((a) => a.ref_id).filter(Boolean));
   const followThrough: BriefingItem[] = (b.obligations ?? [])
+    .filter((o) => !(o.group_id && openGroupIds.has(o.group_id)))
     .filter((o) => o.bucket !== "snoozed" && (b.kind !== "daily" || o.scope !== "personal" || o.priority === "high" || o.priority === "critical"))
     .map((o) => {
       const overdueDays = o.due_at ? Math.max(0, Math.floor((b.now.getTime() - Date.parse(o.due_at)) / 86400000)) : 0;

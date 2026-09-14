@@ -2,6 +2,7 @@ import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
 import { audit } from "@/lib/audit";
 import { listAlerts, surfacedAlerts, updateAlert, type AlertAction } from "@/lib/jeff/alerts/store";
+import { listAlertGroups, updateAlertGroup, type GroupAction } from "@/lib/jeff/grouping/store";
 import { latestBriefing } from "@/lib/jeff/briefings";
 import { listCommitments } from "@/lib/jeff/commitments/store";
 import { getSettings, updateSettings } from "@/lib/jeff/settings-store";
@@ -29,6 +30,23 @@ export const OPS_TOOLS: Anthropic.Beta.BetaTool[] = [
         status: { type: "string", enum: ["open", "acknowledged", "snoozed", "dismissed", "resolved", "active"] },
         min_importance: { type: "string", enum: ["informational", "briefing", "important", "urgent"] },
         limit: { type: "integer", minimum: 1, maximum: 50 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "get_alert_groups",
+    description:
+      "Grouped situations: related alerts, findings and follow-through items bundled per client / goal / contact / workflow (e.g. 'Pure Bath of Michigan — 6 overdue portal tasks'). Each group carries a deterministic summary (oldest overdue, owner split, primary blocker), Jeff's interpretation when available, and its members with task, due date, days overdue, owner, priority, status and notes. Use for 'what's going on with <client>', 'what's the real problem', or to explain a grouped alert. Actions on a group: acknowledge, snooze, dismiss.",
+    input_schema: {
+      type: "object",
+      properties: {
+        status: { type: "string", enum: ["active", "open", "acknowledged", "snoozed", "dismissed", "resolved"] },
+        entity: { type: "string", description: "Optional client / goal / contact name filter (case-insensitive contains)" },
+        group_id: { type: "string", description: "Optional: only this group, with every member" },
+        action: { type: "string", enum: ["acknowledge", "snooze", "dismiss", "reopen"], description: "Optional lifecycle action on group_id, on the owner's explicit request" },
+        hours: { type: "integer", minimum: 1, maximum: 336 },
+        limit: { type: "integer", minimum: 1, maximum: 30 },
       },
       additionalProperties: false,
     },
@@ -111,8 +129,47 @@ export async function runOpsTool(name: string, input: Record<string, unknown>, c
         alerts: rows
           .filter((a) => (RANK[a.importance] ?? 0) >= min)
           .slice(0, limit)
-          .map((a) => ({ id: a.id, kind: a.kind, category: a.category, importance: a.importance, status: a.status, title: a.title, summary: a.summary, occurrences: a.occurrences, first_seen: a.first_seen, last_seen: a.last_seen, ref_id: a.ref_id, evidence: a.evidence.slice(0, 4) })),
+          .map((a) => ({ id: a.id, kind: a.kind, category: a.category, importance: a.importance, status: a.status, title: a.title, summary: a.summary, occurrences: a.occurrences, first_seen: a.first_seen, last_seen: a.last_seen, ref_id: a.ref_id, evidence: a.evidence.slice(0, 4), ...(a.kind === "group" ? { group_id: a.ref_id, member_count: a.occurrences, note: "One grouped situation; call get_alert_groups with group_id for the members." } : {}), ...(a.group_id ? { group_id: a.group_id } : {}) })),
+        note: "Alerts of kind 'group' bundle several related signals under one item; their members are hidden (status grouped) and listed by get_alert_groups.",
         data_freshness: freshnessSummary(freshness),
+      };
+    }
+    case "get_alert_groups": {
+      const status = typeof input.status === "string" ? input.status : "active";
+      const limit = Math.min(Number(input.limit ?? 10), 30);
+      const groupId = typeof input.group_id === "string" && /^[0-9a-f-]{36}$/.test(input.group_id) ? input.group_id : null;
+      const action = typeof input.action === "string" ? input.action : null;
+      if (action) {
+        if (!groupId) return { error: "group_id required for an action" };
+        const hours = Math.min(Math.max(Number(input.hours ?? 24), 1), 336);
+        const a: GroupAction | null = action === "snooze" ? { action: "snooze", until: new Date(Date.now() + hours * 3_600_000).toISOString() } : action === "acknowledge" || action === "dismiss" || action === "reopen" ? { action } : null;
+        if (!a) return { error: "invalid action" };
+        const row = await updateAlertGroup(ctx.ownerId, groupId, a);
+        if (!row) return { error: "group_not_found" };
+        await audit({ event: "alert_group_updated", ownerId: ctx.ownerId, targetId: groupId, request: ctx.request, metadata: { action, via: "chat" } });
+        return { ok: true, group: { id: row.id, status: row.status, snoozed_until: row.snoozed_until } };
+      }
+      const rows = await listAlertGroups(ctx.ownerId, { status: status === "active" ? ["open", "acknowledged", "snoozed"] : [status as "open"], limit: 50 });
+      const entity = typeof input.entity === "string" ? input.entity.toLowerCase() : null;
+      const picked = rows.filter((g) => (groupId ? g.id === groupId : true) && (entity ? g.entity_name.toLowerCase().includes(entity) || g.title.toLowerCase().includes(entity) : true)).slice(0, limit);
+      return {
+        groups: picked.map((g) => ({
+          id: g.id,
+          entity: { kind: g.entity_kind, name: g.entity_name },
+          issue: g.issue_kind,
+          importance: g.importance,
+          status: g.status,
+          title: g.title,
+          summary: g.summary,
+          interpretation: g.interpretation,
+          facts: g.facts,
+          member_count: g.member_count,
+          first_seen: g.first_seen,
+          last_seen: g.last_seen,
+          reopened_count: g.reopened_count,
+          members: g.members.slice(0, groupId ? 60 : 12).map((m) => ({ kind: m.member_kind, id: m.member_id, title: m.title, key_source: m.key_source, due_at: m.detail.due_at, days_overdue: m.detail.days_overdue, owner: m.detail.owner, priority: m.detail.priority, status: m.detail.status, notes: m.detail.notes, blocking: m.detail.blocking, items: (m.detail.items ?? []).slice(0, 25) })),
+        })),
+        note: "Groups are explanatory bundles over existing records; every member keeps its own record. Remind-client and prepare-action are draft missions only (nothing is sent).",
       };
     }
     case "get_briefing": {
