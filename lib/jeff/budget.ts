@@ -35,7 +35,7 @@ export async function budgetStatus(ownerId: string): Promise<BudgetStatus> {
 }
 
 /** Records one model call. Never throws. */
-export type AiFeature = "chat" | "briefing" | "goal" | "blind_spot" | "rule" | "other" | `job:${string}`;
+export type AiFeature = "chat" | "briefing" | "goal" | "blind_spot" | "rule" | "grouping" | "other" | `job:${string}`;
 
 export async function recordUsage(ownerId: string, model: string, usage: UsageCounts, feature: AiFeature = "other"): Promise<number> {
   const estimated = estimateCostUsd(model, usage);

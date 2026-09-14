@@ -237,7 +237,7 @@ export async function applyAction(ownerId: string, id: string, action: Obligatio
     // Resolve any open reminder alert for terminal states so the alert center stays honest.
     if (["completed", "dismissed", "cancelled", "snoozed"].includes(row.status)) {
       const admin = createAdminClient();
-      await admin.from("alerts").update({ status: "resolved", resolved_at: iso }).eq("owner_id", ownerId).eq("kind", "obligation").eq("ref_id", id).in("status", ["open", "acknowledged", "snoozed"]);
+      await admin.from("alerts").update({ status: "resolved", resolved_at: iso }).eq("owner_id", ownerId).eq("kind", "obligation").eq("ref_id", id).in("status", ["open", "acknowledged", "snoozed", "grouped"]);
     }
   }
   return row;
@@ -249,7 +249,7 @@ export async function markAutoCompleted(ownerId: string, id: string, evidence: E
   await patchObligation(ownerId, id, { status: "completed", completed_at: iso, completion_confidence: confidence, completion_evidence: evidence, completion_question: null, next_reminder_at: null, last_checked_at: iso });
   await recordEvent(ownerId, id, "auto_completed", { confidence, evidence: evidence.map((e) => ({ provider: e.provider, external_id: e.external_id, title: e.title, reason: e.reason })) });
   const admin = createAdminClient();
-  await admin.from("alerts").update({ status: "resolved", resolved_at: iso }).eq("owner_id", ownerId).eq("kind", "obligation").eq("ref_id", id).in("status", ["open", "acknowledged", "snoozed"]);
+  await admin.from("alerts").update({ status: "resolved", resolved_at: iso }).eq("owner_id", ownerId).eq("kind", "obligation").eq("ref_id", id).in("status", ["open", "acknowledged", "snoozed", "grouped"]);
   await audit({ event: "obligation_updated", ownerId, actor: "system", targetId: id, metadata: { action: "auto_completed", confidence } });
 }
 

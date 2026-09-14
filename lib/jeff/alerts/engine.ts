@@ -8,8 +8,8 @@ import type { Importance, OwnerSettings } from "@/lib/jeff/settings";
  * grouping and owner decisions (snooze/dismiss/acknowledge preserved).
  */
 
-export type AlertKind = "finding" | "goal" | "commitment" | "system" | "obligation";
-export type AlertStatus = "open" | "acknowledged" | "snoozed" | "dismissed" | "resolved";
+export type AlertKind = "finding" | "goal" | "commitment" | "system" | "obligation" | "group";
+export type AlertStatus = "open" | "acknowledged" | "snoozed" | "dismissed" | "resolved" | "grouped";
 export type Scope = "business" | "personal" | "financial" | "all";
 
 export interface AlertCandidate {
@@ -217,8 +217,9 @@ export interface ReconcileResult {
  * - existing open alert whose candidate disappeared → resolved
  */
 export function reconcileAlerts(existing: ExistingAlert[], candidates: AlertCandidate[], now: Date): ReconcileResult {
-  // Reminder alerts (kind obligation) are raised/resolved by the Follow-Through watchdog, never by candidate diffing.
-  existing = existing.filter((e) => !e.fingerprint.startsWith("obligation:"));
+  // Reminder alerts (kind obligation) are raised/resolved by the Follow-Through watchdog, and group parents
+  // (kind group) by the grouping engine — never by candidate diffing.
+  existing = existing.filter((e) => !e.fingerprint.startsWith("obligation:") && !e.fingerprint.startsWith("group:"));
   const byFp = new Map(existing.map((a) => [a.fingerprint, a]));
   const seen = new Set<string>();
   const nowIso = now.toISOString();
@@ -263,7 +264,8 @@ export function reconcileAlerts(existing: ExistingAlert[], candidates: AlertCand
   }
   for (const a of existing) {
     if (seen.has(a.fingerprint)) continue;
-    if (["open", "acknowledged", "snoozed"].includes(a.status)) result.resolve.push(a.id);
+    // A grouped member whose condition cleared resolves like any other; the group drops it on its next sync.
+    if (["open", "acknowledged", "snoozed", "grouped"].includes(a.status)) result.resolve.push(a.id);
   }
   return result;
 }

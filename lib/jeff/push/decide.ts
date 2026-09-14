@@ -9,6 +9,9 @@ import { isOpportunityCategory } from "./emoji";
  * - informational / briefing-level: never pushed
  * - one push per (alert, importance): a repeat of the same condition is not
  *   re-pushed; an escalation to a higher importance is.
+ * - groups (kind "group"): one push per group per importance level, plus a
+ *   re-push when the group has grown by GROUP_REPUSH_GROWTH members since the
+ *   last push ("6 overdue tasks" → "9 overdue tasks" is news; 6 → 7 is not).
  */
 export interface PushableAlert {
   id: string;
@@ -19,9 +22,17 @@ export interface PushableAlert {
   deferred_until: string | null;
   pushed_at: string | null;
   pushed_importance: string | null;
+  /** Groups only: live member count now, and at the last push. */
+  member_count?: number | null;
+  member_count_pushed?: number | null;
 }
 
 const RANK: Record<Importance, number> = { informational: 0, briefing: 1, important: 2, actionable: 2, urgent: 3 };
+export const GROUP_REPUSH_GROWTH = 3;
+
+function groupGrew(alert: PushableAlert): boolean {
+  return alert.kind === "group" && typeof alert.member_count === "number" && alert.member_count - (alert.member_count_pushed ?? 0) >= GROUP_REPUSH_GROWTH;
+}
 
 export function shouldPushAlert(
   alert: PushableAlert,
@@ -38,7 +49,7 @@ export function shouldPushAlert(
   if ((RANK[alert.importance] ?? 0) < minRank) return false;
   if (alert.pushed_at && alert.pushed_importance) {
     const prev = RANK[alert.pushed_importance as Importance] ?? 0;
-    if (RANK[alert.importance] <= prev) return false;
+    if (RANK[alert.importance] <= prev && !groupGrew(alert)) return false;
   }
   if (alert.importance === "urgent") return true;
   if (isGoal && !settings.push_goal_alerts) return false;

@@ -38,6 +38,7 @@ export function alertEmoji(a: { kind: string; category: string | null; importanc
   if (a.kind === "goal") return "🎯";
   if (a.kind === "commitment") return "🤝";
   if (a.kind === "obligation") return "⏰";
+  if (a.kind === "group") return "🗂️";
   if (a.kind === "system") return "🛠️";
   if (a.category && CATEGORY_EMOJI[a.category]) return CATEGORY_EMOJI[a.category]!;
   if (isOpportunityCategory(a.category)) return "💡";

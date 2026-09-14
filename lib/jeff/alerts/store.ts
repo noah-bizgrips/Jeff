@@ -34,12 +34,14 @@ export interface AlertRow {
   resolved_at: string | null;
   acknowledged_at: string | null;
   rule_trace: Record<string, unknown>;
+  /** Set while the alert is a member of an open group (status "grouped"). */
+  group_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
 const COLUMNS =
-  "id, fingerprint, kind, ref_id, importance, scope, category, title, summary, evidence, status, snoozed_until, cooldown_until, deferred_until, occurrences, first_seen, last_seen, resolved_at, acknowledged_at, rule_trace, created_at, updated_at";
+  "id, fingerprint, kind, ref_id, importance, scope, category, title, summary, evidence, status, snoozed_until, cooldown_until, deferred_until, occurrences, first_seen, last_seen, resolved_at, acknowledged_at, rule_trace, group_id, created_at, updated_at";
 
 export interface AlertRunSummary {
   candidates: number;
@@ -168,6 +170,14 @@ export async function runAlertsForOwner(ownerId: string, now = new Date()): Prom
     if (error) log.warn("alert_resolve_failed", { id, message: error.message });
     else resolved++;
   }
+  // Bundle related alerts / follow-through items into one parent per situation BEFORE pushing,
+  // so the owner gets one push per group instead of one per signal.
+  try {
+    const { syncAlertGroups } = await import("@/lib/jeff/grouping/store");
+    await syncAlertGroups(ownerId, now);
+  } catch (err) {
+    log.warn("alert_grouping_failed", { message: errorMessage(err) });
+  }
   // Push qualifying alerts (urgent always; important outside quiet hours; once per importance level).
   try {
     const { pushPendingAlerts } = await import("@/lib/jeff/push/alerts");
@@ -221,6 +231,8 @@ export async function updateAlert(ownerId: string, id: string, action: AlertActi
           : action.action === "resolve"
             ? { status: "resolved", resolved_at: now.toISOString(), cooldown_until: cooldownUntil(now) }
             : { status: "open", snoozed_until: null, resolved_at: null };
+  // A grouped member stays under its group unless the owner explicitly acts on it; only then does it leave the group.
+  if (action.action !== "reopen") patch.group_id = null;
   const { data, error } = await admin.from("alerts").update(patch).eq("owner_id", ownerId).eq("id", id).select(COLUMNS).maybeSingle();
   if (error) throw new Error(`alert_update_failed:${error.code ?? ""}:${redactString(error.message ?? "").slice(0, 120)}`);
   return (data as unknown as AlertRow) ?? null;

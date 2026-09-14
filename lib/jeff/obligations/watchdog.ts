@@ -326,6 +326,13 @@ export async function runFollowThrough(ownerId: string, opts: { mode: "test" | "
   }
 
   if (mode === "run") {
+    // Reminder alerts for the same client / goal / contact bundle under one parent before any push goes out.
+    try {
+      const { syncAlertGroups } = await import("@/lib/jeff/grouping/store");
+      await syncAlertGroups(ownerId, now);
+    } catch (err) {
+      log.warn("obligation_grouping_failed", { message: errorMessage(err) });
+    }
     try {
       const { pushPendingAlerts } = await import("@/lib/jeff/push/alerts");
       await pushPendingAlerts(ownerId, now);
