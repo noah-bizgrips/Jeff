@@ -344,7 +344,7 @@ describe("already-signed clients and definition resolutions", () => {
     expect(preParseAnchor(text)?.anchor).toMatchObject({ search_terms: ["Steve Seaver", "Seaver", "Steve"], event: "signed" });
     const pre = preParseGoal(text, NOW);
     expect(pre.interpretation.metrics[0]).toMatchObject({ key: "clients_onboarded", target: 10, baseline: 1 });
-    expect(pre.interpretation.assumptions.join(" ")).toMatch(/1 client signed before tracking started/);
+    expect((pre.interpretation.assumptions ?? []).join(" ")).toMatch(/1 client signed before tracking started/);
   });
 
   it("adds the baseline to the computed count", () => {
