@@ -205,10 +205,12 @@ export interface MetricResult {
 
 /**
  * Strict tool use only allows a JSON-schema subset: no `additionalProperties`
- * other than false (so no maps), no type arrays, no string/number bounds.
- * The tool therefore takes `inputs` and `metadata_equals` as ARRAYS of keyed
- * entries and nullable values through anyOf; `fromToolInput` converts the
- * model's output into the internal (map-based) shape before Zod validation.
+ * other than false (so no maps), no type arrays, no string/number bounds, at
+ * most 24 optional parameters and at most 16 union-typed (anyOf) parameters
+ * per request. The tool therefore takes `inputs` and `metadata_equals` as
+ * ARRAYS of keyed entries, uses "" / 0 as "not set" for optional scalars, and
+ * keeps anyOf-null only where a genuine null matters; `fromToolInput`
+ * converts the model's output into the internal shape before Zod validation.
  */
 const nullable = (schema: Record<string, unknown>) => ({ anyOf: [schema, { type: "null" }] });
 const strArray = { type: "array", items: { type: "string" } };
@@ -240,7 +242,7 @@ const REQUIRE_MATCH_JSON_SCHEMA = {
     filter: FILTER_JSON_SCHEMA,
     via: { type: "string", enum: [...IDENTITY_KEYS] },
     in_window: { type: "boolean" },
-    timestamp_field: nullable({ type: "string" }),
+    timestamp_field: { type: "string" },
     label: { type: "string" },
   },
   required: ["provider", "resource_type", "filter", "via", "in_window", "timestamp_field", "label"],
@@ -252,10 +254,10 @@ const INPUT_PROPERTIES = {
   resource_type: { type: "string" },
   filter: FILTER_JSON_SCHEMA,
   aggregation: { type: "string", enum: [...AGGREGATIONS] },
-  field: nullable({ type: "string" }),
-  timestamp_field: nullable({ type: "string" }),
+  field: { type: "string" },
+  timestamp_field: { type: "string" },
   require_match: { type: "array", items: REQUIRE_MATCH_JSON_SCHEMA },
-  distinct_by: nullable({ type: "string", enum: [...IDENTITY_KEYS] }),
+  distinct_by: { type: "string", enum: [...IDENTITY_KEYS, ""] },
 };
 const INPUT_REQUIRED = ["provider", "resource_type", "filter", "aggregation", "field", "timestamp_field", "require_match", "distinct_by"];
 
@@ -304,7 +306,7 @@ export const GOAL_INTERPRETATION_JSON_SCHEMA = {
           formula: { type: "string" },
           baseline: { type: "number" },
           inputs: { type: "array", items: KEYED_INPUT_JSON_SCHEMA },
-          duration: nullable({
+          duration: {
             type: "object",
             properties: {
               start: { type: "string" },
@@ -313,10 +315,10 @@ export const GOAL_INTERPRETATION_JSON_SCHEMA = {
             },
             required: ["start", "end", "join"],
             additionalProperties: false,
-          }),
+          },
           time_range: {
             type: "object",
-            properties: { kind: { type: "string", enum: ["goal_window", "trailing_days", "since"] }, days: nullable({ type: "integer" }), since: nullable({ type: "string" }) },
+            properties: { kind: { type: "string", enum: ["goal_window", "trailing_days", "since"] }, days: { type: "integer" }, since: { type: "string" } },
             required: ["kind", "days", "since"],
             additionalProperties: false,
           },
@@ -325,12 +327,12 @@ export const GOAL_INTERPRETATION_JSON_SCHEMA = {
           constraint_strength: { type: "string", enum: ["soft", "hard"] },
           limitations: strArray,
         },
-        required: ["key", "name", "kind", "target", "comparator", "target_upper", "unit", "formula", "baseline", "inputs", "duration", "time_range", "is_primary", "is_constraint", "constraint_strength", "limitations"],
+        required: ["key", "name", "kind", "target", "comparator", "target_upper", "unit", "formula", "baseline", "inputs", "time_range", "is_primary", "is_constraint", "constraint_strength", "limitations"],
         additionalProperties: false,
       },
     },
     constraints: strArray,
-    milestones: { type: "array", items: { type: "object", properties: { name: { type: "string" }, due_in_days: nullable({ type: "integer" }), target: nullable({ type: "number" }) }, required: ["name", "due_in_days", "target"], additionalProperties: false } },
+    milestones: { type: "array", items: { type: "object", properties: { name: { type: "string" }, due_in_days: { type: "integer" }, target: { type: "number" } }, required: ["name"], additionalProperties: false } },
     drivers: {
       type: "array",
       items: {
@@ -339,10 +341,10 @@ export const GOAL_INTERPRETATION_JSON_SCHEMA = {
           key: { type: "string" },
           name: { type: "string" },
           input: { type: "object", properties: INPUT_PROPERTIES, required: INPUT_REQUIRED, additionalProperties: false },
-          implied_target: nullable({ type: "number" }),
-          assumption: nullable({ type: "string" }),
+          implied_target: { type: "number" },
+          assumption: { type: "string" },
         },
-        required: ["key", "name", "input", "implied_target", "assumption"],
+        required: ["key", "name", "input", "assumption"],
         additionalProperties: false,
       },
     },
@@ -389,7 +391,7 @@ function inputFromTool(i: unknown): unknown {
     out.require_match = i.require_match.map((r) => {
       if (!isObj(r)) return r;
       const req: Json = { ...r, filter: filterFromTool(r.filter) };
-      if (req.timestamp_field == null) delete req.timestamp_field;
+      if (req.timestamp_field == null || req.timestamp_field === "") delete req.timestamp_field;
       if (req.label == null || req.label === "") delete req.label;
       return req;
     });
@@ -413,11 +415,11 @@ export function fromToolInput(raw: unknown): unknown {
       } else if (isObj(m.inputs)) {
         metric.inputs = Object.fromEntries(Object.entries(m.inputs).map(([k, v]) => [k, inputFromTool(isObj(v) ? { ...v, key: k } : v)]));
       }
-      if (metric.duration == null) delete metric.duration;
+      if (metric.duration == null || (isObj(m.duration) && !m.duration.start)) delete metric.duration;
       if (isObj(m.time_range)) {
         const tr: Json = { ...m.time_range };
-        if (tr.days == null) delete tr.days;
-        if (tr.since == null) delete tr.since;
+        if (tr.days == null || tr.days === 0) delete tr.days;
+        if (tr.since == null || tr.since === "") delete tr.since;
         metric.time_range = tr;
       }
       return metric;
@@ -427,7 +429,8 @@ export function fromToolInput(raw: unknown): unknown {
     out.drivers = raw.drivers.map((d) => {
       if (!isObj(d)) return d;
       const drv: Json = { ...d, input: inputFromTool(d.input) };
-      if (drv.assumption == null) delete drv.assumption;
+      if (drv.assumption == null || drv.assumption === "") delete drv.assumption;
+      if (drv.implied_target === 0) drv.implied_target = null;
       return drv;
     });
   }

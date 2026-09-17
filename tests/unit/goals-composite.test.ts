@@ -161,9 +161,9 @@ describe("anchored timeframes", () => {
     const res = rankAnchorCandidates(
       [
         { provider: "stripe", resource_type: "invoice", title: "INV-1 · paid · Seaver", author: null, source_timestamp: "2026-08-30T12:00:00Z", metadata: { paid: true, number: "INV-1" } },
-        { provider: "google", resource_type: "email", title: "Your BizGrips agreement — please sign", author: "Noah", source_timestamp: "2026-08-21T12:00:00Z", metadata: {} },
+        { provider: "google", resource_type: "email", title: "Your BizGrips agreement — please sign", author: "Noah", source_timestamp: "2026-08-21T12:00:00Z", metadata: { to: ["steve@seaverbaths.com"] } },
         { provider: "portal", resource_type: "client", title: "Seaver Baths", author: null, source_timestamp: null, metadata: { created_at: "2026-08-20T10:00:00Z" } },
-        { provider: "google", resource_type: "email", title: "Re: lunch?", author: "Steve", source_timestamp: "2026-08-01T12:00:00Z", metadata: {} },
+        { provider: "google", resource_type: "email", title: "Re: lunch?", author: "Steve", source_timestamp: "2026-08-01T12:00:00Z", metadata: { to: ["noah@bizgrips.com"] } },
       ],
       { description: "Steve Seaver's sign date", search_terms: ["Steve Seaver"], event: "signed" },
     );
@@ -175,6 +175,21 @@ describe("anchored timeframes", () => {
     const amb = interp.ambiguities.find((a) => a.field === "timeframe.start")!;
     expect(amb.options).toHaveLength(4);
     expect(amb.options[3]).toMatch(/Another date/);
+  });
+
+  it("prefers records that name the person (fuzzy surname) over first-name-only hits", () => {
+    const anchor = { description: "Steve Seaver's sign date", search_terms: ["Steve Seaver", "Seaver", "Steve"], event: "signed" as const };
+    const res = rankAnchorCandidates(
+      [
+        { provider: "stripe", resource_type: "invoice", title: "4D201999-0019 · paid · Steve Davlin", author: "Steve Davlin", source_timestamp: "2026-06-25T00:00:00Z", metadata: { paid: true, number: "4D201999-0019" } },
+        { provider: "highlevel", resource_type: "contact", title: "steve's towing", author: null, source_timestamp: "2026-05-06T00:00:00Z", metadata: { dateAdded: "2026-05-06T00:00:00Z" } },
+        { provider: "highlevel", resource_type: "contact", title: "steve seever", author: null, source_timestamp: "2026-08-16T00:00:00Z", metadata: { dateAdded: "2026-08-16T00:00:00Z" } },
+        { provider: "stripe", resource_type: "invoice", title: "JPXDV9KH-0001 · paid · 1,500.00 USD · Steve Seever", author: "Steve Seever", source_timestamp: "2026-09-09T00:00:00Z", metadata: { paid: true, number: "JPXDV9KH-0001" } },
+      ],
+      anchor,
+    );
+    expect(res.candidates.map((c) => c.date)).toEqual(["2026-08-16", "2026-09-09"]); // other Steves dropped
+    expect(res.best?.date).toBe("2026-09-09"); // both name Seever; a paid invoice fits "signed" better than contact creation
   });
 
   it("still asks when nothing matches", () => {
@@ -261,11 +276,13 @@ describe("strict tool schema", () => {
   it("only uses the JSON-schema subset strict tool use accepts, with at most 24 optional parameters", () => {
     const problems: string[] = [];
     let optional = 0;
+    let unions = 0;
     const walk = (node: unknown, path: string) => {
       if (Array.isArray(node)) return node.forEach((n, i) => walk(n, `${path}[${i}]`));
       if (!node || typeof node !== "object") return;
       const o = node as Record<string, unknown>;
       if (Array.isArray(o.type)) problems.push(`${path}: type array`);
+      if (Array.isArray(o.anyOf)) unions++;
       if (o.type === "object") {
         if (o.additionalProperties !== false) problems.push(`${path}: additionalProperties must be false`);
         const props = Object.keys((o.properties as object) ?? {});
@@ -279,11 +296,12 @@ describe("strict tool schema", () => {
     walk(GOAL_INTERPRETATION_JSON_SCHEMA, "$");
     expect(problems).toEqual([]);
     expect(optional).toBeLessThanOrEqual(24); // API limit: "Schemas contains too many optional parameters"
+    expect(unions).toBeLessThanOrEqual(16); // API limit: "too many parameters with union types"
   });
 
   it("treats empty filter arrays and nulls from the model as no constraint", () => {
     const full = { status_in: [], status_not_in: ["churned"], stage_contains: [], tags_any: [], tags_none: [], title_contains: [], metadata_equals: [], metadata_truthy: [], metadata_falsy: [], metadata_min: [{ key: "amount_paid", value: 100000 }] };
-    const raw = { name: "g", outcome: "o", timeframe: { start: null, end: null, days: null, anchor: null }, metrics: [{ key: "clients", name: "c", kind: "count", target: 10, comparator: "gte", target_upper: null, unit: "", formula: "", baseline: 1, inputs: [{ key: "value", provider: "stripe", resource_type: "invoice", filter: full, aggregation: "count", field: null, timestamp_field: null, require_match: [], distinct_by: "email_hash" }], duration: null, time_range: { kind: "goal_window", days: null, since: null }, is_primary: true, is_constraint: false, constraint_strength: "soft", limitations: [] }], constraints: [], milestones: [], drivers: [], assumptions: [], ambiguities: [], scope: "business", confidence: 0.5 };
+    const raw = { name: "g", outcome: "o", timeframe: { start: null, end: null, days: null, anchor: null }, metrics: [{ key: "clients", name: "c", kind: "count", target: 10, comparator: "gte", target_upper: null, unit: "", formula: "", baseline: 1, inputs: [{ key: "value", provider: "stripe", resource_type: "invoice", filter: full, aggregation: "count", field: "", timestamp_field: "", require_match: [], distinct_by: "email_hash" }], time_range: { kind: "goal_window", days: 0, since: "" }, is_primary: true, is_constraint: false, constraint_strength: "soft", limitations: [] }], constraints: [], milestones: [], drivers: [], assumptions: [], ambiguities: [], scope: "business", confidence: 0.5 };
     const parsed = GoalInterpretationSchema.parse(fromToolInput(raw));
     const input = parsed.metrics[0]!.inputs.value!;
     expect(input.filter).toEqual({ status_not_in: ["churned"], metadata_min: { amount_paid: 100000 } });

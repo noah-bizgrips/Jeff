@@ -418,7 +418,7 @@ METRIC INPUT VOCABULARY
 - timeframe.anchor: when the window starts at a real event ("from Steve Seaver's sign date", "Steve already signed and counts as #1") set { description, search_terms: [full name, surname], event: signed|first_payment|created|custom } and leave start null; Jeff finds candidate dates and asks the owner to confirm.
 - baseline: progress that predates tracking. "Steve already signed counts as #1" → the client-count metric keeps target 10 and baseline 1 (Jeff adds it to the computed count), with an assumption naming who is counted. Baseline is 0 otherwise.
 
-OUTPUT SHAPE: each metric's inputs is an ARRAY of keyed inputs; key is the variable name used in the formula ("value" for single-input metrics). Use null for duration on non-duration metrics and for absent optional values. metadata_equals is an array of { key, value }.
+OUTPUT SHAPE: each metric's inputs is an ARRAY of keyed inputs; key is the variable name used in the formula ("value" for single-input metrics). Optional strings not in use are "" (field, timestamp_field, distinct_by, time_range.since) and unused integers are 0 (time_range.days). Omit duration on non-duration metrics. metadata_equals / metadata_min are arrays of { key, value }.
 
 WORKED EXAMPLE — "validated clients" the way owners usually mean it:
 inputs: [{ key: "value", provider: "portal", resource_type: "client", filter: { status_not_in: ["churned"], tags_none: ["test"] }, aggregation: "count", distinct_by: "client_id", timestamp_field: "created_at",

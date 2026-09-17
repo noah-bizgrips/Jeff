@@ -48,12 +48,44 @@ function scoreFor(event: TimeframeAnchor["event"], kind: string): number {
   return table[event]?.[kind] ?? 0;
 }
 
+/** Consonant skeleton so "Seaver" ≈ "Seever" ≈ "Sever". */
+function skeleton(word: string): string {
+  return word.toLowerCase().replace(/[^a-z]/g, "").replace(/[aeiouy]/g, "").replace(/(.)\1+/g, "$1");
+}
+
+/**
+ * How well a record names the person: full name 10, surname (fuzzy) 6, first
+ * name alone 1, nothing 0. Search terms are [full name, surname, first name]
+ * as the pre-parser emits them; a single term is treated as the full name.
+ */
+export function nameMatchScore(r: Row, terms: string[]): number {
+  const hay = `${r.title ?? ""} ${r.author ?? ""}`.toLowerCase();
+  if (!terms.length) return 0;
+  const full = terms[0]!.toLowerCase();
+  if (hay.includes(full)) return 10;
+  const words = hay.split(/[^a-z0-9]+/).filter(Boolean);
+  const nameWords = full.split(/\s+/).filter(Boolean);
+  const surname = nameWords.length > 1 ? nameWords[nameWords.length - 1]! : null;
+  if (surname && surname.length >= 3) {
+    const sk = skeleton(surname);
+    if (sk.length >= 2 && words.some((w) => w === surname || skeleton(w) === sk)) return 6;
+    // Emails name people through their address: steve@seaverbaths.com, s.seever@gmail.com
+    const addresses = (Array.isArray(r.metadata?.to) ? (r.metadata.to as unknown[]) : []).filter((a): a is string => typeof a === "string").map((a) => a.toLowerCase());
+    if (addresses.some((a) => a.includes(surname))) return 6;
+    if (addresses.some((a) => skeleton(a.split("@")[0] ?? "").includes(sk) || skeleton(a.split("@")[1] ?? "").startsWith(sk))) return 4;
+  }
+  const first = nameWords[0]!;
+  return words.includes(first) ? 1 : 0;
+}
+
 /** Turns matching rows into dated candidates. Exported for tests. */
 export function rankAnchorCandidates(rows: Row[], anchor: TimeframeAnchor): AnchorResolution {
-  const out: AnchorCandidate[] = [];
+  const out: (AnchorCandidate & { name: number })[] = [];
   const push = (kind: string, date: string | null, label: string, r: Row) => {
     if (!date) return;
-    out.push({ date, label, provider: r.provider, resource_type: r.resource_type, score: scoreFor(anchor.event, kind) });
+    const name = nameMatchScore(r, anchor.search_terms);
+    if (!name) return;
+    out.push({ date, label, provider: r.provider, resource_type: r.resource_type, score: scoreFor(anchor.event, kind), name });
   };
   for (const r of rows) {
     const m = r.metadata ?? {};
@@ -79,10 +111,11 @@ export function rankAnchorCandidates(rows: Row[], anchor: TimeframeAnchor): Anch
       push("appointment", day(r.source_timestamp), `Calendar: ${title.slice(0, 60)}`, r);
     }
   }
-  // Best = highest score, then earliest date; candidates deduplicated by date+label, sorted by date.
+  // A first-name-only hit ("Steve Davlin" for "Steve Seaver") is only offered when nothing names the person better.
+  const bestName = Math.max(0, ...out.map((c) => c.name));
   const seen = new Set<string>();
   const candidates = out
-    .filter((c) => c.score > 0)
+    .filter((c) => c.score > 0 && (c.name >= 6 || bestName < 6))
     .filter((c) => {
       const k = `${c.date}|${c.label}`;
       if (seen.has(k)) return false;
@@ -90,8 +123,10 @@ export function rankAnchorCandidates(rows: Row[], anchor: TimeframeAnchor): Anch
       return true;
     })
     .sort((a, b) => a.date.localeCompare(b.date));
-  const best = [...candidates].sort((a, b) => b.score - a.score || a.date.localeCompare(b.date))[0] ?? null;
-  return { best, candidates: candidates.slice(0, 8) };
+  // Best = names the person best, then fits the kind of moment best, then earliest.
+  const top = [...candidates].sort((a, b) => b.name - a.name || b.score - a.score || a.date.localeCompare(b.date))[0];
+  const strip = (c: AnchorCandidate & { name: number }): AnchorCandidate => ({ date: c.date, label: c.label, provider: c.provider, resource_type: c.resource_type, score: c.score });
+  return { best: top ? strip(top) : null, candidates: candidates.slice(0, 8).map(strip) };
 }
 
 export async function resolveAnchor(ownerId: string, anchor: TimeframeAnchor): Promise<AnchorResolution> {
@@ -99,7 +134,8 @@ export async function resolveAnchor(ownerId: string, anchor: TimeframeAnchor): P
   const terms = anchor.search_terms.map((t) => t.replace(/[%_,()"\\]/g, " ").replace(/\s+/g, " ").trim()).filter((t) => t.length >= 3);
   if (!terms.length) return { best: null, candidates: [] };
   // PostgREST or() filter; values are double-quoted so spaces survive.
-  const or = terms.flatMap((t) => [`title.ilike."%${t}%"`, `author.ilike."%${t}%"`]).join(",");
+  // Emails are usually addressed to the person rather than titled after them, so recipients are searched too.
+  const or = terms.flatMap((t) => [`title.ilike."%${t}%"`, `author.ilike."%${t}%"`, `metadata->>to.ilike."%${t}%"`]).join(",");
   const { data, error } = await admin
     .from("source_items")
     .select("provider, resource_type, title, author, source_timestamp, metadata")
