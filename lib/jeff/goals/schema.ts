@@ -195,20 +195,69 @@ export interface MetricResult {
   inputs?: Record<string, { value: number | null; sample_size: number; source: string }>;
 }
 
+/* ------------------------------------------------------------------ */
+/* Model-facing tool schema (strict tool use)                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Strict tool use only allows a JSON-schema subset: no `additionalProperties`
+ * other than false (so no maps), no type arrays, no string/number bounds.
+ * The tool therefore takes `inputs` and `metadata_equals` as ARRAYS of keyed
+ * entries and nullable values through anyOf; `fromToolInput` converts the
+ * model's output into the internal (map-based) shape before Zod validation.
+ */
+const nullable = (schema: Record<string, unknown>) => ({ anyOf: [schema, { type: "null" }] });
+const strArray = { type: "array", items: { type: "string" } };
+
 const FILTER_JSON_SCHEMA = {
   type: "object",
   properties: {
-    status_in: { type: "array", items: { type: "string" } },
-    status_not_in: { type: "array", items: { type: "string" } },
-    stage_contains: { type: "array", items: { type: "string" } },
-    tags_any: { type: "array", items: { type: "string" } },
-    tags_none: { type: "array", items: { type: "string" } },
-    title_contains: { type: "array", items: { type: "string" } },
-    metadata_truthy: { type: "array", items: { type: "string" } },
-    metadata_falsy: { type: "array", items: { type: "string" } },
+    status_in: strArray,
+    status_not_in: strArray,
+    stage_contains: strArray,
+    tags_any: strArray,
+    tags_none: strArray,
+    title_contains: strArray,
+    metadata_equals: { type: "array", items: { type: "object", properties: { key: { type: "string" }, value: { type: "string" } }, required: ["key", "value"], additionalProperties: false } },
+    metadata_truthy: strArray,
+    metadata_falsy: strArray,
   },
   additionalProperties: false,
-} as const;
+};
+
+const REQUIRE_MATCH_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    provider: { type: "string", enum: [...PROVIDERS_FOR_GOALS] },
+    resource_type: { type: "string" },
+    filter: FILTER_JSON_SCHEMA,
+    via: { type: "string", enum: [...IDENTITY_KEYS] },
+    in_window: { type: "boolean" },
+    timestamp_field: { type: "string" },
+    label: { type: "string" },
+  },
+  required: ["provider", "resource_type", "filter", "via", "in_window", "label"],
+  additionalProperties: false,
+};
+
+const INPUT_PROPERTIES = {
+  provider: { type: "string", enum: [...PROVIDERS_FOR_GOALS] },
+  resource_type: { type: "string" },
+  filter: FILTER_JSON_SCHEMA,
+  aggregation: { type: "string", enum: [...AGGREGATIONS] },
+  field: { type: "string" },
+  timestamp_field: { type: "string" },
+  require_match: { type: "array", items: REQUIRE_MATCH_JSON_SCHEMA },
+  distinct_by: { type: "string", enum: [...IDENTITY_KEYS] },
+};
+
+/** One keyed metric input: `key` is the variable name used in the formula ("value" for single-input metrics). */
+const KEYED_INPUT_JSON_SCHEMA = {
+  type: "object",
+  properties: { key: { type: "string" }, ...INPUT_PROPERTIES },
+  required: ["key", "provider", "resource_type", "filter", "aggregation"],
+  additionalProperties: false,
+};
 
 /** JSON-schema mirror of GoalInterpretationSchema used for strict tool output from the model. */
 export const GOAL_INTERPRETATION_JSON_SCHEMA = {
@@ -219,15 +268,15 @@ export const GOAL_INTERPRETATION_JSON_SCHEMA = {
     timeframe: {
       type: "object",
       properties: {
-        start: { type: ["string", "null"] },
-        end: { type: ["string", "null"] },
-        days: { type: ["integer", "null"] },
-        anchor: {
-          type: ["object", "null"],
-          properties: { description: { type: "string" }, search_terms: { type: "array", items: { type: "string" } }, event: { type: "string", enum: ["signed", "first_payment", "created", "custom"] } },
+        start: nullable({ type: "string" }),
+        end: nullable({ type: "string" }),
+        days: nullable({ type: "integer" }),
+        anchor: nullable({
+          type: "object",
+          properties: { description: { type: "string" }, search_terms: strArray, event: { type: "string", enum: ["signed", "first_payment", "created", "custom"] } },
           required: ["description", "search_terms", "event"],
           additionalProperties: false,
-        },
+        }),
       },
       required: ["start", "end", "days", "anchor"],
       additionalProperties: false,
@@ -240,72 +289,39 @@ export const GOAL_INTERPRETATION_JSON_SCHEMA = {
           key: { type: "string" },
           name: { type: "string" },
           kind: { type: "string", enum: [...METRIC_KINDS] },
-          target: { type: ["number", "null"] },
+          target: nullable({ type: "number" }),
           comparator: { type: "string", enum: [...COMPARATORS] },
-          target_upper: { type: ["number", "null"] },
+          target_upper: nullable({ type: "number" }),
           unit: { type: "string" },
           formula: { type: "string" },
-          inputs: {
+          inputs: { type: "array", items: KEYED_INPUT_JSON_SCHEMA },
+          duration: nullable({
             type: "object",
-            additionalProperties: {
-              type: "object",
-              properties: {
-                provider: { type: "string", enum: [...PROVIDERS_FOR_GOALS] },
-                resource_type: { type: "string" },
-                filter: FILTER_JSON_SCHEMA,
-                aggregation: { type: "string", enum: [...AGGREGATIONS] },
-                field: { type: "string" },
-                timestamp_field: { type: "string" },
-                require_match: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      provider: { type: "string", enum: [...PROVIDERS_FOR_GOALS] },
-                      resource_type: { type: "string" },
-                      filter: FILTER_JSON_SCHEMA,
-                      via: { type: "string", enum: [...IDENTITY_KEYS] },
-                      in_window: { type: "boolean" },
-                      timestamp_field: { type: "string" },
-                      label: { type: "string" },
-                    },
-                    required: ["provider", "resource_type", "via", "in_window"],
-                    additionalProperties: false,
-                  },
-                },
-                distinct_by: { type: "string", enum: [...IDENTITY_KEYS] },
-              },
-              required: ["provider", "resource_type"],
-              additionalProperties: false,
-            },
-          },
-          duration: {
-            type: ["object", "null"],
             properties: {
               start: { type: "string" },
               end: { type: "string" },
-              join: { type: "object", properties: { via: { type: "string", enum: [...IDENTITY_KEYS] }, aggregation: { type: "string", enum: ["avg", "median", "max"] } }, additionalProperties: false },
+              join: { type: "object", properties: { via: { type: "string", enum: [...IDENTITY_KEYS] }, aggregation: { type: "string", enum: ["avg", "median", "max"] } }, required: ["via", "aggregation"], additionalProperties: false },
             },
-            required: ["start", "end"],
+            required: ["start", "end", "join"],
             additionalProperties: false,
-          },
+          }),
           time_range: {
             type: "object",
-            properties: { kind: { type: "string", enum: ["goal_window", "trailing_days", "since"] }, days: { type: "integer" }, since: { type: "string" } },
-            required: ["kind"],
+            properties: { kind: { type: "string", enum: ["goal_window", "trailing_days", "since"] }, days: nullable({ type: "integer" }), since: nullable({ type: "string" }) },
+            required: ["kind", "days", "since"],
             additionalProperties: false,
           },
           is_primary: { type: "boolean" },
           is_constraint: { type: "boolean" },
           constraint_strength: { type: "string", enum: ["soft", "hard"] },
-          limitations: { type: "array", items: { type: "string" } },
+          limitations: strArray,
         },
-        required: ["key", "name", "kind", "target", "comparator", "unit", "formula", "inputs", "time_range", "is_primary", "is_constraint"],
+        required: ["key", "name", "kind", "target", "comparator", "target_upper", "unit", "formula", "inputs", "duration", "time_range", "is_primary", "is_constraint", "constraint_strength", "limitations"],
         additionalProperties: false,
       },
     },
-    constraints: { type: "array", items: { type: "string" } },
-    milestones: { type: "array", items: { type: "object", properties: { name: { type: "string" }, due_in_days: { type: ["integer", "null"] }, target: { type: ["number", "null"] } }, required: ["name"], additionalProperties: false } },
+    constraints: strArray,
+    milestones: { type: "array", items: { type: "object", properties: { name: { type: "string" }, due_in_days: nullable({ type: "integer" }), target: nullable({ type: "number" }) }, required: ["name", "due_in_days", "target"], additionalProperties: false } },
     drivers: {
       type: "array",
       items: {
@@ -313,22 +329,82 @@ export const GOAL_INTERPRETATION_JSON_SCHEMA = {
         properties: {
           key: { type: "string" },
           name: { type: "string" },
-          input: { type: "object", properties: { provider: { type: "string" }, resource_type: { type: "string" }, filter: { type: "object" }, aggregation: { type: "string" }, field: { type: "string" } }, required: ["provider", "resource_type"] },
-          implied_target: { type: ["number", "null"] },
+          input: { type: "object", properties: INPUT_PROPERTIES, required: ["provider", "resource_type", "filter", "aggregation"], additionalProperties: false },
+          implied_target: nullable({ type: "number" }),
           assumption: { type: "string" },
         },
-        required: ["key", "name", "input"],
+        required: ["key", "name", "input", "implied_target", "assumption"],
         additionalProperties: false,
       },
     },
-    assumptions: { type: "array", items: { type: "string" } },
+    assumptions: strArray,
     ambiguities: {
       type: "array",
-      items: { type: "object", properties: { field: { type: "string" }, question: { type: "string" }, options: { type: "array", items: { type: "string" } } }, required: ["field", "question", "options"], additionalProperties: false },
+      items: { type: "object", properties: { field: { type: "string" }, question: { type: "string" }, options: strArray }, required: ["field", "question", "options"], additionalProperties: false },
     },
     scope: { type: "string", enum: [...GOAL_SCOPES] },
     confidence: { type: "number" },
   },
-  required: ["name", "outcome", "timeframe", "metrics", "assumptions", "ambiguities", "scope", "confidence"],
+  required: ["name", "outcome", "timeframe", "metrics", "constraints", "milestones", "drivers", "assumptions", "ambiguities", "scope", "confidence"],
   additionalProperties: false,
 } as const;
+
+type Json = Record<string, unknown>;
+const isObj = (v: unknown): v is Json => !!v && typeof v === "object" && !Array.isArray(v);
+
+function filterFromTool(f: unknown): unknown {
+  if (!isObj(f)) return f;
+  const out: Json = { ...f };
+  if (Array.isArray(f.metadata_equals)) {
+    const rec: Record<string, string> = {};
+    for (const e of f.metadata_equals) if (isObj(e) && typeof e.key === "string" && typeof e.value === "string") rec[e.key] = e.value;
+    out.metadata_equals = rec;
+  }
+  return out;
+}
+
+function inputFromTool(i: unknown): unknown {
+  if (!isObj(i)) return i;
+  const out: Json = { ...i };
+  delete out.key;
+  out.filter = filterFromTool(i.filter);
+  if (Array.isArray(i.require_match)) out.require_match = i.require_match.map((r) => (isObj(r) ? { ...r, filter: filterFromTool(r.filter) } : r));
+  for (const k of ["field", "timestamp_field", "distinct_by", "require_match"]) if (out[k] == null) delete out[k];
+  return out;
+}
+
+/** Converts the strict tool output (arrays for maps, explicit nulls) into the internal interpretation shape. Accepts the internal shape unchanged. */
+export function fromToolInput(raw: unknown): unknown {
+  if (!isObj(raw)) return raw;
+  const out: Json = { ...raw };
+  if (Array.isArray(raw.metrics)) {
+    out.metrics = raw.metrics.map((m) => {
+      if (!isObj(m)) return m;
+      const metric: Json = { ...m };
+      if (Array.isArray(m.inputs)) {
+        const rec: Json = {};
+        for (const i of m.inputs) if (isObj(i) && typeof i.key === "string") rec[i.key] = inputFromTool(i);
+        metric.inputs = rec;
+      } else if (isObj(m.inputs)) {
+        metric.inputs = Object.fromEntries(Object.entries(m.inputs).map(([k, v]) => [k, inputFromTool(isObj(v) ? { ...v, key: k } : v)]));
+      }
+      if (metric.duration == null) delete metric.duration;
+      if (isObj(m.time_range)) {
+        const tr: Json = { ...m.time_range };
+        if (tr.days == null) delete tr.days;
+        if (tr.since == null) delete tr.since;
+        metric.time_range = tr;
+      }
+      return metric;
+    });
+  }
+  if (Array.isArray(raw.drivers)) {
+    out.drivers = raw.drivers.map((d) => {
+      if (!isObj(d)) return d;
+      const drv: Json = { ...d, input: inputFromTool(d.input) };
+      if (drv.assumption == null) delete drv.assumption;
+      return drv;
+    });
+  }
+  return out;
+}

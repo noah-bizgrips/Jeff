@@ -1,6 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import { GOAL_INTERPRETATION_JSON_SCHEMA, GoalInterpretationSchema, type GoalInterpretation, type GoalMetric, type TimeframeAnchor } from "./schema";
+import { fromToolInput, GOAL_INTERPRETATION_JSON_SCHEMA, GoalInterpretationSchema, type GoalInterpretation, type GoalMetric, type TimeframeAnchor } from "./schema";
 import { resolveAnchor, type AnchorResolution } from "./anchor";
 import { budgetStatus, recordUsage } from "@/lib/jeff/budget";
 import { hasEnv } from "@/lib/env";
@@ -398,13 +398,15 @@ METRIC INPUT VOCABULARY
 - ratio/currency formulas reference input keys: e.g. "ad_spend / clients". Currency values are integer cents (target ≤ $1,000 → 100000).
 - timeframe.anchor: when the window starts at a real event ("from Steve Seaver's sign date") set { description, search_terms: [full name, surname], event: signed|first_payment|created|custom } and leave start null; Jeff finds candidate dates and asks the owner to confirm.
 
+OUTPUT SHAPE: each metric's inputs is an ARRAY of keyed inputs; key is the variable name used in the formula ("value" for single-input metrics). Use null for duration on non-duration metrics and for absent optional values. metadata_equals is an array of { key, value }.
+
 WORKED EXAMPLE — "validated clients" the way owners usually mean it:
-{ provider: "portal", resource_type: "client", filter: { status_not_in: ["churned"], tags_none: ["test"] }, aggregation: "count", distinct_by: "client_id",
+inputs: [{ key: "value", provider: "portal", resource_type: "client", filter: { status_not_in: ["churned"], tags_none: ["test"] }, aggregation: "count", distinct_by: "client_id",
   require_match: [
     { provider: "google", resource_type: "event", filter: { title_contains: ["Right Fit Call"] }, via: "email_hash", in_window: true, label: "a Right Fit Call on the calendar" },
-    { provider: "highlevel", resource_type: "message", filter: {}, via: "email_hash", in_window: false, label: "a HighLevel conversation" } ] }
-Sign-to-first-payment: start = google email titled contract/agreement (metadata.to = client email), end = stripe invoice with status_in ["paid"]; duration.join.via email_hash.
-CAC: inputs ad_spend = meta ad_insight sum(spend) [title_contains the ad set name if given], clients = the validated-client input above; formula "ad_spend / clients"; kind currency; comparator lte.
+    { provider: "highlevel", resource_type: "message", filter: {}, via: "email_hash", in_window: false, label: "a HighLevel conversation" } ] }]
+Sign-to-first-payment (kind duration_days): inputs [{ key: "signed", google email, filter title_contains ["contract","agreement"] }, { key: "paid", stripe invoice, filter status_in ["paid"] }]; duration { start: "signed", end: "paid", join { via: "email_hash", aggregation: "max" } }.
+CAC (kind currency, comparator lte, target 100000): inputs [{ key: "ad_spend", meta ad_insight, aggregation sum, field spend, title_contains the ad set name if given }, { key: "clients", the validated-client input above }]; formula "ad_spend / clients".
 
 RULES
 - Follow the owner's explicit definitions exactly; never replace them with a simpler default (e.g. do not count HighLevel won opportunities when the owner defined a client through the portal).
@@ -535,7 +537,7 @@ async function interpretGoalCore(ownerId: string, text: string, deps: InterpretD
     }, "goal");
     const tool = response.content.find((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use" && b.name === "goal_interpretation");
     if (!tool) throw new Error("no_tool_output");
-    const parsed = GoalInterpretationSchema.safeParse(tool.input);
+    const parsed = GoalInterpretationSchema.safeParse(fromToolInput(tool.input));
     if (!parsed.success) {
       log.warn("goal_interpretation_schema_failed", { issues: parsed.error.issues.slice(0, 5).map((i) => i.path.join(".")) });
       notes.push("The AI interpretation did not validate; showing the deterministic parse.");

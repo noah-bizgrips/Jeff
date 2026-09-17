@@ -4,7 +4,7 @@ vi.mock("@/lib/jeff/budget", () => ({ budgetStatus: vi.fn(async () => ({ spentUs
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => { throw new Error("no db in unit tests"); } }));
 
 const { computeMetric, emailHashOf, buildIdentityIndex, identityKeys } = await import("@/lib/jeff/goals/metrics");
-const { GoalMetricSchema, GoalInterpretationSchema } = await import("@/lib/jeff/goals/schema");
+const { GoalMetricSchema, GoalInterpretationSchema, GOAL_INTERPRETATION_JSON_SCHEMA, fromToolInput } = await import("@/lib/jeff/goals/schema");
 const { preParseAnchor, isDetailedBrief, interpretGoal, applyAnchorResolution, GOAL_PROMPT_MAX_CHARS } = await import("@/lib/jeff/goals/interpret");
 const { rankAnchorCandidates } = await import("@/lib/jeff/goals/anchor");
 const { inventoryOf } = await import("@/lib/integrations/sync/portal");
@@ -253,5 +253,70 @@ describe("describeInput", () => {
   it("explains exclusions and cross-source conditions in plain words", () => {
     expect(describeInput({ provider: "stripe", resource_type: "invoice", filter: { status_in: ["paid"] }, aggregation: "sum", field: "amount_paid" })).toBe("Stripe invoices (status paid) · sum(amount_paid)");
     expect(describeInput({ provider: "portal", resource_type: "client", filter: { status_not_in: ["churned"] }, require_match: [{ provider: "google", resource_type: "event", filter: { title_contains: ["Right Fit Call"] } }] })).toBe('Client Portal clients (excluding churned) with Google event (titled "Right Fit Call") · count');
+  });
+});
+
+describe("strict tool schema", () => {
+  it("only uses the JSON-schema subset strict tool use accepts", () => {
+    const problems: string[] = [];
+    const walk = (node: unknown, path: string) => {
+      if (Array.isArray(node)) return node.forEach((n, i) => walk(n, `${path}[${i}]`));
+      if (!node || typeof node !== "object") return;
+      const o = node as Record<string, unknown>;
+      if (Array.isArray(o.type)) problems.push(`${path}: type array`);
+      if (o.type === "object") {
+        if (o.additionalProperties !== false) problems.push(`${path}: additionalProperties must be false`);
+        const props = Object.keys((o.properties as object) ?? {});
+        const req = (o.required as string[]) ?? [];
+        for (const r of req) if (!props.includes(r)) problems.push(`${path}: required '${r}' not a property`);
+      }
+      for (const k of ["minLength", "maxLength", "minimum", "maximum", "pattern"]) if (k in o) problems.push(`${path}: ${k} unsupported`);
+      for (const [k, v] of Object.entries(o)) if (k !== "enum" && k !== "required") walk(v, `${path}.${k}`);
+    };
+    walk(GOAL_INTERPRETATION_JSON_SCHEMA, "$");
+    expect(problems).toEqual([]);
+  });
+
+  it("converts keyed-input arrays and metadata_equals pairs into the internal map shape", () => {
+    const raw = {
+      name: "g",
+      outcome: "o",
+      timeframe: { start: null, end: null, days: 60, anchor: null },
+      metrics: [
+        {
+          key: "cac",
+          name: "CAC",
+          kind: "currency",
+          target: 100000,
+          comparator: "lte",
+          target_upper: null,
+          unit: "usd",
+          formula: "ad_spend / clients",
+          inputs: [
+            { key: "ad_spend", provider: "meta", resource_type: "ad_insight", filter: { title_contains: ["BizGrips"], metadata_equals: [{ key: "account_id", value: "123" }] }, aggregation: "sum", field: "spend", timestamp_field: null, require_match: null, distinct_by: null },
+            { key: "clients", provider: "portal", resource_type: "client", filter: {}, aggregation: "count", distinct_by: "client_id", require_match: [{ provider: "highlevel", resource_type: "message", filter: {}, via: "email_hash", in_window: false, label: "a conversation" }] },
+          ],
+          duration: null,
+          time_range: { kind: "goal_window", days: null, since: null },
+          is_primary: true,
+          is_constraint: false,
+          constraint_strength: "soft",
+          limitations: [],
+        },
+      ],
+      constraints: [],
+      milestones: [],
+      drivers: [{ key: "leads", name: "Leads", input: { provider: "highlevel", resource_type: "contact", filter: {}, aggregation: "count" }, implied_target: null, assumption: "x" }],
+      assumptions: [],
+      ambiguities: [],
+      scope: "business",
+      confidence: 0.6,
+    };
+    const parsed = GoalInterpretationSchema.parse(fromToolInput(raw));
+    expect(Object.keys(parsed.metrics[0]!.inputs)).toEqual(["ad_spend", "clients"]);
+    expect(parsed.metrics[0]!.inputs.ad_spend!.filter.metadata_equals).toEqual({ account_id: "123" });
+    expect(parsed.metrics[0]!.inputs.clients!.require_match![0]!.label).toBe("a conversation");
+    expect(parsed.metrics[0]!.duration).toBeUndefined();
+    expect(parsed.drivers[0]!.input.provider).toBe("highlevel");
   });
 });

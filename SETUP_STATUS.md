@@ -108,7 +108,7 @@ Last updated: 2026-09-11
 | --- | --- | --- |
 | Memory & operating rules engine + UI (`/memory`) | DONE | Deployed to production 2026-09-12. See `INTELLIGENCE_UPGRADE_STATUS.md`. |
 | Open Commitments classifier fix + seeded GitHub rule | DONE | |
-| Goals engine + UI (`/goals`) | DONE | |
+| Goals engine + UI (`/goals`) | DONE | 2026-09-17: detailed briefs (≤6k chars) — cross-source metric conditions joined by email/contact/customer/client identity, hard exclusions, Client Portal as a goal source, anchored start dates ("from Steve's sign date"), strict-tool-compliant interpreter schema. |
 | Alert engine + Alert center (`/alerts`) | DONE | |
 | Daily/weekly/monthly briefings (`/briefings`), cron every 15 min | DONE | 7:30 AM America/Denver default; configurable in `/settings`. |
 | Commitments, outcome measurement, data freshness, Settings | DONE | |
