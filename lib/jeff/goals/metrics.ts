@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { GoalMetric, IdentityKey, MetricFilter, MetricInput, MetricResult, RequireMatch, TimeRange } from "./schema";
-import { describeInput as describeInputSpec, providerLabel } from "./format";
+import { describeInput as describeInputSpec, formatMetricValue, providerLabel } from "./format";
 
 export { formatMetricValue, formatTarget, providerLabel } from "./format";
 
@@ -95,6 +95,12 @@ export function matchesRowFilter(row: MetricRow, f: MetricFilter | undefined): b
     }
   }
   if (f.metadata_truthy?.length) for (const k of f.metadata_truthy) if (!meta(row, k)) return false;
+  if (f.metadata_min) {
+    for (const [k, min] of Object.entries(f.metadata_min)) {
+      const got = numericField(row, k);
+      if (got == null || got < min) return false;
+    }
+  }
   return true;
 }
 
@@ -559,6 +565,10 @@ export function computeMetric(metric: GoalMetric, rows: MetricRow[], connections
     const only = computed[onlyKey]!;
     value = fresh.missing.has(metric.inputs[onlyKey]!.provider) && only.sample_size === 0 ? null : only.value;
     sampleSize = only.sample_size;
+  }
+  if (metric.baseline && (metric.kind === "count" || metric.kind === "currency") && Object.keys(metric.inputs).length === 1) {
+    value = (value ?? 0) + metric.baseline;
+    limitations.push(`Includes ${formatMetricValue({ value: metric.baseline, kind: metric.kind, unit: metric.unit })} counted before tracking started.`);
   }
 
   return {

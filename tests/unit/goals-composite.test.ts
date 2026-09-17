@@ -5,7 +5,8 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => { throw new Er
 
 const { computeMetric, emailHashOf, buildIdentityIndex, identityKeys } = await import("@/lib/jeff/goals/metrics");
 const { GoalMetricSchema, GoalInterpretationSchema, GOAL_INTERPRETATION_JSON_SCHEMA, fromToolInput } = await import("@/lib/jeff/goals/schema");
-const { preParseAnchor, isDetailedBrief, interpretGoal, applyAnchorResolution, GOAL_PROMPT_MAX_CHARS } = await import("@/lib/jeff/goals/interpret");
+const { preParseAnchor, preParseBaseline, preParseGoal, isDetailedBrief, interpretGoal, applyAnchorResolution, GOAL_PROMPT_MAX_CHARS } = await import("@/lib/jeff/goals/interpret");
+const { applyDefinitionResolutions } = await import("@/lib/jeff/goals/store");
 const { rankAnchorCandidates } = await import("@/lib/jeff/goals/anchor");
 const { inventoryOf } = await import("@/lib/integrations/sync/portal");
 const { describeInput } = await import("@/lib/jeff/goals/format");
@@ -257,8 +258,9 @@ describe("describeInput", () => {
 });
 
 describe("strict tool schema", () => {
-  it("only uses the JSON-schema subset strict tool use accepts", () => {
+  it("only uses the JSON-schema subset strict tool use accepts, with at most 24 optional parameters", () => {
     const problems: string[] = [];
+    let optional = 0;
     const walk = (node: unknown, path: string) => {
       if (Array.isArray(node)) return node.forEach((n, i) => walk(n, `${path}[${i}]`));
       if (!node || typeof node !== "object") return;
@@ -269,12 +271,25 @@ describe("strict tool schema", () => {
         const props = Object.keys((o.properties as object) ?? {});
         const req = (o.required as string[]) ?? [];
         for (const r of req) if (!props.includes(r)) problems.push(`${path}: required '${r}' not a property`);
+        optional += props.filter((k) => !req.includes(k)).length;
       }
       for (const k of ["minLength", "maxLength", "minimum", "maximum", "pattern"]) if (k in o) problems.push(`${path}: ${k} unsupported`);
       for (const [k, v] of Object.entries(o)) if (k !== "enum" && k !== "required") walk(v, `${path}.${k}`);
     };
     walk(GOAL_INTERPRETATION_JSON_SCHEMA, "$");
     expect(problems).toEqual([]);
+    expect(optional).toBeLessThanOrEqual(24); // API limit: "Schemas contains too many optional parameters"
+  });
+
+  it("treats empty filter arrays and nulls from the model as no constraint", () => {
+    const full = { status_in: [], status_not_in: ["churned"], stage_contains: [], tags_any: [], tags_none: [], title_contains: [], metadata_equals: [], metadata_truthy: [], metadata_falsy: [], metadata_min: [{ key: "amount_paid", value: 100000 }] };
+    const raw = { name: "g", outcome: "o", timeframe: { start: null, end: null, days: null, anchor: null }, metrics: [{ key: "clients", name: "c", kind: "count", target: 10, comparator: "gte", target_upper: null, unit: "", formula: "", baseline: 1, inputs: [{ key: "value", provider: "stripe", resource_type: "invoice", filter: full, aggregation: "count", field: null, timestamp_field: null, require_match: [], distinct_by: "email_hash" }], duration: null, time_range: { kind: "goal_window", days: null, since: null }, is_primary: true, is_constraint: false, constraint_strength: "soft", limitations: [] }], constraints: [], milestones: [], drivers: [], assumptions: [], ambiguities: [], scope: "business", confidence: 0.5 };
+    const parsed = GoalInterpretationSchema.parse(fromToolInput(raw));
+    const input = parsed.metrics[0]!.inputs.value!;
+    expect(input.filter).toEqual({ status_not_in: ["churned"], metadata_min: { amount_paid: 100000 } });
+    expect(input.require_match).toBeUndefined();
+    expect(input.field).toBeUndefined();
+    expect(parsed.metrics[0]!.baseline).toBe(1);
   });
 
   it("converts keyed-input arrays and metadata_equals pairs into the internal map shape", () => {
@@ -318,5 +333,35 @@ describe("strict tool schema", () => {
     expect(parsed.metrics[0]!.inputs.clients!.require_match![0]!.label).toBe("a conversation");
     expect(parsed.metrics[0]!.duration).toBeUndefined();
     expect(parsed.drivers[0]!.input.provider).toBe("highlevel");
+  });
+});
+
+describe("already-signed clients and definition resolutions", () => {
+  it("reads 'already signed counts as #1' as a baseline and an anchor", () => {
+    const text = "Onboard 10 new clients in the next 60 days (Steve Seaver already signed counts as #1, so 9 more needed), with CAC under $1,000 per client.";
+    expect(preParseBaseline(text)).toBe(1);
+    expect(preParseBaseline("Onboard 10 new clients in 60 days")).toBe(0);
+    expect(preParseAnchor(text)?.anchor).toMatchObject({ search_terms: ["Steve Seaver", "Seaver", "Steve"], event: "signed" });
+    const pre = preParseGoal(text, NOW);
+    expect(pre.interpretation.metrics[0]).toMatchObject({ key: "clients_onboarded", target: 10, baseline: 1 });
+    expect(pre.interpretation.assumptions.join(" ")).toMatch(/1 client signed before tracking started/);
+  });
+
+  it("adds the baseline to the computed count", () => {
+    const metric = GoalMetricSchema.parse({ key: "clients", name: "Clients", kind: "count", target: 10, comparator: "gte", unit: "clients", formula: "", baseline: 1, inputs: { value: VALIDATED_CLIENT_INPUT }, time_range: { kind: "goal_window" }, is_primary: true, is_constraint: false });
+    const r = computeMetric(metric, ROWS, CONNECTED, WINDOW, NOW);
+    expect(r.value).toBe(2);
+    expect(r.limitations.join(" ")).toMatch(/Includes 1 counted before tracking started/);
+  });
+
+  it("rewrites the client metric when the owner resolves it as a Stripe first payment over $1,000", () => {
+    const pre = preParseGoal("Onboard 10 new clients in the next 60 days", NOW);
+    const { metrics, changed } = applyDefinitionResolutions(pre.interpretation.metrics, [{ field: "clients_onboarded.definition", resolution: "First payment received in stripe that is greater than $1000." }]);
+    expect(changed).toBe(true);
+    const input = metrics[0]!.inputs.value!;
+    expect(input).toMatchObject({ provider: "stripe", resource_type: "invoice", distinct_by: "email_hash", filter: { status_in: ["paid"], metadata_min: { amount_paid: 100000 } } });
+    const r = computeMetric(metrics[0]!, ROWS, CONNECTED, WINDOW, NOW);
+    expect(r.value).toBe(2); // Steve and Dana each paid $1,500 in the window
+    expect(applyDefinitionResolutions(pre.interpretation.metrics, [{ field: "clients_onboarded.definition", resolution: "Opportunity marked won in HighLevel" }]).changed).toBe(false);
   });
 });

@@ -173,7 +173,8 @@ const conversations: CapabilityFetch = async (conn) => {
 const calendars: CapabilityFetch = async (conn) => {
   const s = await sessionFor(conn);
   const list = (await get<{ calendars?: { id: string; name?: string; isActive?: boolean }[] }>(s, "/calendars/", { locationId: s.locationId })).calendars ?? [];
-  const startTime = Date.now() - 7 * DAY;
+  // Look back far enough that a client's first appointment (booked weeks before they sign) is on record for goals.
+  const startTime = Date.now() - 120 * DAY;
   const endTime = Date.now() + 60 * DAY;
   const events: HLCalendarEvent[] = [];
   let seen = 0;

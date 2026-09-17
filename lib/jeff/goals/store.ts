@@ -263,6 +263,33 @@ export interface ApproveInput {
   end_date?: string;
 }
 
+/**
+ * Resolutions that change what a metric measures. The regex pre-parse asks
+ * "what counts as a client?"; choosing (or typing) a Stripe first-payment
+ * definition rewrites that metric's input so the answer actually takes
+ * effect. "$1,000" in the answer becomes a minimum paid amount.
+ */
+export function applyDefinitionResolutions(metrics: GoalMetric[], ambiguities: { field: string; resolution: string | null }[]): { metrics: GoalMetric[]; changed: boolean } {
+  let changed = false;
+  const out = metrics.map((m) => {
+    const amb = ambiguities.find((a) => a.field === `${m.key}.definition` && a.resolution);
+    if (!amb || m.kind !== "count") return m;
+    const r = amb.resolution!.toLowerCase();
+    if (!/\b(stripe|payment|paid|invoice)\b/.test(r)) return m;
+    const money = r.match(/\$\s*([\d,]+(?:\.\d+)?)\s*(k)?/);
+    const minCents = money ? Math.round(Number(money[1]!.replace(/,/g, "")) * (money[2] ? 1000 : 1) * 100) : null;
+    const filter: GoalMetric["inputs"][string]["filter"] = { status_in: ["paid"], ...(minCents ? { metadata_min: { amount_paid: minCents } } : {}) };
+    changed = true;
+    return GoalMetricSchema.parse({
+      ...m,
+      formula: "count(distinct paying emails with a paid Stripe invoice in window)",
+      inputs: { value: { provider: "stripe", resource_type: "invoice", filter, aggregation: "count", distinct_by: "email_hash" } },
+      limitations: [`Client definition (owner): "${amb.resolution}". Counts one client per paying email; the first paid invoice in the window counts.`],
+    });
+  });
+  return { metrics: out, changed };
+}
+
 /** Approves a draft: every ambiguity needs a resolution; dates are fixed; the interpretation records the choices. */
 export async function approveGoal(ownerId: string, id: string, input: ApproveInput, now = new Date()): Promise<GoalRow> {
   const goal = await getGoal(ownerId, id);
@@ -276,7 +303,9 @@ export async function approveGoal(ownerId: string, id: string, input: ApproveInp
   const start = input.start_date ?? anchored ?? goal.start_date ?? now.toISOString().slice(0, 10);
   const days = goal.interpretation.timeframe.days;
   const end = input.end_date ?? goal.end_date ?? (days ? new Date(Date.parse(start) + days * 86_400_000).toISOString().slice(0, 10) : null);
-  const interpretation: GoalInterpretation = { ...goal.interpretation, name: input.name ?? goal.interpretation.name, timeframe: { ...goal.interpretation.timeframe, start, end, days }, ambiguities };
+  const resolvedMetrics = applyDefinitionResolutions(goal.interpretation.metrics, ambiguities);
+  const interpretation: GoalInterpretation = { ...goal.interpretation, name: input.name ?? goal.interpretation.name, timeframe: { ...goal.interpretation.timeframe, start, end, days }, ambiguities, metrics: resolvedMetrics.metrics };
+  if (resolvedMetrics.changed) await replaceMetrics(ownerId, id, interpretation);
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("goals")

@@ -68,9 +68,19 @@ export interface PreParseResult {
 
 const ANCHOR_RE = /\b(?:starting|starts?|beginning|begins?|counted|counting|measured|running)\s+(?:from|at|on|with)\s+(?:the\s+)?([A-Z][\w.&-]*(?:\s+(?:[A-Z][\w.&-]*|of|and|&)){0,4})(?:'s|’s|s')?\s+(sign(?:ing|ed|ature|-up|up)?|contract|agreement|first[ -]payment|payment|start|onboarding|created|creation|join)\s+date\b/;
 
+/** "(Steve Seaver already signed counts as #1)" → same anchor: the window starts when that client signed. */
+const ALREADY_SIGNED_RE = /\b([A-Z][\w.&-]*(?:\s+[A-Z][\w.&-]*){0,3})\s+(?:has\s+|had\s+)?(?:already|previously)\s+(signed|paid|joined|started)\b/;
+
+/** "already signed counts as #1" / "counts as client #1" → progress that predates tracking. Pure. */
+export function preParseBaseline(text: string): number {
+  const m = text.match(/\b(?:already|previously)\s+(?:signed|paid|joined|onboarded|closed)\b[^.\n]*?\b(?:counts?|counted|count as)\s+(?:as\s+)?(?:client\s+|customer\s+)?#\s*(\d{1,3})\b/i) ?? text.match(/\bcounts?\s+as\s+(?:client\s+|customer\s+)?#\s*(\d{1,3})\b/i);
+  if (m) return Number(m[1]);
+  return /\b(?:already|previously)\s+(?:signed|paid|joined|onboarded)\b/i.test(text) ? 1 : 0;
+}
+
 /** "starting from Steve Seaver's sign date" → a timeframe anchor plus the matched fragment. Pure. */
 export function preParseAnchor(text: string): { anchor: TimeframeAnchor; matched: string } | null {
-  const m = text.match(ANCHOR_RE);
+  const m = text.match(ANCHOR_RE) ?? text.match(ALREADY_SIGNED_RE);
   if (!m) return null;
   const name = m[1]!.replace(/\s+(?:of|and|&)$/i, "").trim();
   if (!name || /^(?:the|my|our|his|her|their)$/i.test(name)) return null;
@@ -136,6 +146,7 @@ export function preParseGoal(text: string, now = new Date()): PreParseResult {
     const target = Number(clients[1]);
     const noun = clients[2]!;
     const isLead = noun === "lead";
+    const baseline = isLead ? 0 : preParseBaseline(t);
     name = `${target} new ${noun}s${days ? ` in ${days} days` : end ? ` by ${end}` : ""}`;
     metrics.push({
       key: isLead ? "leads_acquired" : "clients_onboarded",
@@ -146,6 +157,7 @@ export function preParseGoal(text: string, now = new Date()): PreParseResult {
       target_upper: null,
       unit: noun + "s",
       formula: isLead ? "count(highlevel contacts created in window)" : "count(highlevel opportunities marked won in window)",
+      baseline,
       inputs: isLead
         ? { value: { provider: "highlevel", resource_type: "contact", filter: {}, aggregation: "count", timestamp_field: "dateAdded" } }
         : { value: HL_WON_OPPORTUNITIES },
@@ -157,6 +169,7 @@ export function preParseGoal(text: string, now = new Date()): PreParseResult {
     });
     if (!isLead) {
       assumptions.push('A "new client" = a HighLevel opportunity whose status changed to won inside the goal window (stage names containing won/signed/client count as won).');
+      if (baseline) assumptions.push(`${baseline} client${baseline === 1 ? "" : "s"} signed before tracking started and ${baseline === 1 ? "is" : "are"} counted toward the target.`);
       drivers.push(
         { key: "qualified_leads", name: "New leads", input: { provider: "highlevel", resource_type: "contact", filter: {}, aggregation: "count", timestamp_field: "dateAdded" }, implied_target: target * 9, assumption: "Placeholder funnel: ~9 leads per client (33% lead→booked, 33% booked→client). Replace with observed rates as data accrues." },
         { key: "booked_appointments", name: "Booked appointments", input: { provider: "highlevel", resource_type: "event", filter: {}, aggregation: "count" }, implied_target: target * 3, assumption: "Placeholder funnel: ~3 booked calls per client." },
@@ -180,6 +193,7 @@ export function preParseGoal(text: string, now = new Date()): PreParseResult {
       target_upper: null,
       unit: "USD",
       formula: "ad_spend / clients_acquired",
+      baseline: 0,
       inputs: { ad_spend: META_SPEND, clients_acquired: HL_WON_OPPORTUNITIES },
       time_range: { kind: "goal_window" },
       is_primary: false,
@@ -205,6 +219,7 @@ export function preParseGoal(text: string, now = new Date()): PreParseResult {
       target_upper: null,
       unit: "days",
       formula: "median(first paid Stripe charge date − HighLevel won date) per client",
+      baseline: 0,
       inputs: {
         signed: { ...HL_WON_OPPORTUNITIES, timestamp_field: "lastStatusChangeAt" },
         paid: { ...STRIPE_PAID_CHARGES, aggregation: "latest" },
@@ -236,6 +251,7 @@ export function preParseGoal(text: string, now = new Date()): PreParseResult {
       target_upper: null,
       unit: "USD",
       formula: "sum(active Stripe subscription monthly amounts)",
+      baseline: 0,
       inputs: { value: { provider: "stripe", resource_type: "subscription", filter: { status_in: ["active", "trialing", "past_due"] }, aggregation: "sum", field: "monthly_amount" } },
       time_range: { kind: "trailing_days", days: 730 },
       is_primary: metrics.every((m) => !m.is_primary),
@@ -259,6 +275,7 @@ export function preParseGoal(text: string, now = new Date()): PreParseResult {
       target_upper: null,
       unit: "%",
       formula: "(revenue − cost of delivery) / revenue",
+      baseline: 0,
       inputs: {},
       time_range: { kind: "goal_window" },
       is_primary: false,
@@ -285,6 +302,7 @@ export function preParseGoal(text: string, now = new Date()): PreParseResult {
       target_upper: null,
       unit: "USD",
       formula: "sum(latest available balance across connected bank accounts)",
+      baseline: 0,
       inputs: { value: { provider: "plaid", resource_type: "account", filter: { metadata_equals: { type: "depository" } }, aggregation: "sum", field: "available" } },
       time_range: { kind: "trailing_days", days: 730 },
       is_primary: metrics.every((m) => !m.is_primary),
@@ -312,6 +330,7 @@ export function preParseGoal(text: string, now = new Date()): PreParseResult {
       target_upper: null,
       unit: "minutes",
       formula: "median(first outbound message time − lead created time) per lead",
+      baseline: 0,
       inputs: {
         lead: { provider: "highlevel", resource_type: "contact", filter: {}, aggregation: "count", timestamp_field: "dateAdded" },
         reply: { provider: "highlevel", resource_type: "message", filter: { metadata_equals: { lastMessageDirection: "outbound" } }, aggregation: "latest", timestamp_field: "lastMessageDate" },
@@ -382,9 +401,9 @@ DATA JEFF CAN READ (provider → resource_type; useful metadata fields; how a re
   - client_user: one login on a client account; metadata.email_hash, client_id, role primary|member, status invited|active|revoked.
   - task: onboarding task; metadata.client_id, status, due_at.  lead / appointment: the CLIENT'S OWN customers and their bookings — never the owner's clients or the owner's calendar.
 - google
-  - event (Google Calendar): title = event name (e.g. "Right Fit Call"); metadata.attendees = attendee emails (identity); timestamp = start.
+  - event (Google Calendar): the owner's PERSONAL calendar (personal plans, small groups); metadata.attendees = attendee emails (identity); timestamp = start. Business appointments are NOT here.
   - email (Gmail): title = subject; author = sender; metadata.to = recipient emails (identity); timestamp = received/sent. Use title_contains for subject words such as "contract" or "agreement".
-- highlevel: contact (email_hash, dateAdded) · opportunity (status open|won|lost|abandoned, stage, monetaryValue, contactId, lastStatusChangeAt) · message (= one conversation with a contact; contactId, lastMessageDate, lastMessageDirection) · event (booked appointment; contactId, start, status). contactId resolves to the contact's email.
+- highlevel: contact (email_hash, dateAdded) · opportunity (status open|won|lost|abandoned, stage, monetaryValue, contactId, lastStatusChangeAt) · message (= one conversation with a contact; contactId, lastMessageDate, lastMessageDirection) · event (BOOKED APPOINTMENTS — sales calls live here; titles like "BizGrips x <Name> - Right Fit Call" or "<Name> Bath Consultation - <Client>"; contactId, start, status confirmed|cancelled|showed|noshow). Any "appointment", "call", "consultation" or "Right Fit Call" condition = highlevel event with title_contains, and status_not_in ["cancelled"]. contactId resolves to the contact's email.
 - stripe: invoice (status paid|open|void|draft, paid boolean, amount_paid, customerId, timestamp = created) · charge (paid, amount, customerId) · customer (email_hash) · subscription (status, monthly_amount). customerId resolves to the customer's email.
 - meta: ad_insight (one campaign-day; spend in cents, campaign_name, leads, date). Sum spend over the window; filter by campaign name with title_contains when the owner names an ad set/campaign.
 - plaid: account (available, current, type), transaction (amount).
@@ -396,15 +415,17 @@ METRIC INPUT VOCABULARY
 - timestamp_field: which metadata field dates a record (default: the record's own timestamp).
 - duration_days metrics: inputs start + end, duration { start, end, join { via, aggregation avg|median|max } }. Use max when the owner says each/every/all must be under N days (the slowest pair decides); median when they ask for typical. Pairs are matched by identity; the first end record at or after the start record is used.
 - ratio/currency formulas reference input keys: e.g. "ad_spend / clients". Currency values are integer cents (target ≤ $1,000 → 100000).
-- timeframe.anchor: when the window starts at a real event ("from Steve Seaver's sign date") set { description, search_terms: [full name, surname], event: signed|first_payment|created|custom } and leave start null; Jeff finds candidate dates and asks the owner to confirm.
+- timeframe.anchor: when the window starts at a real event ("from Steve Seaver's sign date", "Steve already signed and counts as #1") set { description, search_terms: [full name, surname], event: signed|first_payment|created|custom } and leave start null; Jeff finds candidate dates and asks the owner to confirm.
+- baseline: progress that predates tracking. "Steve already signed counts as #1" → the client-count metric keeps target 10 and baseline 1 (Jeff adds it to the computed count), with an assumption naming who is counted. Baseline is 0 otherwise.
 
 OUTPUT SHAPE: each metric's inputs is an ARRAY of keyed inputs; key is the variable name used in the formula ("value" for single-input metrics). Use null for duration on non-duration metrics and for absent optional values. metadata_equals is an array of { key, value }.
 
 WORKED EXAMPLE — "validated clients" the way owners usually mean it:
-inputs: [{ key: "value", provider: "portal", resource_type: "client", filter: { status_not_in: ["churned"], tags_none: ["test"] }, aggregation: "count", distinct_by: "client_id",
+inputs: [{ key: "value", provider: "portal", resource_type: "client", filter: { status_not_in: ["churned"], tags_none: ["test"] }, aggregation: "count", distinct_by: "client_id", timestamp_field: "created_at",
   require_match: [
-    { provider: "google", resource_type: "event", filter: { title_contains: ["Right Fit Call"] }, via: "email_hash", in_window: true, label: "a Right Fit Call on the calendar" },
+    { provider: "highlevel", resource_type: "event", filter: { title_contains: ["Right Fit Call"], status_not_in: ["cancelled"] }, via: "email_hash", in_window: true, label: "a Right Fit Call booked in HighLevel" },
     { provider: "highlevel", resource_type: "message", filter: {}, via: "email_hash", in_window: false, label: "a HighLevel conversation" } ] }]
+"First payment received in Stripe" as the client definition: inputs [{ key: "value", provider: "stripe", resource_type: "invoice", filter: { status_in: ["paid"], metadata_min: [{ key: "amount_paid", value: 100000 }] }, aggregation: "count", distinct_by: "email_hash", require_match: [{ provider: "portal", resource_type: "client_user", filter: { status_not_in: ["revoked"] }, via: "email_hash", in_window: false, label: "a Client Portal login" }] }] — one client per paying email, only when that email has a portal account.
 Sign-to-first-payment (kind duration_days): inputs [{ key: "signed", google email, filter title_contains ["contract","agreement"] }, { key: "paid", stripe invoice, filter status_in ["paid"] }]; duration { start: "signed", end: "paid", join { via: "email_hash", aggregation: "max" } }.
 CAC (kind currency, comparator lte, target 100000): inputs [{ key: "ad_spend", meta ad_insight, aggregation sum, field spend, title_contains the ad set name if given }, { key: "clients", the validated-client input above }]; formula "ad_spend / clients".
 

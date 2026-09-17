@@ -50,5 +50,6 @@ export function describeFilter(f: Record<string, unknown> | undefined): string {
   if (f.metadata_equals && typeof f.metadata_equals === "object") bits.push(Object.entries(f.metadata_equals as Record<string, unknown>).map(([k, v]) => `${k}=${String(v)}`).join(", "));
   if (arr("metadata_truthy").length) bits.push(arr("metadata_truthy").join("&"));
   if (arr("metadata_falsy").length) bits.push(`not ${arr("metadata_falsy").join("&")}`);
+  if (f.metadata_min && typeof f.metadata_min === "object") bits.push(Object.entries(f.metadata_min as Record<string, number>).map(([k, v]) => `${k} ≥ ${/amount|spend|value|total/.test(k) ? `$${(v / 100).toLocaleString()}` : v}`).join(", "));
   return bits.length ? ` (${bits.join("; ")})` : "";
 }

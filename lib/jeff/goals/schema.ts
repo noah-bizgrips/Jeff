@@ -30,6 +30,8 @@ export const MetricFilterSchema = z
     metadata_equals: z.record(z.string().max(40), z.union([z.string().max(80), z.number(), z.boolean()])).optional(),
     metadata_truthy: z.array(z.string().max(40)).max(10).optional(),
     metadata_falsy: z.array(z.string().max(40)).max(10).optional(),
+    /** Numeric lower bounds on metadata fields, e.g. { amount_paid: 100000 } (cents). */
+    metadata_min: z.record(z.string().max(40), z.number()).optional(),
   })
   .default({});
 export type MetricFilter = z.infer<typeof MetricFilterSchema>;
@@ -98,6 +100,8 @@ export const GoalMetricSchema = z.object({
   unit: z.string().max(20).default(""),
   /** Safe arithmetic over input keys, e.g. "ad_spend / clients". */
   formula: z.string().max(200).default(""),
+  /** Added to the computed value: progress that predates tracking ("Steve already signed counts as #1"). Count/currency metrics only. */
+  baseline: z.number().default(0),
   /** Named inputs. count/currency/percentage metrics normally use a single "value" input. */
   inputs: z.record(z.string().regex(/^[a-z][a-z0-9_]{0,40}$/), MetricInputSchema).default({}),
   /** duration_days only: which inputs are start/end and how they pair. */
@@ -221,7 +225,10 @@ const FILTER_JSON_SCHEMA = {
     metadata_equals: { type: "array", items: { type: "object", properties: { key: { type: "string" }, value: { type: "string" } }, required: ["key", "value"], additionalProperties: false } },
     metadata_truthy: strArray,
     metadata_falsy: strArray,
+    metadata_min: { type: "array", items: { type: "object", properties: { key: { type: "string" }, value: { type: "number" } }, required: ["key", "value"], additionalProperties: false } },
   },
+  // Strict tool use caps optional parameters (24 per request), so every field is required; empty arrays mean "no constraint".
+  required: ["status_in", "status_not_in", "stage_contains", "tags_any", "tags_none", "title_contains", "metadata_equals", "metadata_truthy", "metadata_falsy", "metadata_min"],
   additionalProperties: false,
 };
 
@@ -233,10 +240,10 @@ const REQUIRE_MATCH_JSON_SCHEMA = {
     filter: FILTER_JSON_SCHEMA,
     via: { type: "string", enum: [...IDENTITY_KEYS] },
     in_window: { type: "boolean" },
-    timestamp_field: { type: "string" },
+    timestamp_field: nullable({ type: "string" }),
     label: { type: "string" },
   },
-  required: ["provider", "resource_type", "filter", "via", "in_window", "label"],
+  required: ["provider", "resource_type", "filter", "via", "in_window", "timestamp_field", "label"],
   additionalProperties: false,
 };
 
@@ -245,17 +252,18 @@ const INPUT_PROPERTIES = {
   resource_type: { type: "string" },
   filter: FILTER_JSON_SCHEMA,
   aggregation: { type: "string", enum: [...AGGREGATIONS] },
-  field: { type: "string" },
-  timestamp_field: { type: "string" },
+  field: nullable({ type: "string" }),
+  timestamp_field: nullable({ type: "string" }),
   require_match: { type: "array", items: REQUIRE_MATCH_JSON_SCHEMA },
-  distinct_by: { type: "string", enum: [...IDENTITY_KEYS] },
+  distinct_by: nullable({ type: "string", enum: [...IDENTITY_KEYS] }),
 };
+const INPUT_REQUIRED = ["provider", "resource_type", "filter", "aggregation", "field", "timestamp_field", "require_match", "distinct_by"];
 
 /** One keyed metric input: `key` is the variable name used in the formula ("value" for single-input metrics). */
 const KEYED_INPUT_JSON_SCHEMA = {
   type: "object",
   properties: { key: { type: "string" }, ...INPUT_PROPERTIES },
-  required: ["key", "provider", "resource_type", "filter", "aggregation"],
+  required: ["key", ...INPUT_REQUIRED],
   additionalProperties: false,
 };
 
@@ -294,6 +302,7 @@ export const GOAL_INTERPRETATION_JSON_SCHEMA = {
           target_upper: nullable({ type: "number" }),
           unit: { type: "string" },
           formula: { type: "string" },
+          baseline: { type: "number" },
           inputs: { type: "array", items: KEYED_INPUT_JSON_SCHEMA },
           duration: nullable({
             type: "object",
@@ -316,7 +325,7 @@ export const GOAL_INTERPRETATION_JSON_SCHEMA = {
           constraint_strength: { type: "string", enum: ["soft", "hard"] },
           limitations: strArray,
         },
-        required: ["key", "name", "kind", "target", "comparator", "target_upper", "unit", "formula", "inputs", "duration", "time_range", "is_primary", "is_constraint", "constraint_strength", "limitations"],
+        required: ["key", "name", "kind", "target", "comparator", "target_upper", "unit", "formula", "baseline", "inputs", "duration", "time_range", "is_primary", "is_constraint", "constraint_strength", "limitations"],
         additionalProperties: false,
       },
     },
@@ -329,9 +338,9 @@ export const GOAL_INTERPRETATION_JSON_SCHEMA = {
         properties: {
           key: { type: "string" },
           name: { type: "string" },
-          input: { type: "object", properties: INPUT_PROPERTIES, required: ["provider", "resource_type", "filter", "aggregation"], additionalProperties: false },
+          input: { type: "object", properties: INPUT_PROPERTIES, required: INPUT_REQUIRED, additionalProperties: false },
           implied_target: nullable({ type: "number" }),
-          assumption: { type: "string" },
+          assumption: nullable({ type: "string" }),
         },
         required: ["key", "name", "input", "implied_target", "assumption"],
         additionalProperties: false,
@@ -354,11 +363,19 @@ const isObj = (v: unknown): v is Json => !!v && typeof v === "object" && !Array.
 
 function filterFromTool(f: unknown): unknown {
   if (!isObj(f)) return f;
-  const out: Json = { ...f };
-  if (Array.isArray(f.metadata_equals)) {
-    const rec: Record<string, string> = {};
-    for (const e of f.metadata_equals) if (isObj(e) && typeof e.key === "string" && typeof e.value === "string") rec[e.key] = e.value;
-    out.metadata_equals = rec;
+  const out: Json = {};
+  for (const [k, v] of Object.entries(f)) {
+    if (k === "metadata_equals" || k === "metadata_min") {
+      if (Array.isArray(v)) {
+        const rec: Record<string, string | number> = {};
+        for (const e of v) if (isObj(e) && typeof e.key === "string" && (typeof e.value === "string" || typeof e.value === "number")) rec[e.key] = e.value;
+        if (Object.keys(rec).length) out[k] = rec;
+      } else if (isObj(v) && Object.keys(v).length) out[k] = v;
+      continue;
+    }
+    // Empty arrays and nulls mean "no constraint".
+    if (v == null || (Array.isArray(v) && v.length === 0)) continue;
+    out[k] = v;
   }
   return out;
 }
@@ -368,8 +385,16 @@ function inputFromTool(i: unknown): unknown {
   const out: Json = { ...i };
   delete out.key;
   out.filter = filterFromTool(i.filter);
-  if (Array.isArray(i.require_match)) out.require_match = i.require_match.map((r) => (isObj(r) ? { ...r, filter: filterFromTool(r.filter) } : r));
-  for (const k of ["field", "timestamp_field", "distinct_by", "require_match"]) if (out[k] == null) delete out[k];
+  if (Array.isArray(i.require_match) && i.require_match.length) {
+    out.require_match = i.require_match.map((r) => {
+      if (!isObj(r)) return r;
+      const req: Json = { ...r, filter: filterFromTool(r.filter) };
+      if (req.timestamp_field == null) delete req.timestamp_field;
+      if (req.label == null || req.label === "") delete req.label;
+      return req;
+    });
+  } else delete out.require_match;
+  for (const k of ["field", "timestamp_field", "distinct_by"]) if (out[k] == null || out[k] === "") delete out[k];
   return out;
 }
 

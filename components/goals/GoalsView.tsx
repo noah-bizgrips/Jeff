@@ -284,6 +284,10 @@ function GoalReviewModal({ goalId, onChanged }: { goalId: string; onChanged: () 
   const unresolved = g.ambiguities.filter((a) => !(resolutions[a.field] ?? a.resolution));
   const notes = interpreterNotes(detail.events);
   const anchor = g.interpretation.timeframe.anchor;
+  const days = g.interpretation.timeframe.days;
+  const effectiveStart = start || g.start_date || new Date().toISOString().slice(0, 10);
+  // The end date the server will use: what you typed, else the draft's, else start + N days — shown so nothing is implicit.
+  const effectiveEnd = end || g.end_date || (days ? new Date(Date.parse(effectiveStart) + days * 86_400_000).toISOString().slice(0, 10) : "");
 
   function resolve(field: string, value: string) {
     setResolutions((r) => ({ ...r, [field]: value }));
@@ -298,7 +302,7 @@ function GoalReviewModal({ goalId, onChanged }: { goalId: string; onChanged: () 
       const res = await fetch(`/api/goals/${goalId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ approve: { resolutions, name: name ?? undefined, start_date: start || undefined, end_date: end || undefined } }),
+        body: JSON.stringify({ approve: { resolutions, name: name ?? undefined, start_date: effectiveStart, end_date: effectiveEnd || undefined } }),
       });
       const d = (await res.json().catch(() => null)) as { error?: string; fields?: string[] } | null;
       if (!res.ok) return jeff.toast(`Could not approve (${d?.error ?? res.status}${d?.fields?.length ? `: ${d.fields.join(", ")}` : ""}).`);
@@ -330,13 +334,13 @@ function GoalReviewModal({ goalId, onChanged }: { goalId: string; onChanged: () 
           <div className="goal-two-col">
             <label className="field">
               Start date
-              <input type="date" value={start || g.start_date || ""} onChange={(e) => setStart(e.target.value)} />
+              <input type="date" value={effectiveStart} onChange={(e) => setStart(e.target.value)} />
               <small>{anchor ? `Day 1 = ${anchor.description}.` : "Defaults to today."}</small>
             </label>
             <label className="field">
               End date
-              <input type="date" value={end || g.end_date || ""} onChange={(e) => setEnd(e.target.value)} />
-              <small>{g.interpretation.timeframe.days ? `Defaults to start + ${g.interpretation.timeframe.days} days.` : "Leave empty to track continuously."}</small>
+              <input type="date" value={effectiveEnd} onChange={(e) => setEnd(e.target.value)} />
+              <small>{days ? `Start + ${days} days unless you change it.` : "Leave empty to track continuously."}</small>
             </label>
           </div>
         </div>
