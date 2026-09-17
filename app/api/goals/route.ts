@@ -3,13 +3,13 @@ import { apiError, json, parseBody, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
 import { audit } from "@/lib/audit";
 import { looksSensitive } from "@/lib/security/redact";
-import { interpretGoal } from "@/lib/jeff/goals/interpret";
+import { GOAL_PROMPT_MAX_CHARS, interpretGoal } from "@/lib/jeff/goals/interpret";
 import { createDraftGoal, latestSnapshot, listGoalMetrics, listGoals } from "@/lib/jeff/goals/store";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const Create = z.object({ prompt: z.string().trim().min(8).max(2000) });
+const Create = z.object({ prompt: z.string().trim().min(8).max(GOAL_PROMPT_MAX_CHARS) });
 
 /** GET /api/goals — goals with their latest snapshot and metric rows. */
 export const GET = withErrorBoundary(async (req) => {

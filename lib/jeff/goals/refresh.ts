@@ -24,17 +24,21 @@ export interface GoalRefreshResult {
   error?: string;
 }
 
+const ROW_COLUMNS = "id, provider, capability, resource_type, external_id, title, source_timestamp, synced_at, tags, metadata";
+/** Records that identify people/clients (joins) — loaded regardless of age so an old contact still resolves a new message. */
+const IDENTITY_TYPES = ["customer", "contact", "client", "client_user"];
+
 async function loadRows(ownerId: string, since: string): Promise<MetricRow[]> {
   const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("source_items")
-    .select("id, provider, capability, resource_type, external_id, title, source_timestamp, synced_at, tags, metadata")
-    .eq("owner_id", ownerId)
-    .eq("is_sample", false)
-    .or(`source_timestamp.gte.${since},source_timestamp.is.null`)
-    .limit(5000);
-  if (error) throw new Error(`goal_rows_failed:${error.code ?? ""}`);
-  return (data ?? []) as unknown as MetricRow[];
+  const [windowed, identity] = await Promise.all([
+    admin.from("source_items").select(ROW_COLUMNS).eq("owner_id", ownerId).eq("is_sample", false).or(`source_timestamp.gte.${since},source_timestamp.is.null`).limit(5000),
+    admin.from("source_items").select(ROW_COLUMNS).eq("owner_id", ownerId).eq("is_sample", false).in("resource_type", IDENTITY_TYPES).limit(5000),
+  ]);
+  if (windowed.error) throw new Error(`goal_rows_failed:${windowed.error.code ?? ""}`);
+  if (identity.error) throw new Error(`goal_identity_rows_failed:${identity.error.code ?? ""}`);
+  const byId = new Map<string, MetricRow>();
+  for (const r of [...(windowed.data ?? []), ...(identity.data ?? [])] as unknown as MetricRow[]) byId.set(r.id, r);
+  return Array.from(byId.values());
 }
 
 async function loadConnections(ownerId: string): Promise<ConnectionFreshness[]> {

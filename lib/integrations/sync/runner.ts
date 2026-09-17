@@ -19,6 +19,13 @@ export interface CapabilityFetchResult {
   cursor?: string | null;
   /** Records the provider reports as deleted (e.g. Plaid `removed`). */
   remove?: { resource_type: string; external_ids: string[] };
+  /**
+   * Full-inventory reconciliation: after upserting, delete rows of each
+   * resource_type whose external_id is NOT listed. Only for sources that
+   * hard-delete without tombstones (the portal's clients) and only when the
+   * adapter fetched the complete inventory.
+   */
+  retain?: { resource_type: string; external_ids: string[] }[];
 }
 
 export type CapabilityFetch = (conn: ConnectionSummary, cursor: string | null) => Promise<CapabilityFetchResult>;
@@ -98,6 +105,23 @@ async function removeItems(ownerId: string, provider: string, remove: Capability
   return removed;
 }
 
+/** Deletes rows of `resource_type` not in the retained inventory. Bounded to sources whose whole inventory fits one export page. */
+async function retainOnly(ownerId: string, provider: string, retain: CapabilityFetchResult["retain"]): Promise<number> {
+  if (!retain?.length) return 0;
+  const admin = createAdminClient();
+  let removed = 0;
+  for (const r of retain) {
+    // PostgREST `not.in` takes a parenthesised, quoted list.
+    const list = `(${r.external_ids.map((id) => `"${id.replace(/"/g, "")}"`).join(",")})`;
+    let q = admin.from("source_items").delete({ count: "exact" }).eq("owner_id", ownerId).eq("provider", provider).eq("resource_type", r.resource_type);
+    if (r.external_ids.length) q = q.not("external_id", "in", list);
+    const { error, count } = await q;
+    if (error) throw new Error(`source_items_retain_failed:${error.code ?? ""}`);
+    removed += count ?? 0;
+  }
+  return removed;
+}
+
 function cursorsOf(conn: ConnectionSummary): Record<string, string | null> {
   const c = conn.metadata.sync_cursors;
   return c && typeof c === "object" ? (c as Record<string, string | null>) : {};
@@ -122,7 +146,7 @@ async function runCapability(
   try {
     const res = await fetchFn(conn, cursor);
     const upserted = await upsertItems(ownerId, conn.id, res.items);
-    const removed = await removeItems(ownerId, conn.provider, res.remove);
+    const removed = (await removeItems(ownerId, conn.provider, res.remove)) + (await retainOnly(ownerId, conn.provider, res.retain));
     if (removed) log.info("sync_items_removed", { provider: conn.provider, capability, removed });
     if (runId) {
       await admin

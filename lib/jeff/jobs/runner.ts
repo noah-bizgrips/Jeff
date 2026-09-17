@@ -17,7 +17,7 @@ import { localTime } from "@/lib/jeff/settings";
 import { refreshGoals, type GoalRefreshResult } from "@/lib/jeff/goals/refresh";
 import { latestSnapshot } from "@/lib/jeff/goals/store";
 import { TRAJECTORY_LABEL } from "@/lib/jeff/goals/schema";
-import { formatMetricValue } from "@/lib/jeff/goals/metrics";
+import { formatMetricValue } from "@/lib/jeff/goals/format";
 import { loadBlindSpotContext, loadNoveltyInputs, applyNovelty, runBlindSpotsForOwner, detectBlindSpots, DETECTORS as BLIND_SPOT_DETECTORS, EMPTY_RESULT_MESSAGE } from "@/lib/jeff/blindspots";
 import { toFinding as blindSpotToFinding } from "@/lib/jeff/blindspots/detect";
 import { computeCoverage, coverageLevel, coverageNotes } from "./coverage";

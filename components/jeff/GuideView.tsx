@@ -72,6 +72,8 @@ const SECTIONS: Section[] = [
     what: "Long-term outcomes tracked from real data with pace, forecast and the likely constraint.",
     how: [
       "New goal → type it in plain English. Jeff proposes metrics, sources, formulas, milestones, assumptions and the ambiguities it needs you to resolve (for example how CAC is defined).",
+      "A full brief works too (up to ~6,000 characters): define what counts (\"a portal client with a Right Fit Call on the calendar and a HighLevel conversation\"), what to exclude (removed or test accounts never count anywhere), and list your open questions — Jeff keeps them as questions instead of guessing. Metrics can join sources by the same person's email, so \"contract sent → first Stripe payment\" is measured per client.",
+      "\"Starting from Steve's sign date\" — Jeff looks for that moment in your records (contract email, won opportunity, portal account, first invoice) and asks you to confirm which date is day 1.",
       "Resolve each ambiguity and Approve. The wording you typed is preserved; approved metric definitions are never changed silently.",
       "Each goal shows target vs current, days remaining, observed vs required pace, trajectory (On track → Severely at risk), the driver most likely holding it back, and recommendations you can Prepare into missions.",
       "Metrics that need a source you haven't connected show \"not connected\" rather than a misleading zero.",

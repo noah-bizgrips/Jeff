@@ -1,0 +1,257 @@
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/jeff/budget", () => ({ budgetStatus: vi.fn(async () => ({ spentUsd: 0, budgetUsd: 2, exhausted: false })), recordUsage: vi.fn(async () => 0) }));
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => { throw new Error("no db in unit tests"); } }));
+
+const { computeMetric, emailHashOf, buildIdentityIndex, identityKeys } = await import("@/lib/jeff/goals/metrics");
+const { GoalMetricSchema, GoalInterpretationSchema } = await import("@/lib/jeff/goals/schema");
+const { preParseAnchor, isDetailedBrief, interpretGoal, applyAnchorResolution, GOAL_PROMPT_MAX_CHARS } = await import("@/lib/jeff/goals/interpret");
+const { rankAnchorCandidates } = await import("@/lib/jeff/goals/anchor");
+const { inventoryOf } = await import("@/lib/integrations/sync/portal");
+const { describeInput } = await import("@/lib/jeff/goals/format");
+
+type Row = import("@/lib/jeff/goals/metrics").MetricRow;
+
+const NOW = new Date("2026-10-01T12:00:00Z");
+const WINDOW = { start: "2026-08-20T00:00:00Z", end: "2026-10-19T00:00:00Z" };
+const CONNECTED = ["portal", "google", "highlevel", "stripe", "meta"].map((provider) => ({ provider, status: "connected", last_sync_at: "2026-10-01T11:00:00Z" }));
+
+function row(p: Partial<Row> & { provider: string; resource_type: string; external_id: string }): Row {
+  return { id: `id-${p.provider}-${p.external_id}`, capability: null, title: null, source_timestamp: "2026-09-15T00:00:00Z", synced_at: "2026-10-01T11:00:00Z", tags: [], metadata: {}, ...p };
+}
+
+const steve = "steve@seaverbaths.com";
+const dana = "dana@danakitchens.com";
+const test1 = "qa@bizgrips.com";
+const pat = "pat@patroofing.com";
+
+// Portal: four accounts. Steve (validated), Dana (no Right Fit Call), a test account (tagged), Pat (churned).
+const ROWS: Row[] = [
+  row({ provider: "portal", resource_type: "client", external_id: "1", title: "Seaver Baths", metadata: { status: "active_setup", created_at: "2026-08-20T10:00:00Z", client_users: [{ email_hash: emailHashOf(steve) }] } }),
+  row({ provider: "portal", resource_type: "client", external_id: "2", title: "Dana Kitchens", metadata: { status: "active_setup", created_at: "2026-09-01T10:00:00Z", client_users: [] } }),
+  row({ provider: "portal", resource_type: "client_user", external_id: "u2", metadata: { client_id: "2", email_hash: emailHashOf(dana), status: "active" } }),
+  row({ provider: "portal", resource_type: "client", external_id: "3", title: "QA Test Co", tags: ["portal", "client", "test"], metadata: { status: "active_setup", created_at: "2026-09-02T10:00:00Z", client_users: [{ email_hash: emailHashOf(test1) }] } }),
+  row({ provider: "portal", resource_type: "client", external_id: "4", title: "Pat Roofing", metadata: { status: "churned", created_at: "2026-09-03T10:00:00Z", client_users: [{ email_hash: emailHashOf(pat) }] } }),
+  // Google Calendar: Right Fit Calls for Steve and the test account; Dana only had a "Coffee chat".
+  row({ provider: "google", resource_type: "event", external_id: "ev1", title: "Right Fit Call — Steve", source_timestamp: "2026-08-25T15:00:00Z", metadata: { attendees: ["noah@bizgrips.com", "Steve@SeaverBaths.com"] } }),
+  row({ provider: "google", resource_type: "event", external_id: "ev2", title: "Coffee chat", source_timestamp: "2026-09-05T15:00:00Z", metadata: { attendees: [dana] } }),
+  row({ provider: "google", resource_type: "event", external_id: "ev3", title: "Right Fit Call — QA", source_timestamp: "2026-09-06T15:00:00Z", metadata: { attendees: [test1] } }),
+  row({ provider: "google", resource_type: "event", external_id: "ev4", title: "Right Fit Call — Pat", source_timestamp: "2026-09-07T15:00:00Z", metadata: { attendees: [pat] } }),
+  // HighLevel: contacts + conversations (message rows point at contactId).
+  row({ provider: "highlevel", resource_type: "contact", external_id: "c-steve", metadata: { email_hash: emailHashOf(steve) } }),
+  row({ provider: "highlevel", resource_type: "contact", external_id: "c-dana", metadata: { email_hash: emailHashOf(dana) } }),
+  row({ provider: "highlevel", resource_type: "contact", external_id: "c-pat", metadata: { email_hash: emailHashOf(pat) } }),
+  row({ provider: "highlevel", resource_type: "message", external_id: "m1", metadata: { contactId: "c-steve", lastMessageDate: "2026-07-01T00:00:00Z" }, source_timestamp: "2026-07-01T00:00:00Z" }),
+  row({ provider: "highlevel", resource_type: "message", external_id: "m2", metadata: { contactId: "c-dana", lastMessageDate: "2026-09-02T00:00:00Z" }, source_timestamp: "2026-09-02T00:00:00Z" }),
+  row({ provider: "highlevel", resource_type: "message", external_id: "m3", metadata: { contactId: "c-pat" } }),
+  // Gmail: contract sent to Steve (Aug 21) and Dana (Sep 2).
+  row({ provider: "google", resource_type: "email", external_id: "g1", title: "Your BizGrips agreement — please sign", source_timestamp: "2026-08-21T12:00:00Z", metadata: { to: [steve] } }),
+  row({ provider: "google", resource_type: "email", external_id: "g2", title: "Contract for Dana Kitchens", source_timestamp: "2026-09-02T12:00:00Z", metadata: { to: [dana] } }),
+  // Stripe: Steve paid 9 days after the contract; Dana paid 20 days after.
+  row({ provider: "stripe", resource_type: "customer", external_id: "cus_s", metadata: { email_hash: emailHashOf(steve) } }),
+  row({ provider: "stripe", resource_type: "customer", external_id: "cus_d", metadata: { email_hash: emailHashOf(dana) } }),
+  row({ provider: "stripe", resource_type: "invoice", external_id: "in_s", title: "INV-1 · paid · $1,500.00 · Seaver", source_timestamp: "2026-08-30T12:00:00Z", metadata: { status: "paid", paid: true, amount_paid: 150000, customerId: "cus_s", number: "INV-1" } }),
+  row({ provider: "stripe", resource_type: "invoice", external_id: "in_d", title: "INV-2 · paid", source_timestamp: "2026-09-22T12:00:00Z", metadata: { status: "paid", paid: true, amount_paid: 150000, customerId: "cus_d" } }),
+  // Meta: two campaign-days, one not a BizGrips ad set.
+  row({ provider: "meta", resource_type: "ad_insight", external_id: "a1", title: "BizGrips — Bath Pros · 2026-09-01", source_timestamp: "2026-09-01T00:00:00Z", metadata: { spend: 60000, campaign_name: "BizGrips — Bath Pros" } }),
+  row({ provider: "meta", resource_type: "ad_insight", external_id: "a2", title: "BizGrips — Roofers · 2026-09-02", source_timestamp: "2026-09-02T00:00:00Z", metadata: { spend: 40000, campaign_name: "BizGrips — Roofers" } }),
+  row({ provider: "meta", resource_type: "ad_insight", external_id: "a3", title: "Client: Pure Bath · 2026-09-02", source_timestamp: "2026-09-02T00:00:00Z", metadata: { spend: 999900, campaign_name: "Client: Pure Bath" } }),
+];
+
+const VALIDATED_CLIENT_INPUT = {
+  provider: "portal",
+  resource_type: "client",
+  filter: { status_not_in: ["churned"], tags_none: ["test"] },
+  aggregation: "count",
+  distinct_by: "client_id",
+  timestamp_field: "created_at",
+  require_match: [
+    { provider: "google", resource_type: "event", filter: { title_contains: ["Right Fit Call"] }, via: "email_hash", in_window: true, label: "a Right Fit Call on the calendar" },
+    { provider: "highlevel", resource_type: "message", filter: {}, via: "email_hash", in_window: false, label: "a HighLevel conversation" },
+  ],
+};
+
+describe("identity resolution", () => {
+  it("reduces records from every source to the same hashed email", () => {
+    const idx = buildIdentityIndex(ROWS);
+    const h = emailHashOf(steve)!;
+    expect(identityKeys(ROWS[0]!, "email_hash", idx)).toEqual([h]); // portal client via its users
+    expect(identityKeys(ROWS.find((r) => r.external_id === "ev1")!, "email_hash", idx)).toContain(h); // attendee, case-insensitive
+    expect(identityKeys(ROWS.find((r) => r.external_id === "m1")!, "email_hash", idx)).toEqual([h]); // contactId → contact
+    expect(identityKeys(ROWS.find((r) => r.external_id === "in_s")!, "email_hash", idx)).toEqual([h]); // customerId → customer
+    expect(identityKeys(ROWS.find((r) => r.external_id === "g1")!, "email_hash", idx)).toEqual([h]); // recipient
+    expect(identityKeys(ROWS.find((r) => r.external_id === "u2")!, "client_id", idx)).toEqual(["2"]);
+    expect(identityKeys(ROWS.find((r) => r.external_id === "m2")!, "client_id", idx)).toEqual(["2"]); // message → contact email → portal client
+  });
+});
+
+describe("validated clients (portal + calendar + CRM, exclusions hard)", () => {
+  const metric = GoalMetricSchema.parse({ key: "validated_clients", name: "Validated clients", kind: "count", target: 10, comparator: "gte", unit: "clients", formula: "", inputs: { value: VALIDATED_CLIENT_INPUT }, time_range: { kind: "goal_window" }, is_primary: true, is_constraint: false });
+
+  it("counts only accounts with a Right Fit Call in the window and a HighLevel conversation, never test or churned accounts", () => {
+    const r = computeMetric(metric, ROWS, CONNECTED, WINDOW, NOW);
+    expect(r.value).toBe(1); // Steve only: Dana had no Right Fit Call; QA is a test account; Pat churned
+    expect(r.sample_size).toBe(1);
+    expect(r.freshness).toBe("fresh");
+    expect(r.limitations.join(" ")).toMatch(/1 client did not meet every condition/);
+    expect(r.source).toMatch(/Client Portal clients \(excluding churned; not tagged test\) with a Right Fit Call on the calendar and a HighLevel conversation · distinct clients/);
+  });
+
+  it("reports a missing source as unknown, not zero", () => {
+    const r = computeMetric(metric, ROWS, CONNECTED.filter((c) => c.provider !== "google"), WINDOW, NOW);
+    expect(r.freshness).toBe("missing");
+    expect(r.limitations.join(" ")).toMatch(/Google not connected/);
+  });
+
+  it("drives CAC from Meta spend on the named ad sets only", () => {
+    const cac = GoalMetricSchema.parse({
+      key: "cac",
+      name: "CAC",
+      kind: "currency",
+      target: 100000,
+      comparator: "lte",
+      unit: "usd",
+      formula: "ad_spend / clients",
+      inputs: { ad_spend: { provider: "meta", resource_type: "ad_insight", filter: { title_contains: ["BizGrips"] }, aggregation: "sum", field: "spend" }, clients: VALIDATED_CLIENT_INPUT },
+      time_range: { kind: "goal_window" },
+      is_primary: false,
+      is_constraint: true,
+    });
+    const r = computeMetric(cac, ROWS, CONNECTED, WINDOW, NOW);
+    expect(r.value).toBe(100000); // $1,000 spend / 1 validated client
+    expect(r.meets_target).toBe(true);
+  });
+
+  it("measures sign→first payment per client through email identity and reports the slowest when every client must be under target", () => {
+    const cycle = GoalMetricSchema.parse({
+      key: "sign_to_payment",
+      name: "Sign to first payment",
+      kind: "duration_days",
+      target: 14,
+      comparator: "lte",
+      unit: "days",
+      formula: "",
+      inputs: {
+        signed: { provider: "google", resource_type: "email", filter: { title_contains: ["contract", "agreement"] }, aggregation: "count" },
+        paid: { provider: "stripe", resource_type: "invoice", filter: { status_in: ["paid"] }, aggregation: "count" },
+      },
+      duration: { start: "signed", end: "paid", join: { via: "email_hash", aggregation: "max" } },
+      time_range: { kind: "goal_window" },
+      is_primary: false,
+      is_constraint: true,
+    });
+    const r = computeMetric(cycle, ROWS, CONNECTED, WINDOW, NOW);
+    expect(r.value).toBe(20); // Dana: Sep 2 → Sep 22; Steve: 9 days
+    expect(r.sample_size).toBe(2);
+    expect(r.meets_target).toBe(false);
+    expect(r.limitations.join(" ")).toMatch(/1 of 2 matched pairs meet the target individually \(metric reports the slowest\)/);
+  });
+});
+
+describe("anchored timeframes", () => {
+  it("recognises 'starting from <name>'s sign date'", () => {
+    const a = preParseAnchor("Onboard 10 new clients in 60 days, starting from Steve Seaver's sign date (Steve = client #1).");
+    expect(a?.anchor).toEqual({ description: "Steve Seaver's sign date", search_terms: ["Steve Seaver", "Seaver", "Steve"], event: "signed" });
+    expect(preParseAnchor("measured from Acme Corp's first payment date")?.anchor.event).toBe("first_payment");
+    expect(preParseAnchor("in the next 60 days")).toBeNull();
+  });
+
+  it("ranks candidate dates by the kind of moment and asks the owner to confirm", () => {
+    const res = rankAnchorCandidates(
+      [
+        { provider: "stripe", resource_type: "invoice", title: "INV-1 · paid · Seaver", author: null, source_timestamp: "2026-08-30T12:00:00Z", metadata: { paid: true, number: "INV-1" } },
+        { provider: "google", resource_type: "email", title: "Your BizGrips agreement — please sign", author: "Noah", source_timestamp: "2026-08-21T12:00:00Z", metadata: {} },
+        { provider: "portal", resource_type: "client", title: "Seaver Baths", author: null, source_timestamp: null, metadata: { created_at: "2026-08-20T10:00:00Z" } },
+        { provider: "google", resource_type: "email", title: "Re: lunch?", author: "Steve", source_timestamp: "2026-08-01T12:00:00Z", metadata: {} },
+      ],
+      { description: "Steve Seaver's sign date", search_terms: ["Steve Seaver"], event: "signed" },
+    );
+    expect(res.best?.date).toBe("2026-08-21");
+    expect(res.best?.label).toMatch(/^Email: Your BizGrips agreement/);
+    expect(res.candidates.map((c) => c.date)).toEqual(["2026-08-20", "2026-08-21", "2026-08-30"]); // lunch email ignored
+    const interp = applyAnchorResolution(GoalInterpretationSchema.parse({ name: "g", outcome: "o", timeframe: { start: null, end: null, days: 60, anchor: { description: "Steve Seaver's sign date", search_terms: ["Steve Seaver"], event: "signed" } }, metrics: [{ key: "kk", name: "k", kind: "count", target: 1, comparator: "gte", unit: "", formula: "", inputs: {}, time_range: { kind: "goal_window" }, is_primary: true, is_constraint: false }] }), res);
+    expect(interp.timeframe.start).toBe("2026-08-21");
+    const amb = interp.ambiguities.find((a) => a.field === "timeframe.start")!;
+    expect(amb.options).toHaveLength(4);
+    expect(amb.options[3]).toMatch(/Another date/);
+  });
+
+  it("still asks when nothing matches", () => {
+    const interp = applyAnchorResolution(GoalInterpretationSchema.parse({ name: "g", outcome: "o", timeframe: { start: null, end: null, days: 60, anchor: { description: "X's sign date", search_terms: ["X Y"], event: "signed" } }, metrics: [{ key: "kk", name: "k", kind: "count", target: 1, comparator: "gte", unit: "", formula: "", inputs: {}, time_range: { kind: "goal_window" }, is_primary: true, is_constraint: false }] }), { best: null, candidates: [] });
+    expect(interp.timeframe.start).toBeNull();
+    expect(interp.ambiguities[0]!.options).toEqual(["Type the date (YYYY-MM-DD)"]);
+  });
+});
+
+const BRIEF = `GOAL: Onboard 10 new clients in 60 days, starting from Steve Seaver's sign date (Steve = client #1, so 9 more needed).
+
+METRIC 1 — Validated client count (target ≥10): count only active accounts in the BizGrips Client Portal where a "Right Fit Call" exists for the same contact email within the window and GoHighLevel conversation history exists with that contact. Removed/test accounts must NOT count and must not appear anywhere.
+
+METRIC 2 — CAC (target ≤ $1,000 per client): Meta ad spend (BizGrips ad sets) ÷ validated clients. Open question: total Meta spend or only spend attributable to validated clients?
+
+METRIC 3 — Sign-to-first-payment cycle time (target <14 days): Stripe invoice paid matched by email to the portal, contract-sent email matched by recipient.`;
+
+const AI_OUTPUT = {
+  name: "10 new validated clients in 60 days",
+  outcome: "Onboard 10 validated clients within 60 days of Steve Seaver's sign date",
+  timeframe: { start: null, end: null, days: 60, anchor: { description: "Steve Seaver's sign date", search_terms: ["Steve Seaver", "Seaver"], event: "signed" } },
+  metrics: [
+    { key: "validated_clients", name: "Validated clients", kind: "count", target: 10, comparator: "gte", unit: "clients", formula: "", inputs: { value: VALIDATED_CLIENT_INPUT }, time_range: { kind: "goal_window" }, is_primary: true, is_constraint: false },
+    { key: "cac", name: "CAC", kind: "currency", target: 100000, comparator: "lte", unit: "usd", formula: "ad_spend / clients", inputs: { ad_spend: { provider: "meta", resource_type: "ad_insight", filter: { title_contains: ["BizGrips"] }, aggregation: "sum", field: "spend" }, clients: VALIDATED_CLIENT_INPUT }, time_range: { kind: "goal_window" }, is_primary: false, is_constraint: true },
+  ],
+  assumptions: ["Active = portal status other than churned."],
+  ambiguities: [{ field: "cac", question: "CAC denominator: total Meta spend in the window, or only spend attributable to validated clients?", options: ["Total Meta spend on BizGrips ad sets", "Only spend attributable to validated clients"] }],
+  scope: "business",
+  confidence: 0.7,
+};
+
+describe("interpretGoal with a detailed brief", () => {
+  it("treats a multi-line brief as detailed and caps input length", () => {
+    expect(isDetailedBrief(BRIEF)).toBe(true);
+    expect(isDetailedBrief("Onboard 10 new clients in 60 days")).toBe(false);
+    expect(GOAL_PROMPT_MAX_CHARS).toBeGreaterThanOrEqual(BRIEF.length);
+  });
+
+  it("lets the model's reading win over the regex shapes, keeps the owner's open question, and resolves the anchor", async () => {
+    const create = vi.fn(async () => ({ model: "claude-test", usage: { input_tokens: 10, output_tokens: 10 }, content: [{ type: "tool_use", id: "t1", name: "goal_interpretation", input: AI_OUTPUT }] }));
+    const anchorResolver = vi.fn(async () => ({ best: { date: "2026-08-21", label: "Email: Your BizGrips agreement", provider: "google", resource_type: "email", score: 5 }, candidates: [{ date: "2026-08-21", label: "Email: Your BizGrips agreement", provider: "google", resource_type: "email", score: 5 }] }));
+    const r = await interpretGoal("owner", BRIEF, { client: { create } as never, now: NOW, anchorResolver });
+    expect(create).toHaveBeenCalledTimes(1);
+    const sent = (create.mock.calls[0] as unknown as [{ messages: { content: string }[] }])[0].messages[0]!.content;
+    expect(sent).toContain("METRIC 3"); // nothing truncated
+    expect(sent).toMatch(/only a hint/);
+    expect(r.interpretation.metrics.map((m) => m.key)).toEqual(["validated_clients", "cac"]); // no HighLevel-won default
+    expect(r.interpretation.metrics[0]!.inputs.value!.require_match).toHaveLength(2);
+    expect(r.interpretation.ambiguities.map((a) => a.field)).toEqual(["cac", "timeframe.start"]);
+    expect(r.interpretation.timeframe.start).toBe("2026-08-21");
+    expect(r.interpretation.timeframe.days).toBe(60);
+    expect(anchorResolver).toHaveBeenCalledWith("owner", expect.objectContaining({ search_terms: ["Steve Seaver", "Seaver"] }));
+  });
+
+  it("falls back to the regex parse (with a visible note) when the model output does not validate", async () => {
+    const create = vi.fn(async () => ({ model: "claude-test", usage: { input_tokens: 1, output_tokens: 1 }, content: [{ type: "tool_use", id: "t", name: "goal_interpretation", input: { name: "x" } }] }));
+    const anchorResolver = vi.fn(async () => ({ best: null, candidates: [] }));
+    const r = await interpretGoal("owner", BRIEF, { client: { create } as never, now: NOW, anchorResolver });
+    expect(r.interpretation.metrics[0]!.key).toBe("clients_onboarded");
+    expect(r.notes.join(" ")).toMatch(/did not validate/);
+    expect(r.notes.join(" ")).toMatch(/Could not find a record for Steve Seaver's sign date/);
+  });
+});
+
+describe("portal client inventory", () => {
+  it("lists the ids to retain and refuses to reconcile from a full page", () => {
+    expect(inventoryOf({ clients: { rows: [{ id: 1 }, { id: "2" }] }, client_users: { rows: [{ id: 9 }] } } as never)).toEqual([
+      { resource_type: "client", external_ids: ["1", "2"] },
+      { resource_type: "client_user", external_ids: ["9"] },
+    ]);
+    const full = { clients: { rows: Array.from({ length: 1000 }, (_, i) => ({ id: i })) }, client_users: { rows: [] } } as never;
+    expect(inventoryOf(full)).toBeUndefined();
+  });
+});
+
+describe("describeInput", () => {
+  it("explains exclusions and cross-source conditions in plain words", () => {
+    expect(describeInput({ provider: "stripe", resource_type: "invoice", filter: { status_in: ["paid"] }, aggregation: "sum", field: "amount_paid" })).toBe("Stripe invoices (status paid) · sum(amount_paid)");
+    expect(describeInput({ provider: "portal", resource_type: "client", filter: { status_not_in: ["churned"] }, require_match: [{ provider: "google", resource_type: "event", filter: { title_contains: ["Right Fit Call"] } }] })).toBe('Client Portal clients (excluding churned) with Google event (titled "Right Fit Call") · count');
+  });
+});

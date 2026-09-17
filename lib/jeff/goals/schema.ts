@@ -10,26 +10,64 @@ export const GOAL_SCOPES = ["business", "personal", "financial"] as const;
 export const METRIC_KINDS = ["count", "currency", "ratio", "duration_days", "percentage"] as const;
 export const COMPARATORS = ["gte", "lte", "eq", "between"] as const;
 export const AGGREGATIONS = ["sum", "count", "avg", "median", "max", "latest"] as const;
-export const PROVIDERS_FOR_GOALS = ["highlevel", "stripe", "plaid", "meta", "google", "slack", "notion", "github", "n8n"] as const;
+export const PROVIDERS_FOR_GOALS = ["highlevel", "stripe", "plaid", "meta", "google", "slack", "notion", "github", "n8n", "portal"] as const;
+/** Keys two records can share so they can be joined (see metrics.ts identity resolution). */
+export const IDENTITY_KEYS = ["email_hash", "contactId", "customerId", "client_id"] as const;
+export type IdentityKey = (typeof IDENTITY_KEYS)[number];
+
+/** Deterministic row filter over source_items. Exclusions are hard: a row they reject never reaches any computation or evidence view. */
+export const MetricFilterSchema = z
+  .object({
+    status_in: z.array(z.string().max(40)).max(10).optional(),
+    /** Hard exclusion by status (e.g. removed/deleted/churned/test accounts). */
+    status_not_in: z.array(z.string().max(40)).max(10).optional(),
+    stage_contains: z.array(z.string().max(40)).max(10).optional(),
+    tags_any: z.array(z.string().max(40)).max(10).optional(),
+    /** Hard exclusion by tag (e.g. "test"). */
+    tags_none: z.array(z.string().max(40)).max(10).optional(),
+    /** Case-insensitive substring match on the row title (any of). E.g. ["Right Fit Call"]. */
+    title_contains: z.array(z.string().max(60)).max(10).optional(),
+    metadata_equals: z.record(z.string().max(40), z.union([z.string().max(80), z.number(), z.boolean()])).optional(),
+    metadata_truthy: z.array(z.string().max(40)).max(10).optional(),
+    metadata_falsy: z.array(z.string().max(40)).max(10).optional(),
+  })
+  .default({});
+export type MetricFilter = z.infer<typeof MetricFilterSchema>;
+
+/**
+ * Cross-source existence condition: a primary row only counts when a matching
+ * record exists in another source for the same person (joined through
+ * `via`). Lets a metric say "portal client WITH a calendar appointment AND a
+ * HighLevel conversation".
+ */
+export const RequireMatchSchema = z.object({
+  provider: z.enum(PROVIDERS_FOR_GOALS),
+  resource_type: z.string().min(1).max(40),
+  filter: MetricFilterSchema,
+  /** How the two records are matched (default: hashed email). */
+  via: z.enum(IDENTITY_KEYS).default("email_hash"),
+  /** Only accept matching records dated inside the metric's time window (default true). */
+  in_window: z.boolean().default(true),
+  timestamp_field: z.string().max(60).optional(),
+  /** Human label shown in provenance, e.g. "Right Fit Call on the calendar". */
+  label: z.string().max(80).optional(),
+});
+export type RequireMatch = z.infer<typeof RequireMatchSchema>;
 
 /** Where one metric input comes from. `filter` is matched against source_items (deterministically). */
 export const MetricInputSchema = z.object({
   provider: z.enum(PROVIDERS_FOR_GOALS),
   resource_type: z.string().min(1).max(40),
-  filter: z
-    .object({
-      status_in: z.array(z.string().max(40)).max(10).optional(),
-      stage_contains: z.array(z.string().max(40)).max(10).optional(),
-      tags_any: z.array(z.string().max(40)).max(10).optional(),
-      metadata_equals: z.record(z.string().max(40), z.union([z.string().max(80), z.number(), z.boolean()])).optional(),
-      metadata_truthy: z.array(z.string().max(40)).max(10).optional(),
-    })
-    .default({}),
+  filter: MetricFilterSchema,
   aggregation: z.enum(AGGREGATIONS).default("count"),
   /** metadata field for sum/avg/median/max/latest (e.g. "amount", "spend"). */
   field: z.string().max(60).optional(),
   /** metadata field holding the timestamp used for duration pairing and time windows (defaults to source_timestamp). */
   timestamp_field: z.string().max(60).optional(),
+  /** Every condition must hold for a row to count (AND). */
+  require_match: z.array(RequireMatchSchema).max(6).optional(),
+  /** Count each identity once (e.g. one client with three portal users counts once). */
+  distinct_by: z.enum(IDENTITY_KEYS).optional(),
 });
 export type MetricInput = z.infer<typeof MetricInputSchema>;
 
@@ -44,7 +82,7 @@ export type TimeRange = z.infer<typeof TimeRangeSchema>;
 
 export const DurationJoinSchema = z.object({
   /** how start and end records are matched to each other */
-  via: z.enum(["email_hash", "contactId", "customerId"]).default("email_hash"),
+  via: z.enum(IDENTITY_KEYS).default("email_hash"),
   /** aggregation across matched pairs */
   aggregation: z.enum(["avg", "median", "max"]).default("median"),
 });
@@ -93,6 +131,16 @@ export const AmbiguitySchema = z.object({
 });
 export type Ambiguity = z.infer<typeof AmbiguitySchema>;
 
+/** "Starting from X's sign date": which records to look for to find the start date. */
+export const TimeframeAnchorSchema = z.object({
+  description: z.string().min(1).max(160),
+  /** Names/terms to look for in record titles (person or company), e.g. ["Steve Seaver", "Seaver"]. */
+  search_terms: z.array(z.string().min(2).max(60)).min(1).max(5),
+  /** Which kind of moment the anchor is. */
+  event: z.enum(["signed", "first_payment", "created", "custom"]).default("signed"),
+});
+export type TimeframeAnchor = z.infer<typeof TimeframeAnchorSchema>;
+
 export const GoalInterpretationSchema = z.object({
   name: z.string().min(1).max(140),
   outcome: z.string().min(1).max(600),
@@ -101,6 +149,8 @@ export const GoalInterpretationSchema = z.object({
     start: z.string().nullable().default(null),
     end: z.string().nullable().default(null),
     days: z.number().int().min(1).max(3650).nullable().default(null),
+    /** The window starts at a real-world event ("Steve Seaver's sign date"); resolved from synced records before review. */
+    anchor: TimeframeAnchorSchema.nullable().default(null),
   }),
   metrics: z.array(GoalMetricSchema).min(1).max(12),
   constraints: z.array(z.string().max(300)).max(12).default([]),
@@ -145,6 +195,21 @@ export interface MetricResult {
   inputs?: Record<string, { value: number | null; sample_size: number; source: string }>;
 }
 
+const FILTER_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    status_in: { type: "array", items: { type: "string" } },
+    status_not_in: { type: "array", items: { type: "string" } },
+    stage_contains: { type: "array", items: { type: "string" } },
+    tags_any: { type: "array", items: { type: "string" } },
+    tags_none: { type: "array", items: { type: "string" } },
+    title_contains: { type: "array", items: { type: "string" } },
+    metadata_truthy: { type: "array", items: { type: "string" } },
+    metadata_falsy: { type: "array", items: { type: "string" } },
+  },
+  additionalProperties: false,
+} as const;
+
 /** JSON-schema mirror of GoalInterpretationSchema used for strict tool output from the model. */
 export const GOAL_INTERPRETATION_JSON_SCHEMA = {
   type: "object",
@@ -153,8 +218,18 @@ export const GOAL_INTERPRETATION_JSON_SCHEMA = {
     outcome: { type: "string" },
     timeframe: {
       type: "object",
-      properties: { start: { type: ["string", "null"] }, end: { type: ["string", "null"] }, days: { type: ["integer", "null"] } },
-      required: ["start", "end", "days"],
+      properties: {
+        start: { type: ["string", "null"] },
+        end: { type: ["string", "null"] },
+        days: { type: ["integer", "null"] },
+        anchor: {
+          type: ["object", "null"],
+          properties: { description: { type: "string" }, search_terms: { type: "array", items: { type: "string" } }, event: { type: "string", enum: ["signed", "first_payment", "created", "custom"] } },
+          required: ["description", "search_terms", "event"],
+          additionalProperties: false,
+        },
+      },
+      required: ["start", "end", "days", "anchor"],
       additionalProperties: false,
     },
     metrics: {
@@ -177,19 +252,28 @@ export const GOAL_INTERPRETATION_JSON_SCHEMA = {
               properties: {
                 provider: { type: "string", enum: [...PROVIDERS_FOR_GOALS] },
                 resource_type: { type: "string" },
-                filter: {
-                  type: "object",
-                  properties: {
-                    status_in: { type: "array", items: { type: "string" } },
-                    stage_contains: { type: "array", items: { type: "string" } },
-                    tags_any: { type: "array", items: { type: "string" } },
-                    metadata_truthy: { type: "array", items: { type: "string" } },
-                  },
-                  additionalProperties: false,
-                },
+                filter: FILTER_JSON_SCHEMA,
                 aggregation: { type: "string", enum: [...AGGREGATIONS] },
                 field: { type: "string" },
                 timestamp_field: { type: "string" },
+                require_match: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      provider: { type: "string", enum: [...PROVIDERS_FOR_GOALS] },
+                      resource_type: { type: "string" },
+                      filter: FILTER_JSON_SCHEMA,
+                      via: { type: "string", enum: [...IDENTITY_KEYS] },
+                      in_window: { type: "boolean" },
+                      timestamp_field: { type: "string" },
+                      label: { type: "string" },
+                    },
+                    required: ["provider", "resource_type", "via", "in_window"],
+                    additionalProperties: false,
+                  },
+                },
+                distinct_by: { type: "string", enum: [...IDENTITY_KEYS] },
               },
               required: ["provider", "resource_type"],
               additionalProperties: false,
@@ -200,7 +284,7 @@ export const GOAL_INTERPRETATION_JSON_SCHEMA = {
             properties: {
               start: { type: "string" },
               end: { type: "string" },
-              join: { type: "object", properties: { via: { type: "string", enum: ["email_hash", "contactId", "customerId"] }, aggregation: { type: "string", enum: ["avg", "median", "max"] } }, additionalProperties: false },
+              join: { type: "object", properties: { via: { type: "string", enum: [...IDENTITY_KEYS] }, aggregation: { type: "string", enum: ["avg", "median", "max"] } }, additionalProperties: false },
             },
             required: ["start", "end"],
             additionalProperties: false,

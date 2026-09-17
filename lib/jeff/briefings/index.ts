@@ -14,7 +14,7 @@ import { loadFreshness } from "@/lib/jeff/freshness-store";
 import { loadRows } from "@/lib/jeff/monitors";
 import { plaidFlows, stripeFlows, inWindow, num } from "@/lib/jeff/monitors/finance-shared";
 import { latestSnapshot, listGoalEvents, listGoalMetrics, listGoals } from "@/lib/jeff/goals/store";
-import { formatMetricValue, formatTarget } from "@/lib/jeff/goals/metrics";
+import { formatMetricValue, formatTarget } from "@/lib/jeff/goals/format";
 import { TRAJECTORY_LABEL } from "@/lib/jeff/goals/schema";
 import { label as trajectoryWord } from "@/lib/jeff/alerts/engine";
 import { composeBriefing, type ComposeDeps } from "./compose";

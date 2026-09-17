@@ -271,10 +271,12 @@ export async function approveGoal(ownerId: string, id: string, input: ApproveInp
   const unresolved = goal.ambiguities.filter((a) => !(input.resolutions[a.field] ?? a.resolution));
   if (unresolved.length) throw new Error(`goal_ambiguities_unresolved:${unresolved.map((a) => a.field).join(",")}`);
   const ambiguities = goal.ambiguities.map((a) => ({ ...a, resolution: input.resolutions[a.field] ?? a.resolution }));
-  const start = input.start_date ?? goal.start_date ?? now.toISOString().slice(0, 10);
+  // An anchored start ("Steve's sign date") is confirmed through its ambiguity; a typed/selected date wins over the resolver's guess.
+  const anchored = ambiguities.find((a) => a.field === "timeframe.start")?.resolution?.match(/^\s*(\d{4}-\d{2}-\d{2})/)?.[1] ?? null;
+  const start = input.start_date ?? anchored ?? goal.start_date ?? now.toISOString().slice(0, 10);
   const days = goal.interpretation.timeframe.days;
   const end = input.end_date ?? goal.end_date ?? (days ? new Date(Date.parse(start) + days * 86_400_000).toISOString().slice(0, 10) : null);
-  const interpretation: GoalInterpretation = { ...goal.interpretation, name: input.name ?? goal.interpretation.name, timeframe: { start, end, days }, ambiguities };
+  const interpretation: GoalInterpretation = { ...goal.interpretation, name: input.name ?? goal.interpretation.name, timeframe: { ...goal.interpretation.timeframe, start, end, days }, ambiguities };
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("goals")

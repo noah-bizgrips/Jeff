@@ -1,7 +1,7 @@
 import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
 import { audit } from "@/lib/audit";
-import { interpretGoal } from "./interpret";
+import { GOAL_PROMPT_MAX_CHARS, interpretGoal } from "./interpret";
 import { formatMetricValue, formatTarget } from "./metrics";
 import { TRAJECTORY_LABEL } from "./schema";
 import { createDraftGoal, getGoal, latestSnapshot, listGoalMetrics, listGoals, listRecommendations, rowToMetric } from "./store";
@@ -37,10 +37,10 @@ export const GOAL_TOOLS: Anthropic.Beta.BetaTool[] = [
   },
   {
     name: "propose_goal",
-    description: "Turns a natural-language goal sentence into a structured DRAFT goal (metrics, targets, sources, assumptions, ambiguities). Nothing is tracked until the owner reviews and approves it under Goals. Use when the owner states a goal they want tracked.",
+    description: "Turns a natural-language goal — one sentence or a detailed multi-metric brief — into a structured DRAFT goal (metrics with cross-source definitions, targets, sources, assumptions, open questions). Pass the owner's full text verbatim, including every definition, exclusion and open question. Nothing is tracked until the owner reviews and approves it under Goals.",
     input_schema: {
       type: "object",
-      properties: { sentence: { type: "string", minLength: 8, maxLength: 2000 } },
+      properties: { sentence: { type: "string", minLength: 8, maxLength: GOAL_PROMPT_MAX_CHARS } },
       required: ["sentence"],
       additionalProperties: false,
     },

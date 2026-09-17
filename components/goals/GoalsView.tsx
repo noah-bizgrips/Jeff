@@ -8,7 +8,7 @@ import { useJeff } from "@/components/jeff/store";
 import { EmptyState, ModalHeader } from "@/components/jeff/shared";
 import type { GoalEventRow, GoalMetricRow, GoalRecommendationRow, GoalRow, GoalSnapshotRow } from "@/lib/jeff/goals/store";
 import { TRAJECTORY_LABEL, type MetricResult, type Trajectory } from "@/lib/jeff/goals/schema";
-import { formatMetricValue, formatTarget } from "@/lib/jeff/goals/metrics";
+import { describeInput, formatMetricValue, formatTarget } from "@/lib/jeff/goals/format";
 
 export interface GoalListItem {
   goal: GoalRow;
@@ -194,7 +194,8 @@ function NewGoalModal({ onCreated }: { onCreated: () => Promise<void> }) {
       <form className="modal-body form-grid" onSubmit={submit}>
         <label className="field">
           Goal
-          <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} maxLength={2000} required placeholder="Onboard 10 new clients in the next 60 days with a CAC under $1,000 and a sign date to first payment date in under 14 days." />
+          <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={prompt.length > 300 ? 12 : 4} maxLength={6000} required placeholder="Onboard 10 new clients in the next 60 days with a CAC under $1,000 and a sign date to first payment date in under 14 days." />
+          <small>One sentence or a full brief — define what counts, what to exclude, and list your open questions; Jeff keeps them as questions instead of guessing.</small>
         </label>
         <div className="callout">Jeff will not track anything until you review the interpretation. Ambiguous definitions (what counts as a client, which spend is CAC…) are asked, not assumed.</div>
         <div className="modal-actions">
@@ -256,9 +257,16 @@ function targetOfRow(m: GoalMetricRow) {
 }
 
 function sourcesOfRow(m: GoalMetricRow): string {
-  const inputs = Object.values(m.source_mappings ?? {});
+  const inputs = Object.entries(m.source_mappings ?? {});
   if (!inputs.length) return "not mapped yet";
-  return inputs.map((i) => `${i.provider} ${i.resource_type}`).join(" + ");
+  return inputs.map(([k, i]) => (inputs.length > 1 ? `${k} = ${describeInput(i)}` : describeInput(i))).join(" · ");
+}
+
+/** Interpreter notes recorded when the draft was created (fallbacks, unresolved anchors). */
+function interpreterNotes(events: GoalEventRow[]): string[] {
+  const created = events.find((e) => e.kind === "created");
+  const notes = created?.payload?.notes;
+  return Array.isArray(notes) ? notes.filter((n): n is string => typeof n === "string") : [];
 }
 
 function GoalReviewModal({ goalId, onChanged }: { goalId: string; onChanged: () => Promise<void> }) {
@@ -274,6 +282,15 @@ function GoalReviewModal({ goalId, onChanged }: { goalId: string; onChanged: () 
   if (!detail) return <ModalHeader title="Loading…" eyebrow="GOAL" />;
   const g = detail.goal;
   const unresolved = g.ambiguities.filter((a) => !(resolutions[a.field] ?? a.resolution));
+  const notes = interpreterNotes(detail.events);
+  const anchor = g.interpretation.timeframe.anchor;
+
+  function resolve(field: string, value: string) {
+    setResolutions((r) => ({ ...r, [field]: value }));
+    // Confirming the anchored start date also fills the Start date field.
+    const iso = field === "timeframe.start" ? value.match(/^\s*(\d{4}-\d{2}-\d{2})/)?.[1] : null;
+    if (iso) setStart(iso);
+  }
 
   async function approve() {
     setBusy(true);
@@ -314,7 +331,7 @@ function GoalReviewModal({ goalId, onChanged }: { goalId: string; onChanged: () 
             <label className="field">
               Start date
               <input type="date" value={start || g.start_date || ""} onChange={(e) => setStart(e.target.value)} />
-              <small>Defaults to today.</small>
+              <small>{anchor ? `Day 1 = ${anchor.description}.` : "Defaults to today."}</small>
             </label>
             <label className="field">
               End date
@@ -323,6 +340,14 @@ function GoalReviewModal({ goalId, onChanged }: { goalId: string; onChanged: () 
             </label>
           </div>
         </div>
+
+        {notes.length ? (
+          <div className="callout" style={{ marginTop: 12 }}>
+            {notes.map((n, i) => (
+              <div key={i}>{n}</div>
+            ))}
+          </div>
+        ) : null}
 
         <div className="section-label">METRICS JEFF WILL TRACK</div>
         <div className="goal-metric-table">
@@ -366,12 +391,12 @@ function GoalReviewModal({ goalId, onChanged }: { goalId: string; onChanged: () 
                   <div className="goal-options">
                     {a.options.map((o) => (
                       <label key={o} className={`goal-option ${(resolutions[a.field] ?? a.resolution) === o ? "selected" : ""}`}>
-                        <input type="radio" name={a.field} checked={(resolutions[a.field] ?? a.resolution) === o} onChange={() => setResolutions((r) => ({ ...r, [a.field]: o }))} />
+                        <input type="radio" name={a.field} checked={(resolutions[a.field] ?? a.resolution) === o} onChange={() => resolve(a.field, o)} />
                         <span>{o}</span>
                       </label>
                     ))}
                   </div>
-                  <input placeholder="Or type your own definition…" maxLength={400} value={a.options.includes(resolutions[a.field] ?? "") ? "" : (resolutions[a.field] ?? "")} onChange={(e) => setResolutions((r) => ({ ...r, [a.field]: e.target.value }))} />
+                  <input placeholder={a.field === "timeframe.start" ? "Or type the date (YYYY-MM-DD)…" : "Or type your own definition…"} maxLength={400} value={a.options.includes(resolutions[a.field] ?? "") ? "" : (resolutions[a.field] ?? "")} onChange={(e) => resolve(a.field, e.target.value)} />
                 </div>
               ))}
             </div>

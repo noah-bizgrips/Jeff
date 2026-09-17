@@ -2,7 +2,7 @@ import "server-only";
 import type { CapabilityFetch, CapabilityFetchResult, SyncAdapter } from "./runner";
 import type { SourceItemInput } from "./types";
 import { fetchPortalExport, portalBase, type PortalExport, type PortalRow } from "@/lib/integrations/providers/portal";
-import { mapAppointment, mapClient, mapEvent, mapLead, mapLeadSource, mapNotification, mapStage, mapTask, summarizeClientUser } from "./portal-mappers";
+import { mapAppointment, mapClient, mapEvent, mapLead, mapLeadSource, mapNotification, mapStage, mapTask, summarizeClientUser, type ClientUserSummary } from "./portal-mappers";
 
 /**
  * BizGrips Client Portal sync. Four capabilities share one export feed; each
@@ -22,7 +22,14 @@ const str = (v: unknown) => (typeof v === "string" && v ? v : typeof v === "numb
 
 export function buildClientsItems(data: PortalExport, base: string, now: Date): SourceItemInput[] {
   const items: SourceItemInput[] = [];
-  for (const c of data.clients?.rows ?? []) items.push(mapClient(c, base));
+  // Each client row carries its users' hashed emails so the client can be joined to calendar, CRM and billing records.
+  const usersByClient = new Map<string, ClientUserSummary[]>();
+  for (const u of data.client_users?.rows ?? []) {
+    const x = summarizeClientUser(u);
+    if (!x.client_id) continue;
+    usersByClient.set(x.client_id, [...(usersByClient.get(x.client_id) ?? []), x]);
+  }
+  for (const c of data.clients?.rows ?? []) items.push(mapClient(c, base, usersByClient.get(str(c.id) ?? "") ?? []));
   for (const st of data.client_stages?.rows ?? []) items.push(mapStage(st, base, now));
   for (const u of data.client_users?.rows ?? []) {
     const x = summarizeClientUser(u);
@@ -90,7 +97,29 @@ function makeCapability(build: (data: PortalExport, base: string, now: Date) => 
   };
 }
 
-const clients: CapabilityFetch = makeCapability((d, base, now) => ({ items: buildClientsItems(d, base, now) }));
+/**
+ * Clients: a full inventory pull every run (the client tables are small) so
+ * every client row carries its current users, and accounts deleted in the
+ * portal (hard-deleted there, no tombstone in the feed) disappear from Jeff —
+ * and therefore from every goal, report and audit view.
+ */
+const clients: CapabilityFetch = async (_conn, cursor) => {
+  const data = await pull(null);
+  const items = buildClientsItems(data, portalBase(), new Date());
+  return { items, seen: items.length, cursor: data.server_time ?? cursor, retain: inventoryOf(data) };
+};
+
+/** Ids present in a full export; undefined when the page was full (inventory incomplete → never delete). */
+export function inventoryOf(full: PortalExport): CapabilityFetchResult["retain"] {
+  const clients = full.clients?.rows ?? [];
+  const users = full.client_users?.rows ?? [];
+  if (clients.length >= PAGE || users.length >= PAGE) return undefined;
+  const ids = (rows: PortalRow[]) => rows.map((r) => str(r.id)).filter((x): x is string => !!x);
+  return [
+    { resource_type: "client", external_ids: ids(clients) },
+    { resource_type: "client_user", external_ids: ids(users) },
+  ];
+}
 const tasks: CapabilityFetch = makeCapability((d, base, now) => ({ items: buildTasksItems(d, base, now) }));
 const leads: CapabilityFetch = makeCapability((d, base) => {
   const { items, removedLeadIds } = buildLeadsItems(d, base);

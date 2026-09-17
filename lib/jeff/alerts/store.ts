@@ -8,7 +8,7 @@ import { listRules } from "@/lib/jeff/rules/store";
 import { decide } from "@/lib/jeff/rules/precedence";
 import { subjectFromCandidate } from "@/lib/jeff/rules/engine";
 import { latestSnapshot, listGoalEvents, listGoalMetrics, listGoals } from "@/lib/jeff/goals/store";
-import { formatMetricValue, formatTarget } from "@/lib/jeff/goals/metrics";
+import { formatMetricValue, formatTarget } from "@/lib/jeff/goals/format";
 import type { CandidateFinding } from "@/lib/jeff/monitors/types";
 import { candidatesFromCommitments, candidatesFromFindings, candidatesFromGoals, cooldownUntil, reconcileAlerts, type AlertCandidate, type AlertKind, type AlertStatus, type CommitmentInput, type ExistingAlert, type FindingInput, type GoalChangeInput } from "./engine";
 import type { Importance } from "@/lib/jeff/settings";

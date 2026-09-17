@@ -15,7 +15,7 @@ import { periodInstants } from "@/lib/jeff/briefings/schedule";
 import { resolveOwnerSession } from "@/lib/auth/session";
 import { latestSnapshot, listGoalMetrics, listGoals } from "@/lib/jeff/goals/store";
 import { TRAJECTORY_LABEL } from "@/lib/jeff/goals/schema";
-import { formatMetricValue, formatTarget } from "@/lib/jeff/goals/metrics";
+import { formatMetricValue, formatTarget } from "@/lib/jeff/goals/format";
 import { connectedProviders, ensureJobs } from "@/lib/jeff/jobs";
 import type { JobsSummary } from "@/components/jobs/BlindSpotScan";
 

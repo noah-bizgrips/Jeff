@@ -80,7 +80,7 @@ describe("metric computation", () => {
     const r = computeMetric(clientsMetric, rows, CONNECTED, WINDOW, NOW);
     expect(r.value).toBe(2); // o1 (won) + o2 (stage Closed Won); o4 is before the window
     expect(r.freshness).toBe("fresh");
-    expect(r.source).toMatch(/highlevel opportunitys? \(status won\)/);
+    expect(r.source).toMatch(/HighLevel opportunitys? \(status won\)/);
     expect(r.meets_target).toBe(false);
     expect(r.time_range).toEqual(WINDOW);
   });
