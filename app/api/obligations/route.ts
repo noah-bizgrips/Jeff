@@ -1,10 +1,10 @@
 import { z } from "zod";
 import { apiError, json, parseBody, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { getSettings } from "@/lib/jeff/settings-store";
-import { interpretReminder, toObligationInput } from "@/lib/jeff/obligations/interpret";
-import { countBuckets, createObligation, listObligations } from "@/lib/jeff/obligations/store";
-import { ObligationInputSchema, bucketOf } from "@/lib/jeff/obligations/types";
+import { getSettings } from "@/lib/gomez/settings-store";
+import { interpretReminder, toObligationInput } from "@/lib/gomez/obligations/interpret";
+import { countBuckets, createObligation, listObligations } from "@/lib/gomez/obligations/store";
+import { ObligationInputSchema, bucketOf } from "@/lib/gomez/obligations/types";
 import { looksSensitive } from "@/lib/security/redact";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +39,7 @@ export const POST = withErrorBoundary(async (req) => {
     const interp = interpretReminder(body.data.text, now, settings.timezone);
     if (body.data.scope) interp.scope = body.data.scope;
     if (body.data.tracking_mode) interp.tracking_mode = body.data.tracking_mode;
-    const { row, created } = await createObligation(g.session.userId, toObligationInput(interp, "jeff"), { actor: "owner", now });
+    const { row, created } = await createObligation(g.session.userId, toObligationInput(interp, "gomez"), { actor: "owner", now });
     return json({ obligation: { ...row, bucket: bucketOf(row, now) }, created, interpretation: interp }, { status: created ? 201 : 200 });
   }
   if (looksSensitive(`${body.data.title} ${body.data.description ?? ""}`)) return apiError("sensitive_content_rejected", 400);

@@ -3,8 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { toSummary } from "@/lib/integrations/store";
 import { syncConnection } from "./runner";
 import { errorMessage, log } from "@/lib/security/log";
-import { runMonitorsForOwner } from "@/lib/jeff/monitors";
-import { runAlertsForOwner } from "@/lib/jeff/alerts/store";
+import { runMonitorsForOwner } from "@/lib/gomez/monitors";
+import { runAlertsForOwner } from "@/lib/gomez/alerts/store";
 
 /**
  * Webhook follow-through: a verified provider event triggers a bounded sync
@@ -46,7 +46,7 @@ export async function syncFromWebhook(provider: string, opts: { externalAccountI
     }
     // Event-driven Jobs whose sources include this provider run immediately (bounded; failures never propagate).
     try {
-      const { listJobs, triggerJobsForEvent } = await import("@/lib/jeff/jobs");
+      const { listJobs, triggerJobsForEvent } = await import("@/lib/gomez/jobs");
       const jobs = await listJobs(row.owner_id);
       await triggerJobsForEvent(row.owner_id, jobs, provider);
     } catch (err) {

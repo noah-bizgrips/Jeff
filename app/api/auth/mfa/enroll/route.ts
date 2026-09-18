@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 /**
  * Starts TOTP enrollment. Returns the QR (SVG data) and factor id so the
  * owner can scan it. The TOTP secret is only ever handled by Supabase and
- * the owner's authenticator; Jeff does not persist or log it.
+ * the owner's authenticator; Gomez does not persist or log it.
  */
 export const POST = withErrorBoundary(async (req) => {
   const g = await requireOwnerAnyAal(req);
@@ -20,8 +20,8 @@ export const POST = withErrorBoundary(async (req) => {
   }
   const { data, error } = await g.supabase.auth.mfa.enroll({
     factorType: "totp",
-    friendlyName: `Jeff authenticator ${new Date().toISOString().slice(0, 10)}`,
-    issuer: "Jeff",
+    friendlyName: `Gomez authenticator ${new Date().toISOString().slice(0, 10)}`,
+    issuer: "Gomez",
   });
   if (error || !data) return apiError("mfa_enroll_failed", 500);
   const ownerId = g.session.status === "owner" ? g.session.userId : null;

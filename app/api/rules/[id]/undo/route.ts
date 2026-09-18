@@ -2,7 +2,7 @@ import { z } from "zod";
 import { apiError, json, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
 import { audit } from "@/lib/audit";
-import { undoRuleSuppression } from "@/lib/jeff/rules/apply";
+import { undoRuleSuppression } from "@/lib/gomez/rules/apply";
 
 export const dynamic = "force-dynamic";
 

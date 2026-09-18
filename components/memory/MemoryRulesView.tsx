@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Icon } from "@/components/jeff/icons";
-import { useJeff } from "@/components/jeff/store";
-import { EmptyState, ModalHeader } from "@/components/jeff/shared";
-import type { Memory } from "@/lib/jeff/rules/store";
-import type { PresentedRule } from "@/lib/jeff/rules/present";
-import type { RuleConflict } from "@/lib/jeff/rules/conflicts";
-import { MONITOR_IDS, MONITOR_LABELS, type RuleAction, type RuleCondition } from "@/lib/jeff/rules/schema";
+import { Icon } from "@/components/gomez/icons";
+import { useGomez } from "@/components/gomez/store";
+import { EmptyState, ModalHeader } from "@/components/gomez/shared";
+import type { Memory } from "@/lib/gomez/rules/store";
+import type { PresentedRule } from "@/lib/gomez/rules/present";
+import type { RuleConflict } from "@/lib/gomez/rules/conflicts";
+import { MONITOR_IDS, MONITOR_LABELS, type RuleAction, type RuleCondition } from "@/lib/gomez/rules/schema";
 
 const CATEGORY_LABEL: Record<string, string> = {
   preference: "Preference",
@@ -21,14 +21,14 @@ const CATEGORY_LABEL: Record<string, string> = {
   exception: "Exception",
 };
 
-const SOURCE_LABEL: Record<string, string> = { chat: "Learned from chat", settings: "Added in settings", system: "Jeff default", feedback: "From your feedback" };
+const SOURCE_LABEL: Record<string, string> = { chat: "Learned from chat", settings: "Added in settings", system: "Gomez default", feedback: "From your feedback" };
 
 function fmtDate(s: string | null | undefined) {
   return s ? new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "—";
 }
 
 export function MemoryRulesView({ memories: initialMemories, rules: initialRules, conflicts: initialConflicts }: { memories: Memory[]; rules: PresentedRule[]; conflicts: RuleConflict[] }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const [memories, setMemories] = useState(initialMemories);
   const [rules, setRules] = useState(initialRules);
   const [conflicts, setConflicts] = useState(initialConflicts);
@@ -49,36 +49,36 @@ export function MemoryRulesView({ memories: initialMemories, rules: initialRules
   async function toggleRule(r: PresentedRule) {
     const res = await fetch(`/api/rules/${r.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(r.pending_confirmation ? { confirm: true } : { enabled: !r.enabled }) });
     const d = (await res.json().catch(() => null)) as { suppressed?: number; error?: string; reason?: string } | null;
-    if (!res.ok) return jeff.toast(`Could not update the rule${d?.reason ? `: ${d.reason}` : ""}.`);
-    jeff.toast(r.pending_confirmation ? `Rule confirmed and enabled${d?.suppressed ? ` · ${d.suppressed} finding(s) suppressed` : ""}.` : r.enabled ? "Rule disabled. Findings it suppressed stay suppressed until you undo." : `Rule enabled${d?.suppressed ? ` · ${d.suppressed} finding(s) suppressed` : ""}.`);
+    if (!res.ok) return gomez.toast(`Could not update the rule${d?.reason ? `: ${d.reason}` : ""}.`);
+    gomez.toast(r.pending_confirmation ? `Rule confirmed and enabled${d?.suppressed ? ` · ${d.suppressed} finding(s) suppressed` : ""}.` : r.enabled ? "Rule disabled. Findings it suppressed stay suppressed until you undo." : `Rule enabled${d?.suppressed ? ` · ${d.suppressed} finding(s) suppressed` : ""}.`);
     await refreshRules();
   }
   async function deleteRule(r: PresentedRule) {
     if (!confirm(`Delete "${r.name}"? Findings it suppressed will be restored.`)) return;
     const res = await fetch(`/api/rules/${r.id}`, { method: "DELETE" });
-    if (!res.ok) return jeff.toast("Could not delete the rule.");
+    if (!res.ok) return gomez.toast("Could not delete the rule.");
     const d = (await res.json()) as { restored: number };
-    jeff.toast(`Rule deleted${d.restored ? ` · ${d.restored} finding(s) restored` : ""}.`);
+    gomez.toast(`Rule deleted${d.restored ? ` · ${d.restored} finding(s) restored` : ""}.`);
     await refreshRules();
   }
   async function reprocess(r: PresentedRule) {
     const res = await fetch(`/api/rules/${r.id}/reprocess`, { method: "POST" });
-    if (!res.ok) return jeff.toast("Reprocess failed.");
+    if (!res.ok) return gomez.toast("Reprocess failed.");
     const d = (await res.json()) as { suppressed: number };
-    jeff.toast(`${d.suppressed} finding(s) suppressed by "${r.name}".`);
+    gomez.toast(`${d.suppressed} finding(s) suppressed by "${r.name}".`);
     await refreshRules();
   }
   async function undo(r: PresentedRule) {
     const res = await fetch(`/api/rules/${r.id}/undo`, { method: "POST" });
-    if (!res.ok) return jeff.toast("Undo failed.");
+    if (!res.ok) return gomez.toast("Undo failed.");
     const d = (await res.json()) as { restored: number };
-    jeff.toast(`${d.restored} finding(s) restored.`);
+    gomez.toast(`${d.restored} finding(s) restored.`);
     await refreshRules();
   }
   async function deleteMemory(m: Memory) {
     const res = await fetch(`/api/memories?id=${encodeURIComponent(m.id)}`, { method: "DELETE" });
-    if (!res.ok) return jeff.toast("Could not delete the memory.");
-    jeff.toast("Forgotten.");
+    if (!res.ok) return gomez.toast("Could not delete the memory.");
+    gomez.toast("Forgotten.");
     await refreshMemories();
   }
 
@@ -90,16 +90,16 @@ export function MemoryRulesView({ memories: initialMemories, rules: initialRules
       <div className="preview-banner">
         <Icon name="info" />
         <span>
-          <strong>Jeff stays quiet by default.</strong> Everything here was learned from you or set by you, is inspectable, and can be edited, disabled, or deleted. Security, access, approvals and secrets can never be changed by a learned rule.
+          <strong>Gomez stays quiet by default.</strong> Everything here was learned from you or set by you, is inspectable, and can be edited, disabled, or deleted. Security, access, approvals and secrets can never be changed by a learned rule.
         </span>
       </div>
 
       <div className="view-toolbar">
         <div>
           <span className="mini-eyebrow">MEMORY</span>
-          <h3>Jeff remembers…</h3>
+          <h3>Gomez remembers…</h3>
         </div>
-        <button className="button secondary" type="button" onClick={() => jeff.openModal(<MemoryEditor onSaved={refreshMemories} />)}>
+        <button className="button secondary" type="button" onClick={() => gomez.openModal(<MemoryEditor onSaved={refreshMemories} />)}>
           <Icon name="plus" />
           Add memory
         </button>
@@ -118,7 +118,7 @@ export function MemoryRulesView({ memories: initialMemories, rules: initialRules
                     </small>
                   </div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <button className="icon-button" type="button" aria-label="Edit memory" onClick={() => jeff.openModal(<MemoryEditor memory={m} onSaved={refreshMemories} />)}>
+                    <button className="icon-button" type="button" aria-label="Edit memory" onClick={() => gomez.openModal(<MemoryEditor memory={m} onSaved={refreshMemories} />)}>
                       <Icon name="compose" />
                     </button>
                     <button className="icon-button" type="button" aria-label="Forget memory" onClick={() => deleteMemory(m)}>
@@ -132,16 +132,16 @@ export function MemoryRulesView({ memories: initialMemories, rules: initialRules
         </div>
       ) : (
         <EmptyState icon="layers" title="Nothing remembered yet.">
-          Tell Jeff things like “Remember that pipeline value is not revenue” or “I prefer briefs under five items.”
+          Tell Gomez things like “Remember that pipeline value is not revenue” or “I prefer briefs under five items.”
         </EmptyState>
       )}
 
       <div className="view-toolbar" style={{ marginTop: 24 }}>
         <div>
           <span className="mini-eyebrow">RULES</span>
-          <h3>Jeff will…</h3>
+          <h3>Gomez will…</h3>
         </div>
-        <button className="button primary" type="button" onClick={() => jeff.openModal(<RuleEditor onSaved={refreshRules} />)}>
+        <button className="button primary" type="button" onClick={() => gomez.openModal(<RuleEditor onSaved={refreshRules} />)}>
           <Icon name="plus" />
           Add rule
         </button>
@@ -153,7 +153,7 @@ export function MemoryRulesView({ memories: initialMemories, rules: initialRules
             {conflicts.map((c, i) => (
               <li key={i}>
                 “{c.a.name}” vs “{c.b.name}” — {c.reason}
-                {c.kind === "needs_clarification" ? " Narrow one of them so Jeff behaves predictably." : ""}
+                {c.kind === "needs_clarification" ? " Narrow one of them so Gomez behaves predictably." : ""}
               </li>
             ))}
           </ul>
@@ -175,10 +175,10 @@ export function MemoryRulesView({ memories: initialMemories, rules: initialRules
                   <button className="button secondary" type="button" onClick={() => toggleRule(r)}>
                     {r.pending_confirmation ? "Confirm & enable" : r.enabled ? "Disable" : "Enable"}
                   </button>
-                  <button className="button secondary" type="button" onClick={() => jeff.openModal(<RuleEditor rule={r} onSaved={refreshRules} />)}>
+                  <button className="button secondary" type="button" onClick={() => gomez.openModal(<RuleEditor rule={r} onSaved={refreshRules} />)}>
                     Edit
                   </button>
-                  <button className="button secondary" type="button" onClick={() => jeff.openModal(<RuleHistory rule={r} />)}>
+                  <button className="button secondary" type="button" onClick={() => gomez.openModal(<RuleHistory rule={r} />)}>
                     History
                   </button>
                   {r.enabled && (r.action.type === "exclude" || r.action.type === "suppress_alert") ? (
@@ -199,7 +199,7 @@ export function MemoryRulesView({ memories: initialMemories, rules: initialRules
           ))
         ) : (
           <div className="audit-row">
-            <p>No rules yet. Tell Jeff in chat what to ignore or escalate, or add one here.</p>
+            <p>No rules yet. Tell Gomez in chat what to ignore or escalate, or add one here.</p>
           </div>
         )}
       </div>
@@ -210,7 +210,7 @@ export function MemoryRulesView({ memories: initialMemories, rules: initialRules
 /* ------------------------------------------------------------------ */
 
 function MemoryEditor({ memory, onSaved }: { memory?: Memory; onSaved: () => Promise<void> }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const [content, setContent] = useState(memory?.content ?? "");
   const [category, setCategory] = useState(memory?.category ?? "preference");
   const [scope, setScope] = useState(memory?.scope ?? "business");
@@ -222,20 +222,20 @@ function MemoryEditor({ memory, onSaved }: { memory?: Memory; onSaved: () => Pro
       const res = memory
         ? await fetch("/api/memories", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: memory.id, content, category, scope }) })
         : await fetch("/api/memories", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content, category, scope }) });
-      if (!res.ok) return jeff.toast("Could not save the memory.");
+      if (!res.ok) return gomez.toast("Could not save the memory.");
       await onSaved();
-      jeff.closeModal();
-      jeff.toast(memory ? "Memory updated." : "Remembered.");
+      gomez.closeModal();
+      gomez.toast(memory ? "Memory updated." : "Remembered.");
     } finally {
       setBusy(false);
     }
   }
   return (
     <>
-      <ModalHeader title={memory ? "Edit memory" : "Remember something"} desc="Soft memories shape how Jeff interprets and prioritises. They never override security." eyebrow="MEMORY" />
+      <ModalHeader title={memory ? "Edit memory" : "Remember something"} desc="Soft memories shape how Gomez interprets and prioritises. They never override security." eyebrow="MEMORY" />
       <form className="modal-body form-grid" onSubmit={submit}>
         <label className="field">
-          What should Jeff remember?
+          What should Gomez remember?
           <textarea value={content} onChange={(e) => setContent(e.target.value)} maxLength={1000} required placeholder="Pipeline value is not revenue." />
         </label>
         <label className="field">
@@ -258,7 +258,7 @@ function MemoryEditor({ memory, onSaved }: { memory?: Memory; onSaved: () => Pro
           </select>
         </label>
         <div className="modal-actions">
-          <button className="button secondary" type="button" onClick={jeff.closeModal}>
+          <button className="button secondary" type="button" onClick={gomez.closeModal}>
             Cancel
           </button>
           <button className="button primary" type="submit" disabled={busy}>
@@ -279,8 +279,8 @@ const ACTIONS: { value: RuleAction["type"]; label: string }[] = [
   { value: "require_min_confidence", label: "Require minimum confidence" },
 ];
 
-export function RuleEditor({ rule, proposed, onSaved, targetJob }: { rule?: PresentedRule; proposed?: { name: string; target_monitor: string | null; conditions: RuleCondition; action: RuleAction; description?: string }; onSaved: () => Promise<void>; /** Scope a new rule to one of Jeff's Jobs (slug); global monitors ignore it. */ targetJob?: string }) {
-  const jeff = useJeff();
+export function RuleEditor({ rule, proposed, onSaved, targetJob }: { rule?: PresentedRule; proposed?: { name: string; target_monitor: string | null; conditions: RuleCondition; action: RuleAction; description?: string }; onSaved: () => Promise<void>; /** Scope a new rule to one of Gomez's Jobs (slug); global monitors ignore it. */ targetJob?: string }) {
+  const gomez = useGomez();
   const seed = rule ?? proposed;
   const [name, setName] = useState(seed?.name ?? "");
   const [target, setTarget] = useState<string>(seed?.target_monitor ?? "");
@@ -332,8 +332,8 @@ export function RuleEditor({ rule, proposed, onSaved, targetJob }: { rule?: Pres
       const d = (await res.json().catch(() => null)) as { error?: string; reason?: string; suppressed?: number } | null;
       if (!res.ok) return setError(d?.reason ?? d?.error ?? `HTTP ${res.status}`);
       await onSaved();
-      jeff.closeModal();
-      jeff.toast(rule ? "Rule updated." : `Rule added${d?.suppressed ? ` · ${d.suppressed} finding(s) suppressed` : ""}.`);
+      gomez.closeModal();
+      gomez.toast(rule ? "Rule updated." : `Rule added${d?.suppressed ? ` · ${d.suppressed} finding(s) suppressed` : ""}.`);
     } finally {
       setBusy(false);
     }
@@ -439,7 +439,7 @@ export function RuleEditor({ rule, proposed, onSaved, targetJob }: { rule?: Pres
           </label>
         ) : null}
         <div className="modal-actions">
-          <button className="button secondary" type="button" onClick={jeff.closeModal}>
+          <button className="button secondary" type="button" onClick={gomez.closeModal}>
             Cancel
           </button>
           <button className="button primary" type="submit" disabled={busy}>
@@ -452,7 +452,7 @@ export function RuleEditor({ rule, proposed, onSaved, targetJob }: { rule?: Pres
 }
 
 function RuleHistory({ rule }: { rule: PresentedRule }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const [events, setEvents] = useState<{ id: number; effect: string; detail: string | null; monitor: string | null; createdAt: string; findingTitle: string | null }[] | null>(null);
   useEffect(() => {
     fetch(`/api/rules/${rule.id}`)
@@ -502,7 +502,7 @@ function RuleHistory({ rule }: { rule: PresentedRule }) {
           )}
         </div>
         <div className="modal-actions">
-          <button className="button primary" type="button" onClick={jeff.closeModal}>
+          <button className="button primary" type="button" onClick={gomez.closeModal}>
             Close
           </button>
         </div>

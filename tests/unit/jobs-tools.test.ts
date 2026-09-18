@@ -16,14 +16,14 @@ const runJob = vi.fn(async (_o: string, job: { slug: string }, opts: { mode: str
 
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => db.client() }));
 vi.mock("@/lib/audit", () => ({ audit: (...a: unknown[]) => audit(...(a as [])) }));
-vi.mock("@/lib/jeff/settings-store", () => ({ getSettings: async () => ({ timezone: "America/Denver", jobs_auto_create_safe: true }) }));
+vi.mock("@/lib/gomez/settings-store", () => ({ getSettings: async () => ({ timezone: "America/Denver", jobs_auto_create_safe: true }) }));
 let connected = ["portal", "stripe"];
 vi.mock("@/lib/integrations/store", () => ({ listConnections: async () => connected.map((provider) => ({ provider, status: "connected" })) }));
-vi.mock("@/lib/jeff/jobs/runner", () => ({ runJob: (...a: unknown[]) => runJob(...(a as [string, { slug: string }, { mode: string }])), runDueJobs: async () => ({ ran: [], skipped: [] }), triggerJobsForEvent: async () => [] }));
-vi.mock("@/lib/jeff/budget", () => ({ budgetStatus: async () => ({ spentUsd: 0, budgetUsd: 2, exhausted: false }), recordUsage: async () => 0 }));
+vi.mock("@/lib/gomez/jobs/runner", () => ({ runJob: (...a: unknown[]) => runJob(...(a as [string, { slug: string }, { mode: string }])), runDueJobs: async () => ({ ran: [], skipped: [] }), triggerJobsForEvent: async () => [] }));
+vi.mock("@/lib/gomez/budget", () => ({ budgetStatus: async () => ({ spentUsd: 0, budgetUsd: 2, exhausted: false }), recordUsage: async () => 0 }));
 
-const { JOB_TOOLS, runJobTool } = await import("@/lib/jeff/jobs/tools");
-const { JEFF_TOOLS } = await import("@/lib/jeff/tools");
+const { JOB_TOOLS, runJobTool } = await import("@/lib/gomez/jobs/tools");
+const { GOMEZ_TOOLS } = await import("@/lib/gomez/tools");
 const ctx = { ownerId: OWNER } as never;
 
 beforeEach(() => {
@@ -32,11 +32,11 @@ beforeEach(() => {
   runJob.mockClear();
 });
 
-describe("Ask Jeff job tools", () => {
-  it("are registered in JEFF_TOOLS with strict schemas", () => {
+describe("Ask Gomez job tools", () => {
+  it("are registered in GOMEZ_TOOLS with strict schemas", () => {
     const names = JOB_TOOLS.map((t) => t.name);
     expect(names).toEqual(["list_jobs", "get_job", "run_job", "pause_job", "resume_job", "create_job_from_description", "jobs_health", "job_suggestions", "update_job_policy"]);
-    for (const n of names) expect(JEFF_TOOLS.some((t) => t.name === n)).toBe(true);
+    for (const n of names) expect(GOMEZ_TOOLS.some((t) => t.name === n)).toBe(true);
     for (const t of JOB_TOOLS) expect((t.input_schema as { additionalProperties?: boolean }).additionalProperties).toBe(false);
   });
   it("list_jobs seeds the roster and reports coverage; get_job resolves by slug or name", async () => {

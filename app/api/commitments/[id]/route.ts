@@ -2,7 +2,7 @@ import { z } from "zod";
 import { apiError, json, parseBody, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
 import { audit } from "@/lib/audit";
-import { updateCommitment } from "@/lib/jeff/commitments/store";
+import { updateCommitment } from "@/lib/gomez/commitments/store";
 
 export const dynamic = "force-dynamic";
 

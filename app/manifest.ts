@@ -1,10 +1,10 @@
 import type { MetadataRoute } from "next";
 
-/** Web app manifest so Jeff installs as a standalone home-screen app (required for iOS push). */
+/** Web app manifest so Gomez installs as a standalone home-screen app (required for iOS push). */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Jeff",
-    short_name: "Jeff",
+    name: "Gomez",
+    short_name: "Gomez",
     description: "Private BizGrips second brain and operations command center.",
     start_url: "/",
     scope: "/",

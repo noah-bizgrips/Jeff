@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { classifyCommitment, extractCommitment, parseDueDate } from "@/lib/jeff/monitors/commitment-classifier";
-import { missedCommitment } from "@/lib/jeff/monitors/missed-commitment";
-import { runMonitors } from "@/lib/jeff/monitors";
-import { interpretFeedback } from "@/lib/jeff/rules/interpret";
-import { classifyTier } from "@/lib/jeff/rules/tiers";
-import { inferNarrowRule } from "@/lib/jeff/rules/feedback";
-import type { OperatingRule } from "@/lib/jeff/rules/schema";
-import type { SourceRow } from "@/lib/jeff/monitors/types";
-import { emailHash } from "@/lib/jeff/clients/client-leads";
+import { classifyCommitment, extractCommitment, parseDueDate } from "@/lib/gomez/monitors/commitment-classifier";
+import { missedCommitment } from "@/lib/gomez/monitors/missed-commitment";
+import { runMonitors } from "@/lib/gomez/monitors";
+import { interpretFeedback } from "@/lib/gomez/rules/interpret";
+import { classifyTier } from "@/lib/gomez/rules/tiers";
+import { inferNarrowRule } from "@/lib/gomez/rules/feedback";
+import type { OperatingRule } from "@/lib/gomez/rules/schema";
+import type { SourceRow } from "@/lib/gomez/monitors/types";
+import { emailHash } from "@/lib/gomez/clients/client-leads";
 
 const NOW = new Date("2026-09-12T12:00:00.000Z");
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000).toISOString();
@@ -18,7 +18,7 @@ function email(p: Partial<SourceRow> & { id: string }): SourceRow {
 
 const GITHUB_NOISE = email({ id: "gh", title: "[BizGrips-Site-Builds/site-bathroom-phoenix-smartchoice] change webhook destination to n8n and structure", author: "noah-bizgrips <notifications@github.com>", summary: "noah-bizgrips pushed 1 commit. I'll update the workflow by Friday. View it on GitHub." });
 const PR_NOISE = email({ id: "pr", title: "Re: [acme/api] PR #42: Add retries", author: "Jane via GitHub <notifications@github.com>", summary: "Merged. We'll deploy tomorrow." });
-const DEPLOY_NOISE = email({ id: "dep", title: "Deployment failed for jeff", author: "Vercel <notifications@vercel.com>", summary: "Your deployment failed. We will retry by tomorrow." });
+const DEPLOY_NOISE = email({ id: "dep", title: "Deployment failed for gomez", author: "Vercel <notifications@vercel.com>", summary: "Your deployment failed. We will retry by tomorrow." });
 const NEWSLETTER = email({ id: "nl", title: "This week in growth", author: "Growth Weekly <hello@growthweekly.com>", summary: "We'll send you more tips next week!", metadata: { threadId: "nl", labelIds: ["CATEGORY_PROMOTIONS"] } });
 const CLIENT_PROMISE = email({ id: "cl", title: "Re: Atlas proposal", author: "Oliver Chen <oliver@atlasclient.com>", summary: "Thanks Noah. I'll send the signed proposal Thursday and loop in Maya." });
 const OWN_PROMISE = email({ id: "own", title: "Fence estimate", author: "Noah <noah@bizgrips.com>", summary: "Great talking today. We will send the revised estimate by 9/15." });

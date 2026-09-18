@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeSupabase, jsonReq, OWNER_ID, OTHER_ID, type Claims } from "../helpers";
 import { FakeDb } from "../fake-db";
-import { emailHash } from "@/lib/jeff/clients/client-leads";
+import { emailHash } from "@/lib/gomez/clients/client-leads";
 
 let claims: Claims = null;
 let db = new FakeDb();
@@ -12,7 +12,7 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => db.client() })
 vi.mock("@/lib/audit", () => ({ audit: (...a: unknown[]) => audit(...(a as [])) }));
 
 const route = await import("@/app/api/commitments/reprocess/route");
-const { reclassifyCommitments, RECLASSIFY_NOTE } = await import("@/lib/jeff/commitments/reclassify");
+const { reclassifyCommitments, RECLASSIFY_NOTE } = await import("@/lib/gomez/commitments/reclassify");
 
 const NOW = new Date("2026-09-14T16:00:00.000Z");
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000).toISOString();

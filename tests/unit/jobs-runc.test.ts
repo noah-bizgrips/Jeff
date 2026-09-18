@@ -1,17 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeDb } from "../fake-db";
 import { fakeSupabase, OWNER_ID, req, type Claims } from "../helpers";
-import type { ProviderFreshness } from "@/lib/jeff/freshness";
-import type { BlindSpotCandidate } from "@/lib/jeff/blindspots/types";
-import { assessNovelty, daysUntil, findOverlaps, rankScore, titleTokens, worsenedKeys, EMPTY_RESULT_MESSAGE, THEME_OF } from "@/lib/jeff/blindspots/novelty";
-import { applyNovelty } from "@/lib/jeff/blindspots/index";
-import { toFinding } from "@/lib/jeff/blindspots/detect";
-import { unresolvedCostlyObligation } from "@/lib/jeff/blindspots/detectors/unresolved-costly-obligation";
-import { filterAlreadyCovered, proposeLearnings, type LearningSignal } from "@/lib/jeff/jobs/learning";
-import { computeMetrics, type MetricsInputs } from "@/lib/jeff/jobs/metrics";
-import { bestMatch, scoreMatches, stem, tokens } from "@/lib/jeff/obligations/match";
-import { JOB_DEFAULT_RULES } from "@/lib/jeff/jobs/default-rules";
-import { isoWeek } from "@/lib/jeff/jobs/runner";
+import type { ProviderFreshness } from "@/lib/gomez/freshness";
+import type { BlindSpotCandidate } from "@/lib/gomez/blindspots/types";
+import { assessNovelty, daysUntil, findOverlaps, rankScore, titleTokens, worsenedKeys, EMPTY_RESULT_MESSAGE, THEME_OF } from "@/lib/gomez/blindspots/novelty";
+import { applyNovelty } from "@/lib/gomez/blindspots/index";
+import { toFinding } from "@/lib/gomez/blindspots/detect";
+import { unresolvedCostlyObligation } from "@/lib/gomez/blindspots/detectors/unresolved-costly-obligation";
+import { filterAlreadyCovered, proposeLearnings, type LearningSignal } from "@/lib/gomez/jobs/learning";
+import { computeMetrics, type MetricsInputs } from "@/lib/gomez/jobs/metrics";
+import { bestMatch, scoreMatches, stem, tokens } from "@/lib/gomez/obligations/match";
+import { JOB_DEFAULT_RULES } from "@/lib/gomez/jobs/default-rules";
+import { isoWeek } from "@/lib/gomez/jobs/runner";
 
 const OWNER = OWNER_ID;
 const NOW = new Date("2026-09-12T18:00:00Z"); // Saturday 12:00 Denver
@@ -27,25 +27,25 @@ const alerts = vi.fn(async () => ({ created: 0 }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => db.client() }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => fakeSupabase(claims) }));
 vi.mock("@/lib/audit", () => ({ audit: (...a: unknown[]) => audit(...(a as [])) }));
-vi.mock("@/lib/jeff/settings-store", () => ({ getSettings: async () => ({ timezone: "America/Denver", jobs_auto_create_safe: true }) }));
-vi.mock("@/lib/jeff/freshness-store", () => ({ loadFreshness: async () => freshness }));
-vi.mock("@/lib/jeff/alerts/store", () => ({ runAlertsForOwner: (...a: unknown[]) => alerts(...(a as [])) }));
-vi.mock("@/lib/jeff/goals/refresh", () => ({ refreshGoals: async () => [] }));
-vi.mock("@/lib/jeff/goals/store", () => ({ latestSnapshot: async () => null, listGoals: async () => [], listGoalMetrics: async () => [], listRecommendations: async () => [] }));
+vi.mock("@/lib/gomez/settings-store", () => ({ getSettings: async () => ({ timezone: "America/Denver", jobs_auto_create_safe: true }) }));
+vi.mock("@/lib/gomez/freshness-store", () => ({ loadFreshness: async () => freshness }));
+vi.mock("@/lib/gomez/alerts/store", () => ({ runAlertsForOwner: (...a: unknown[]) => alerts(...(a as [])) }));
+vi.mock("@/lib/gomez/goals/refresh", () => ({ refreshGoals: async () => [] }));
+vi.mock("@/lib/gomez/goals/store", () => ({ latestSnapshot: async () => null, listGoals: async () => [], listGoalMetrics: async () => [], listRecommendations: async () => [] }));
 vi.mock("@/lib/integrations/store", () => ({ listConnections: async () => [{ provider: "stripe", status: "connected" }, { provider: "portal", status: "connected" }] }));
-vi.mock("@/lib/jeff/monitors", async (importOriginal) => {
-  const mod = await importOriginal<typeof import("@/lib/jeff/monitors")>();
+vi.mock("@/lib/gomez/monitors", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("@/lib/gomez/monitors")>();
   return { ...mod };
 });
 
-const store = await import("@/lib/jeff/jobs/store");
-const runner = await import("@/lib/jeff/jobs/runner");
-const rulesStore = await import("@/lib/jeff/rules/store");
-const learningStore = await import("@/lib/jeff/jobs/learning-store");
-const metricsStore = await import("@/lib/jeff/jobs/metrics");
+const store = await import("@/lib/gomez/jobs/store");
+const runner = await import("@/lib/gomez/jobs/runner");
+const rulesStore = await import("@/lib/gomez/rules/store");
+const learningStore = await import("@/lib/gomez/jobs/learning-store");
+const metricsStore = await import("@/lib/gomez/jobs/metrics");
 const metricsRoute = await import("@/app/api/jobs/metrics/route");
-const { inferNarrowRule } = await import("@/lib/jeff/rules/feedback");
-const { ensureJobDefaultRules } = await import("@/lib/jeff/jobs/default-rules");
+const { inferNarrowRule } = await import("@/lib/gomez/rules/feedback");
+const { ensureJobDefaultRules } = await import("@/lib/gomez/jobs/default-rules");
 
 function fresh(provider: string): ProviderFreshness {
   return { provider, connection_id: `c-${provider}`, display_name: provider, status: "connected", level: "fresh", age_hours: 1, last_success_at: ago(0), last_error: null, text: `${provider} fresh` } as ProviderFreshness;
@@ -198,10 +198,10 @@ describe("§64 job learning", () => {
     expect(first).toMatchObject({ signals: 3, proposals: 1 });
     expect(first.created).toEqual(["Learned: Client Health Analyst — keep \"client negative signal\" out of alerts"]);
     const rule = db.rows("operating_rules")[0]!;
-    expect(rule).toMatchObject({ pending_confirmation: true, enabled: false, target_job: "client-health-analyst", created_by: "jeff", source: "feedback" });
+    expect(rule).toMatchObject({ pending_confirmation: true, enabled: false, target_job: "client-health-analyst", created_by: "gomez", source: "feedback" });
     expect(rule.source_quote).toMatch(/should I stop alerting/);
     expect(audit).toHaveBeenCalledWith(expect.objectContaining({ event: "rule_proposed" }));
-    // Idempotent: nothing new on the next run, and the suggestion is visible to Ask Jeff / the brief.
+    // Idempotent: nothing new on the next run, and the suggestion is visible to Ask Gomez / the brief.
     expect((await learningStore.runJobLearning(OWNER, NOW)).created).toEqual([]);
     const suggestions = await learningStore.listPendingSuggestions(OWNER);
     expect(suggestions).toHaveLength(1);
@@ -305,7 +305,7 @@ describe("§86 rule feedback through the job runner", () => {
     const first = await ensureJobDefaultRules(OWNER, jobs);
     expect(first.created).toBe(JOB_DEFAULT_RULES.length);
     const rules = db.rows("operating_rules");
-    expect(rules.every((r) => typeof r.target_job === "string" && r.created_by === "jeff" && r.source === "settings" && r.pending_confirmation === false)).toBe(true);
+    expect(rules.every((r) => typeof r.target_job === "string" && r.created_by === "gomez" && r.source === "settings" && r.pending_confirmation === false)).toBe(true);
     expect(rules.find((r) => r.target_job === "relationship-radar" && String(r.name).includes("LinkedIn"))).toBeDefined();
     // Owner deletes one; re-seeding does not bring it back.
     const victim = rules.find((r) => r.target_job === "expense-creep-hunter")!;
@@ -322,10 +322,10 @@ describe("§86 rule feedback through the job runner", () => {
 });
 
 /* ------------------------------------------------------------------ */
-/* Ask Jeff fuzzy obligation matching                                  */
+/* Ask Gomez fuzzy obligation matching                                  */
 /* ------------------------------------------------------------------ */
 
-describe("Ask Jeff fuzzy obligation matching", () => {
+describe("Ask Gomez fuzzy obligation matching", () => {
   const rows = [
     { id: "1", title: "Cancel Calendly subscription", counterparty: null, description: null },
     { id: "2", title: "Dentist appointment — book cleaning", counterparty: "Dr. Lee", description: null },

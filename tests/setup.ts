@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 
 // Test-only values. These are NOT real credentials.
 Object.assign(process.env, { NODE_ENV: "test" });
-process.env.NEXT_PUBLIC_APP_URL = "https://jeff.test";
+process.env.NEXT_PUBLIC_APP_URL = "https://gomez.test";
 process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
 process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_test_placeholder";
 process.env.SUPABASE_SECRET_KEY = "sb_secret_test_placeholder";

@@ -82,7 +82,7 @@ def repl(m):
 body = re.sub(r":root \{[^}]*\}", "/*ROOT*/", src, count=1)
 body = re.sub(r":root \{[^}]*\}", "", body)
 body = re.sub(r"#[0-9a-fA-F]{8}\b|#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3,4}\b", repl, body)
-ROOT = """/* Jeff design system — premium black "Intelligence OS". Black is the environment, white is the information,
+ROOT = """/* Gomez design system — premium black "Intelligence OS". Black is the environment, white is the information,
    electric blue is intelligence/activity. Tokens are the single source of truth; legacy names are aliases. */
 :root {
   color-scheme: dark;
@@ -123,7 +123,7 @@ ROOT = """/* Jeff design system — premium black "Intelligence OS". Black is th
 }"""
 body = body.replace("/*ROOT*/", ROOT, 1)
 body = body.replace(
-    "/* Jeff design system — ported from the original Mission Control prototype. Midnight/navy, electric blue. */\n", ""
+    "/* Gomez design system — ported from the original Mission Control prototype. Midnight/navy, electric blue. */\n", ""
 )
 open(p, "w").write(body)
 for k, v in sorted(count.items(), key=lambda x: -x[1])[:25]:

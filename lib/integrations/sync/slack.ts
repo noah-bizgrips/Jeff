@@ -29,7 +29,7 @@ import type { SyncAdapter, CapabilityFetch } from "./runner";
  *   users.list                      → display names only (cached per run)
  *   conversations.list              → public channels (paginated)
  *   conversations.history/replies   → messages since the per-channel cursor
- *   search.messages                 → Ask Jeff `search_slack` tool
+ *   search.messages                 → Ask Gomez `search_slack` tool
  *
  * Rate limits: 429 → sleep `Retry-After` (capped) and retry; Tier-3 methods
  * (history/replies) are called sequentially with a small pause.
@@ -253,7 +253,7 @@ export interface SlackSearchHit {
 }
 
 /**
- * search.messages for the Ask Jeff `search_slack` tool. Returns bounded,
+ * search.messages for the Ask Gomez `search_slack` tool. Returns bounded,
  * PII-minimised hits (no files, no emails). The token never leaves this module.
  */
 export async function searchSlackMessages(conn: ConnectionSummary, query: string, count = 10): Promise<SlackSearchHit[]> {

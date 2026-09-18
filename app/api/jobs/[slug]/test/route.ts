@@ -1,7 +1,7 @@
 import { apiError, json, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
 import { audit } from "@/lib/audit";
-import { getJob, runJob } from "@/lib/jeff/jobs";
+import { getJob, runJob } from "@/lib/gomez/jobs";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;

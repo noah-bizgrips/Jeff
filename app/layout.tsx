@@ -3,8 +3,8 @@ import "./globals.css";
 import "./theme-black.css";
 
 export const metadata: Metadata = {
-  title: "Jeff — Private Mission Control",
-  description: "Jeff, the private BizGrips second brain and operations command center.",
+  title: "Gomez — Private Mission Control",
+  description: "Gomez, the private BizGrips second brain and operations command center.",
   robots: { index: false, follow: false },
   icons: {
     icon: [
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.webmanifest",
   // Installed as a standalone app on iOS: required for Web Push on iPhone.
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Jeff" },
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Gomez" },
 };
 
 export const viewport: Viewport = {

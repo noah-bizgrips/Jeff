@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { adSpendChange } from "@/lib/jeff/monitors/ad-spend-change";
-import { underperformingAcquisition } from "@/lib/jeff/monitors/underperforming-acquisition";
-import type { SourceRow } from "@/lib/jeff/monitors/types";
+import { adSpendChange } from "@/lib/gomez/monitors/ad-spend-change";
+import { underperformingAcquisition } from "@/lib/gomez/monitors/underperforming-acquisition";
+import type { SourceRow } from "@/lib/gomez/monitors/types";
 
 const NOW = new Date("2026-09-15T12:00:00Z");
 const DAY = 86_400_000;

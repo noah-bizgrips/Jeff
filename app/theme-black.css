@@ -1053,7 +1053,7 @@ input[type="radio"] {
   color: var(--text-primary);
 }
 
-/* ---- ask jeff: console, not bubbles -------------------------------------- */
+/* ---- ask gomez: console, not bubbles -------------------------------------- */
 .agent-panel {
   background: var(--background);
   border-left: 1px solid var(--border);

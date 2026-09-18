@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildClientMap, isPublicMailboxDomain, resolveClient, type MapSourceRow } from "@/lib/jeff/clients/map-core";
-import { attributeRows } from "@/lib/jeff/clients/attribution-core";
+import { buildClientMap, isPublicMailboxDomain, resolveClient, type MapSourceRow } from "@/lib/gomez/clients/map-core";
+import { attributeRows } from "@/lib/gomez/clients/attribution-core";
 
 const row = (provider: string, resource_type: string, external_id: string, metadata: Record<string, unknown>, title: string | null = null): MapSourceRow => ({ provider, resource_type, external_id, title, metadata });
 

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { json, parseBody, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { generateBriefing } from "@/lib/jeff/briefings";
+import { generateBriefing } from "@/lib/gomez/briefings";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;

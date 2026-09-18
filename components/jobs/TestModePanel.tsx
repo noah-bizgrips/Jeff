@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Icon } from "@/components/jeff/icons";
-import { useJeff } from "@/components/jeff/store";
-import { ModalHeader } from "@/components/jeff/shared";
+import { Icon } from "@/components/gomez/icons";
+import { useGomez } from "@/components/gomez/store";
+import { ModalHeader } from "@/components/gomez/shared";
 import { RuleEditor } from "@/components/memory/MemoryRulesView";
 import { api, SOURCE_LABEL, type JobItem, type RunOutcome, type TestResult } from "./types";
 
@@ -16,7 +16,7 @@ const SEVERITY_TONE: Record<string, string> = { high: "danger", medium: "amber",
  * seed a job-scoped rule so the next real run already respects it.
  */
 export function TestModePanel({ job, outcome, onRuleSaved }: { job: JobItem; outcome: RunOutcome; onRuleSaved?: () => Promise<void> }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const [verdicts, setVerdicts] = useState<Record<number, string>>({});
   const [busy, setBusy] = useState<number | null>(null);
   const missing = outcome.coverage.filter((c) => c.status !== "ok");
@@ -25,16 +25,16 @@ export function TestModePanel({ job, outcome, onRuleSaved }: { job: JobItem; out
     setBusy(index);
     try {
       const res = await api<{ ok: boolean }>(`/api/jobs/runs/${outcome.runId}`, { method: "PATCH", body: JSON.stringify({ index, verdict }) });
-      if (!res.ok) return jeff.toast(`Could not record feedback (${res.error ?? res.status}).`);
+      if (!res.ok) return gomez.toast(`Could not record feedback (${res.error ?? res.status}).`);
       setVerdicts((v) => ({ ...v, [index]: verdict }));
-      jeff.toast(verdict === "useful" ? "Noted — Jeff will keep surfacing results like this." : "Noted. Consider 'Ignore pattern' to make it a rule.");
+      gomez.toast(verdict === "useful" ? "Noted — Gomez will keep surfacing results like this." : "Noted. Consider 'Ignore pattern' to make it a rule.");
     } finally {
       setBusy(null);
     }
   }
 
   function ignorePattern(r: TestResult) {
-    jeff.openModal(
+    gomez.openModal(
       <RuleEditor
         targetJob={job.slug}
         proposed={{
@@ -118,13 +118,13 @@ export function TestModePanel({ job, outcome, onRuleSaved }: { job: JobItem; out
             ))}
           </div>
         ) : (
-          <p className="muted focus-empty">Nothing would be surfaced right now{outcome.status === "partial" ? " (with partial coverage)" : ""}. That is a valid result — Jeff does not invent findings.</p>
+          <p className="muted focus-empty">Nothing would be surfaced right now{outcome.status === "partial" ? " (with partial coverage)" : ""}. That is a valid result — Gomez does not invent findings.</p>
         )}
         <div className="modal-actions">
-          <button className="button secondary" type="button" onClick={() => jeff.openModal(<RuleEditor targetJob={job.slug} onSaved={onRuleSaved ?? (async () => {})} />)}>
+          <button className="button secondary" type="button" onClick={() => gomez.openModal(<RuleEditor targetJob={job.slug} onSaved={onRuleSaved ?? (async () => {})} />)}>
             <Icon name="plus" /> Create rule for this job
           </button>
-          <button className="button primary" type="button" onClick={jeff.closeModal}>
+          <button className="button primary" type="button" onClick={gomez.closeModal}>
             Done
           </button>
         </div>

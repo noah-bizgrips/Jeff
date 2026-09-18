@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeDb } from "../fake-db";
-import type { OperatingRule } from "@/lib/jeff/rules/schema";
-import type { ProviderFreshness } from "@/lib/jeff/freshness";
-import type { JobRow } from "@/lib/jeff/jobs/types";
+import type { OperatingRule } from "@/lib/gomez/rules/schema";
+import type { ProviderFreshness } from "@/lib/gomez/freshness";
+import type { JobRow } from "@/lib/gomez/jobs/types";
 
 const OWNER = "11111111-1111-4111-8111-111111111111";
 const NOW = new Date("2026-09-12T18:00:00Z"); // Saturday 12:00 Denver
@@ -22,26 +22,26 @@ const runBlindSpotsForOwner = vi.fn(async (_o: string, _n: Date, opts: { onProgr
 
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => db.client() }));
 vi.mock("@/lib/audit", () => ({ audit: (...a: unknown[]) => audit(...(a as [])) }));
-vi.mock("@/lib/jeff/settings-store", () => ({ getSettings: async () => ({ timezone: "America/Denver", jobs_auto_create_safe: true }) }));
-vi.mock("@/lib/jeff/freshness-store", () => ({ loadFreshness: async () => freshness }));
-vi.mock("@/lib/jeff/rules/store", () => ({ listRules: async () => rules, recordRuleEvents: async () => {} }));
-vi.mock("@/lib/jeff/rules/apply", () => ({ ensureSystemRules: async (_o: string, r: OperatingRule[]) => r }));
-vi.mock("@/lib/jeff/alerts/store", () => ({ runAlertsForOwner: (...a: unknown[]) => alerts(...(a as [])) }));
-vi.mock("@/lib/jeff/goals/refresh", () => ({ refreshGoals: async () => [] }));
-vi.mock("@/lib/jeff/goals/store", () => ({ latestSnapshot: async () => null, listGoals: async () => [] }));
-vi.mock("@/lib/jeff/blindspots", () => ({
+vi.mock("@/lib/gomez/settings-store", () => ({ getSettings: async () => ({ timezone: "America/Denver", jobs_auto_create_safe: true }) }));
+vi.mock("@/lib/gomez/freshness-store", () => ({ loadFreshness: async () => freshness }));
+vi.mock("@/lib/gomez/rules/store", () => ({ listRules: async () => rules, recordRuleEvents: async () => {} }));
+vi.mock("@/lib/gomez/rules/apply", () => ({ ensureSystemRules: async (_o: string, r: OperatingRule[]) => r }));
+vi.mock("@/lib/gomez/alerts/store", () => ({ runAlertsForOwner: (...a: unknown[]) => alerts(...(a as [])) }));
+vi.mock("@/lib/gomez/goals/refresh", () => ({ refreshGoals: async () => [] }));
+vi.mock("@/lib/gomez/goals/store", () => ({ latestSnapshot: async () => null, listGoals: async () => [] }));
+vi.mock("@/lib/gomez/blindspots", () => ({
   runBlindSpotsForOwner: (...a: unknown[]) => runBlindSpotsForOwner(...(a as [string, Date, { onProgress?: (s: string) => void }])),
   loadBlindSpotContext: async () => ({ now: NOW, ownerEmail: "", sourceItems: [], findings: [], alerts: [], goals: [], clients: [], connections: [], attention: [], commitments: [] }),
   detectBlindSpots: () => ({ candidates: [], events: [], errors: [] }),
   DETECTORS: [],
 }));
-vi.mock("@/lib/jeff/blindspots/detect", () => ({ toFinding: (c: unknown) => c }));
+vi.mock("@/lib/gomez/blindspots/detect", () => ({ toFinding: (c: unknown) => c }));
 vi.mock("@/lib/integrations/store", () => ({ listConnections: async () => [{ provider: "stripe", status: "connected" }] }));
 
-const store = await import("@/lib/jeff/jobs/store");
-const runner = await import("@/lib/jeff/jobs/runner");
-const { SYSTEM_JOBS } = await import("@/lib/jeff/jobs/registry");
-const { computeCoverage, coverageLevel } = await import("@/lib/jeff/jobs/coverage");
+const store = await import("@/lib/gomez/jobs/store");
+const runner = await import("@/lib/gomez/jobs/runner");
+const { SYSTEM_JOBS } = await import("@/lib/gomez/jobs/registry");
+const { computeCoverage, coverageLevel } = await import("@/lib/gomez/jobs/coverage");
 
 function fresh(provider: string, level: ProviderFreshness["level"] = "fresh", status = "connected"): ProviderFreshness {
   return { connection_id: `c-${provider}`, provider, display_name: provider, status, last_success_at: NOW.toISOString(), last_attempt_at: NOW.toISOString(), last_error: null, age_hours: 1, level, text: `${provider} data is 1h old` };
@@ -311,7 +311,7 @@ describe("job-scoped rules (target_job)", () => {
   it("the global monitor run ignores job-scoped rules", async () => {
     seedStripeTrouble();
     rules = [rule({ name: "scoped", target_job: "revenue-leakage-hunter", conditions: { provider: "stripe" }, action: { type: "exclude" } })];
-    const { runMonitorsForOwner } = await import("@/lib/jeff/monitors");
+    const { runMonitorsForOwner } = await import("@/lib/gomez/monitors");
     const summary = await runMonitorsForOwner(OWNER, NOW);
     expect(summary.created).toBeGreaterThanOrEqual(1);
     expect(db.rows("findings").some((f) => f.fingerprint === "failed_payment:stripe:open" && f.job_id == null)).toBe(true);
@@ -343,7 +343,7 @@ describe("store guards", () => {
   it("refuses to delete system jobs; user jobs can be created, updated and deleted", async () => {
     await store.seedSystemJobs(OWNER, NOW);
     expect(await store.deleteJob(OWNER, "blind-spot-scanner")).toEqual({ ok: false, reason: "system_jobs_cannot_be_deleted" });
-    const created = await store.createJob(OWNER, { slug: "my-job", name: "My job", job_type: "user", schedule_type: "weekly", schedule_expression: "fri 07:05", sources: ["stripe"], detectors: ["failed_payment"] }, { createdBy: "owner" });
+    const created = await store.createJob(OWNER, { slug: "my-job", name: "My job", job_type: "user", schedule_type: "weekly", schedule_expression: "fri 07:05", sources: ["stripe"], detectors: ["failed_payment"] }, { createdBy: "owner", now: NOW });
     expect(created.ok).toBe(true);
     if (!created.ok) return;
     expect(created.job.next_run_at).toBe("2026-09-18T13:05:00.000Z");

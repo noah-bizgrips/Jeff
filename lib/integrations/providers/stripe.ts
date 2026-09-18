@@ -5,7 +5,7 @@ import type { SecretBundle } from "@/lib/integrations/store";
 
 /**
  * Stripe: read-only reporting through a RESTRICTED key supplied once via the
- * protected form. Jeff refuses secret keys (sk_) outright.
+ * protected form. Gomez refuses secret keys (sk_) outright.
  */
 export interface StripeSecret extends SecretBundle {
   kind: "api_key";

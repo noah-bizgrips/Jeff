@@ -15,10 +15,10 @@ const runJob = vi.fn(async (_o: string, job: { id: string; slug: string }, opts:
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => fakeSupabase(claims) }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => db.client() }));
 vi.mock("@/lib/audit", () => ({ audit: (...a: unknown[]) => audit(...(a as [])) }));
-vi.mock("@/lib/jeff/settings-store", () => ({ getSettings: async () => ({ timezone: "America/Denver", jobs_auto_create_safe: true }) }));
+vi.mock("@/lib/gomez/settings-store", () => ({ getSettings: async () => ({ timezone: "America/Denver", jobs_auto_create_safe: true }) }));
 vi.mock("@/lib/integrations/store", () => ({ listConnections: async () => [{ provider: "portal", status: "connected" }, { provider: "stripe", status: "connected" }] }));
-vi.mock("@/lib/jeff/jobs/runner", () => ({ runJob: (...a: unknown[]) => runJob(...(a as [string, { id: string; slug: string }, { mode: string }])), runDueJobs: async () => ({ ran: [], skipped: [] }), triggerJobsForEvent: async () => [] }));
-vi.mock("@/lib/jeff/budget", () => ({ budgetStatus: async () => ({ spentUsd: 0, budgetUsd: 2, exhausted: false }), recordUsage: async () => 0 }));
+vi.mock("@/lib/gomez/jobs/runner", () => ({ runJob: (...a: unknown[]) => runJob(...(a as [string, { id: string; slug: string }, { mode: string }])), runDueJobs: async () => ({ ran: [], skipped: [] }), triggerJobsForEvent: async () => [] }));
+vi.mock("@/lib/gomez/budget", () => ({ budgetStatus: async () => ({ spentUsd: 0, budgetUsd: 2, exhausted: false }), recordUsage: async () => 0 }));
 vi.mock("@/lib/env", async (importOriginal) => {
   const mod = await importOriginal<typeof import("@/lib/env")>();
   return { ...mod, hasEnv: (name: string) => (name === "ANTHROPIC_API_KEY" ? false : mod.hasEnv(name)) };

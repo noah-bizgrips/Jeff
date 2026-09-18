@@ -1,19 +1,19 @@
 "use client";
 
 import { useEffect, useImperativeHandle, useRef, forwardRef } from "react";
-import { GRAPH_SOURCES, SOURCES, hexRgb, sourceDef } from "@/lib/jeff/sources";
-import { linksFor } from "@/lib/jeff/retrieve";
-import type { JeffDoc } from "@/lib/jeff/demo-data";
-import { BRAIN_COLORS, BRAIN_POLICY, pulsePeriodMs, type SourceTone } from "@/lib/jeff/brain/policy";
-import type { BrainStateLite } from "@/lib/jeff/brain/state";
+import { GRAPH_SOURCES, SOURCES, hexRgb, sourceDef } from "@/lib/gomez/sources";
+import { linksFor } from "@/lib/gomez/retrieve";
+import type { GomezDoc } from "@/lib/gomez/demo-data";
+import { BRAIN_COLORS, BRAIN_POLICY, pulsePeriodMs, type SourceTone } from "@/lib/gomez/brain/policy";
+import type { BrainStateLite } from "@/lib/gomez/brain/state";
 
 /**
- * Jeff's neural network: a decorative 3-D point mesh shaped like a brain,
+ * Gomez's neural network: a decorative 3-D point mesh shaped like a brain,
  * with real records rendered as interactive nodes. Ported from the prototype.
  *
- * The brain is also Jeff's heartbeat (spec §10–§11, §25): the centre core
+ * The brain is also Gomez's heartbeat (spec §10–§11, §25): the centre core
  * pulses at a period set by the current state, affected sources take on a
- * tone colour (danger / warning / opportunity / stale), sources Jeff is
+ * tone colour (danger / warning / opportunity / stale), sources Gomez is
  * actually reading light up, and investigation shows particles flowing in.
  * Every colour and glow interpolates; nothing snaps. With reduced motion the
  * same information is shown statically.
@@ -51,7 +51,7 @@ export interface BrainActivityLite {
 }
 
 interface Props {
-  docs: JeffDoc[];
+  docs: GomezDoc[];
   connected: string[];
   focus: string | null;
   motion: boolean;
@@ -60,7 +60,7 @@ interface Props {
   onOpen: (id: string) => void;
   onZoom: (z: number) => void;
   onHover: (node: { title: string; x: number; y: number } | null) => void;
-  /** What Jeff currently sees. Optional so the canvas still renders without state. */
+  /** What Gomez currently sees. Optional so the canvas still renders without state. */
   brain?: BrainStateLite | null;
   /** Live activity (chat retrieval, scan, job). */
   activity?: BrainActivityLite | null;
@@ -111,13 +111,13 @@ const TONE_RGB: Record<SourceTone, RGB> = {
   stale: rgbOf(BRAIN_COLORS.stale),
   neutral: rgbOf(BRAIN_COLORS.neutral),
 };
-const JEFF_RGB = rgbOf(BRAIN_COLORS.jeff);
-const JEFF_BRIGHT_RGB = rgbOf(BRAIN_COLORS.jeffBright);
+const GOMEZ_RGB = rgbOf(BRAIN_COLORS.gomez);
+const GOMEZ_BRIGHT_RGB = rgbOf(BRAIN_COLORS.gomezBright);
 
 /** Centre core colour for the ambient state (spec §10). */
 export function centerToneFor(brain: BrainStateLite | null | undefined, investigating: boolean): { rgb: RGB; intensity: number } {
-  if (investigating) return { rgb: JEFF_BRIGHT_RGB, intensity: 0.9 };
-  if (!brain) return { rgb: JEFF_RGB, intensity: 0.35 };
+  if (investigating) return { rgb: GOMEZ_BRIGHT_RGB, intensity: 0.9 };
+  if (!brain) return { rgb: GOMEZ_RGB, intensity: 0.35 };
   switch (brain.state) {
     case "attention":
       return brain.urgency === "urgent" ? { rgb: TONE_RGB.danger, intensity: 1 } : { rgb: TONE_RGB.warning, intensity: 0.75 };
@@ -126,9 +126,9 @@ export function centerToneFor(brain: BrainStateLite | null | undefined, investig
     case "degraded":
       return { rgb: TONE_RGB.warning, intensity: 0.5 };
     case "investigating":
-      return { rgb: JEFF_BRIGHT_RGB, intensity: 0.9 };
+      return { rgb: GOMEZ_BRIGHT_RGB, intensity: 0.9 };
     default:
-      return { rgb: JEFF_RGB, intensity: 0.35 };
+      return { rgb: GOMEZ_RGB, intensity: 0.35 };
   }
 }
 
@@ -162,7 +162,7 @@ export const BrainCanvas = forwardRef<BrainHandle, Props>(function BrainCanvas(p
     last: [0, 0] as [number, number],
     frame: 0,
     pulseAt: 0,
-    pulseRGB: JEFF_RGB as RGB,
+    pulseRGB: GOMEZ_RGB as RGB,
     hitNodes: [] as HitNode[],
     hover: null as string | null,
     drawn: 0,
@@ -171,7 +171,7 @@ export const BrainCanvas = forwardRef<BrainHandle, Props>(function BrainCanvas(p
     dpr: 1,
     // Heartbeat state (interpolated per frame).
     tones: new Map<string, ToneMix>(),
-    centerRGB: JEFF_RGB as RGB,
+    centerRGB: GOMEZ_RGB as RGB,
     centerIntensity: 0.35,
     periodMs: BRAIN_POLICY.pulseMs.watching!,
     particles: [] as Particle[],
@@ -196,7 +196,7 @@ export const BrainCanvas = forwardRef<BrainHandle, Props>(function BrainCanvas(p
     },
     pulse: () => {
       state.current.pulseAt = performance.now();
-      state.current.pulseRGB = JEFF_RGB;
+      state.current.pulseRGB = GOMEZ_RGB;
       state.current.drawn = 0;
     },
     resize: () => resize(),
@@ -467,7 +467,7 @@ export const BrainCanvas = forwardRef<BrainHandle, Props>(function BrainCanvas(p
       c.stroke();
       c.setLineDash([]);
       if (degraded) {
-        // Small warning marker on a source Jeff can't see properly.
+        // Small warning marker on a source Gomez can't see properly.
         const m = bez(x, y, tx, ty, 0.35);
         c.globalAlpha = dim ? 0.1 : 0.85;
         c.fillStyle = BRAIN_COLORS.warning;
@@ -521,7 +521,7 @@ export const BrainCanvas = forwardRef<BrainHandle, Props>(function BrainCanvas(p
       }
     }
 
-    // Centre core: Jeff's heartbeat. Radius/alpha follow the beat; colour follows the state.
+    // Centre core: Gomez's heartbeat. Radius/alpha follow the beat; colour follows the state.
     {
       const inv = !!activity?.kind;
       const r = 14 + beat * 10 + s.centerIntensity * 6;
@@ -616,7 +616,7 @@ export const BrainCanvas = forwardRef<BrainHandle, Props>(function BrainCanvas(p
       const fresh = ids.filter((id) => !s.reasonIds!.has(id));
       if (fresh.length && props.motion) {
         const b = props.brain;
-        const tone = b?.state === "attention" ? (b.urgency === "urgent" ? TONE_RGB.danger : TONE_RGB.warning) : b?.state === "opportunity" ? TONE_RGB.opportunity : b?.state === "degraded" ? TONE_RGB.warning : JEFF_RGB;
+        const tone = b?.state === "attention" ? (b.urgency === "urgent" ? TONE_RGB.danger : TONE_RGB.warning) : b?.state === "opportunity" ? TONE_RGB.opportunity : b?.state === "degraded" ? TONE_RGB.warning : GOMEZ_RGB;
         s.pulseAt = performance.now();
         s.pulseRGB = tone;
         s.drawn = 0;

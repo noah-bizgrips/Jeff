@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { centerToneFor, toneTargets } from "@/components/brain/BrainCanvas";
-import { resolveMotion } from "@/lib/jeff/brain/policy";
-import { computeBrainState, liteOf } from "@/lib/jeff/brain/state";
-import { SCENARIOS } from "@/lib/jeff/brain/fixtures";
+import { resolveMotion } from "@/lib/gomez/brain/policy";
+import { computeBrainState, liteOf } from "@/lib/gomez/brain/state";
+import { SCENARIOS } from "@/lib/gomez/brain/fixtures";
 
 const lite = (id: string) => liteOf(computeBrainState(SCENARIOS.find((s) => s.id === id)!.input));
 

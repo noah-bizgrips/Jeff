@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { noteAttention } from "@/lib/jeff/attention/client";
-import { Icon } from "@/components/jeff/icons";
-import { useJeff } from "@/components/jeff/store";
-import { EmptyState, MemoryRow, ModalHeader } from "@/components/jeff/shared";
-import type { DemoInsight } from "@/lib/jeff/demo-data";
+import { noteAttention } from "@/lib/gomez/attention/client";
+import { Icon } from "@/components/gomez/icons";
+import { useGomez } from "@/components/gomez/store";
+import { EmptyState, MemoryRow, ModalHeader } from "@/components/gomez/shared";
+import type { DemoInsight } from "@/lib/gomez/demo-data";
 import { RuleEditor } from "@/components/memory/MemoryRulesView";
-import type { RuleAction, RuleCondition } from "@/lib/jeff/rules/schema";
+import type { RuleAction, RuleCondition } from "@/lib/gomez/rules/schema";
 
 export interface FindingItem {
   id: string;
@@ -111,8 +111,8 @@ export function rowToFinding(f: Record<string, unknown>): FindingItem {
 }
 
 export function InsightsView({ findings: initialFindings, demoInsights, liveMonitors }: { findings: FindingItem[]; demoInsights: DemoInsight[]; liveMonitors: number }) {
-  const jeff = useJeff();
-  const demo = jeff.mode === "demo";
+  const gomez = useGomez();
+  const demo = gomez.mode === "demo";
   const [findings, setFindings] = useState(initialFindings);
   const [running, setRunning] = useState(false);
   const params = useSearchParams();
@@ -158,11 +158,11 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
     try {
       const res = await fetch("/api/findings/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids, status }) });
       const d = (await res.json().catch(() => null)) as { changed?: number; error?: string } | null;
-      if (!res.ok) return jeff.toast(`Could not update findings (${d?.error ?? res.status}).`);
+      if (!res.ok) return gomez.toast(`Could not update findings (${d?.error ?? res.status}).`);
       setFindings((list) => list.map((x) => (ids.includes(x.id) ? { ...x, status } : x)));
       setSelected(new Set());
-      void jeff.refreshBrain({ force: true });
-      jeff.toast(`${d?.changed ?? ids.length} finding${(d?.changed ?? ids.length) === 1 ? "" : "s"} ${status}.`);
+      void gomez.refreshBrain({ force: true });
+      gomez.toast(`${d?.changed ?? ids.length} finding${(d?.changed ?? ids.length) === 1 ? "" : "s"} ${status}.`);
     } finally {
       setBulkBusy(false);
     }
@@ -173,12 +173,12 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
     try {
       const res = await fetch("/api/monitors/run", { method: "POST" });
       const data = (await res.json().catch(() => null)) as { created?: number; updated?: number; resolved?: number; candidates?: number; error?: string } | null;
-      if (!res.ok || !data) return jeff.toast(`Monitors could not run (${data?.error ?? res.status}).`);
-      jeff.toast(`Monitors ran: ${data.candidates ?? 0} findings (${data.created ?? 0} new, ${data.updated ?? 0} updated, ${data.resolved ?? 0} resolved).`);
+      if (!res.ok || !data) return gomez.toast(`Monitors could not run (${data?.error ?? res.status}).`);
+      gomez.toast(`Monitors ran: ${data.candidates ?? 0} findings (${data.created ?? 0} new, ${data.updated ?? 0} updated, ${data.resolved ?? 0} resolved).`);
       const list = await fetch("/api/findings", { cache: "no-store" });
       const body = (await list.json().catch(() => null)) as { findings?: Record<string, unknown>[] } | null;
       if (list.ok && body?.findings) setFindings(body.findings.map(rowToFinding));
-      void jeff.refreshBrain({ force: true });
+      void gomez.refreshBrain({ force: true });
     } finally {
       setRunning(false);
     }
@@ -189,13 +189,13 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
     try {
       const res = await fetch("/api/blindspots/run", { method: "POST" });
       const data = (await res.json().catch(() => null)) as { created?: number; updated?: number; resolved?: number; candidates?: number; deferredByCap?: number; error?: string } | null;
-      if (!res.ok || !data) return jeff.toast(`Blind-spot detection could not run (${data?.error ?? res.status}).`);
-      jeff.toast(`Blind spots: ${data.candidates ?? 0} found (${data.created ?? 0} new, ${data.updated ?? 0} updated, ${data.resolved ?? 0} resolved${data.deferredByCap ? `, ${data.deferredByCap} held for tomorrow` : ""}).`);
+      if (!res.ok || !data) return gomez.toast(`Blind-spot detection could not run (${data?.error ?? res.status}).`);
+      gomez.toast(`Blind spots: ${data.candidates ?? 0} found (${data.created ?? 0} new, ${data.updated ?? 0} updated, ${data.resolved ?? 0} resolved${data.deferredByCap ? `, ${data.deferredByCap} held for tomorrow` : ""}).`);
       const list = await fetch("/api/findings", { cache: "no-store" });
       const body = (await list.json().catch(() => null)) as { findings?: Record<string, unknown>[] } | null;
       if (list.ok && body?.findings) setFindings(body.findings.map(rowToFinding));
       setView("blind");
-      void jeff.refreshBrain({ force: true });
+      void gomez.refreshBrain({ force: true });
     } finally {
       setRunningBlind(false);
     }
@@ -203,10 +203,10 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
 
   async function prepare(goal: string, title?: string) {
     const res = await fetch("/api/missions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ goal, title }) });
-    if (!res.ok) return jeff.toast("Could not create the task draft.");
-    jeff.closeModal();
-    jeff.toast("Task draft created. Nothing runs until you approve it.");
-    jeff.navigate("/missions");
+    if (!res.ok) return gomez.toast("Could not create the task draft.");
+    gomez.closeModal();
+    gomez.toast("Task draft created. Nothing runs until you approve it.");
+    gomez.navigate("/missions");
   }
 
   return (
@@ -314,7 +314,7 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
                 <h3>{i.title}</h3>
                 <p>{i.body}</p>
                 <span className="evidence-count">{i.evidence}</span>
-                <button className="button secondary" type="button" onClick={() => jeff.openModal(<DemoInsightModal i={i} onPrepare={prepare} />)}>
+                <button className="button secondary" type="button" onClick={() => gomez.openModal(<DemoInsightModal i={i} onPrepare={prepare} />)}>
                   Review opportunity <Icon name="arrowUpRight" />
                 </button>
               </article>
@@ -331,7 +331,7 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
                   {f.evidence.length} evidence item{f.evidence.length === 1 ? "" : "s"} · {f.severity} · {f.status}
                 </span>
                 <div className="insight-actions">
-                  <button className="button secondary" type="button" onClick={() => jeff.openModal(<FindingModal f={f} onPrepare={prepare} onStatus={onStatus} />)}>
+                  <button className="button secondary" type="button" onClick={() => gomez.openModal(<FindingModal f={f} onPrepare={prepare} onStatus={onStatus} />)}>
                     Review <Icon name="arrowUpRight" />
                   </button>
                   {ACTIVE.includes(f.status) ? (
@@ -351,7 +351,7 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
       {!demo && !shown.length ? (
         view === "blind" ? (
           <EmptyState icon="sun" title="No open blind spots.">
-            Jeff looks once a day for things you may not be noticing — quiet clients, sources that stopped flowing, metrics drifting with no goal, promises owed to you. Use &quot;Find blind spots&quot; to check now.
+            Gomez looks once a day for things you may not be noticing — quiet clients, sources that stopped flowing, metrics drifting with no goal, promises owed to you. Use &quot;Find blind spots&quot; to check now.
           </EmptyState>
         ) : view === "active" ? (
           <EmptyState icon="sun" title={findings.length ? "All clear." : "No findings yet."}>
@@ -366,8 +366,8 @@ export function InsightsView({ findings: initialFindings, demoInsights, liveMoni
 }
 
 function DemoInsightModal({ i, onPrepare }: { i: DemoInsight; onPrepare: (goal: string, title?: string) => Promise<void> }) {
-  const jeff = useJeff();
-  const refs = jeff
+  const gomez = useGomez();
+  const refs = gomez
     .docs()
     .filter((d) => d.source === i.source)
     .slice(0, 2);
@@ -386,7 +386,7 @@ function DemoInsightModal({ i, onPrepare }: { i: DemoInsight; onPrepare: (goal: 
           <strong>{i.goal}</strong>
         </div>
         <div className="modal-actions">
-          <button className="button secondary" type="button" onClick={jeff.closeModal}>
+          <button className="button secondary" type="button" onClick={gomez.closeModal}>
             Close
           </button>
           <button className="button primary" type="button" onClick={() => onPrepare(i.goal, i.title)}>
@@ -400,7 +400,7 @@ function DemoInsightModal({ i, onPrepare }: { i: DemoInsight; onPrepare: (goal: 
 }
 
 function FindingModal({ f, onPrepare, onStatus }: { f: FindingItem; onPrepare: (goal: string, title?: string) => Promise<void>; onStatus?: (id: string, status: string) => void }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const [status, setStatusLocal] = useState(f.status);
   // Opening a finding is an attention signal (blind-spot detection watches for what is NOT opened).
   useEffect(() => {
@@ -415,10 +415,10 @@ function FindingModal({ f, onPrepare, onStatus }: { f: FindingItem; onPrepare: (
   }
   async function setFindingStatus(s: string) {
     const res = await fetch(`/api/findings/${f.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: s }) });
-    if (!res.ok) return jeff.toast("Could not update the finding.");
+    if (!res.ok) return gomez.toast("Could not update the finding.");
     setStatus(s);
-    void jeff.refreshBrain({ force: true });
-    jeff.toast("Finding updated.");
+    void gomez.refreshBrain({ force: true });
+    gomez.toast("Finding updated.");
   }
   const [feedbackBusy, setFeedbackBusy] = useState(false);
   async function feedback(verdict: "useful" | "not_useful" | "wrong" | "too_noisy" | "dont_show" | "change_rule") {
@@ -426,35 +426,35 @@ function FindingModal({ f, onPrepare, onStatus }: { f: FindingItem; onPrepare: (
     try {
       const res = await fetch(`/api/findings/${f.id}/feedback`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ verdict }) });
       const d = (await res.json().catch(() => null)) as { rule?: { name: string }; suppressed?: number; proposed?: RuleProposal | null; error?: string } | null;
-      if (!res.ok) return jeff.toast(`Could not record feedback (${d?.error ?? res.status}).`);
+      if (!res.ok) return gomez.toast(`Could not record feedback (${d?.error ?? res.status}).`);
       if (verdict === "dont_show") {
         if (d?.rule) {
           setStatus("suppressed_by_rule");
-          jeff.toast(`Rule added: "${d.rule.name}" · ${d.suppressed ?? 0} finding(s) suppressed. Review under Memory & rules.`);
-          jeff.closeModal();
+          gomez.toast(`Rule added: "${d.rule.name}" · ${d.suppressed ?? 0} finding(s) suppressed. Review under Memory & rules.`);
+          gomez.closeModal();
         } else {
           setStatus("dismissed");
-          jeff.toast("Dismissed. No safe narrow rule could be inferred from this finding's evidence.");
-          jeff.closeModal();
+          gomez.toast("Dismissed. No safe narrow rule could be inferred from this finding's evidence.");
+          gomez.closeModal();
         }
         return;
       }
       if (verdict === "change_rule" || verdict === "too_noisy") {
         if (d?.proposed) {
-          jeff.openModal(<RuleEditor proposed={d.proposed} onSaved={async () => {}} />);
+          gomez.openModal(<RuleEditor proposed={d.proposed} onSaved={async () => {}} />);
           return;
         }
-        jeff.toast("Feedback recorded. No narrow rule could be proposed from this finding's evidence — add one under Memory & rules.");
+        gomez.toast("Feedback recorded. No narrow rule could be proposed from this finding's evidence — add one under Memory & rules.");
         return;
       }
       if (verdict === "useful") setStatus("accepted");
       if (verdict === "wrong" || verdict === "not_useful") {
         setStatus("dismissed");
-        jeff.toast("Dismissed. It won't reappear unless the condition recurs with new evidence.");
-        jeff.closeModal();
+        gomez.toast("Dismissed. It won't reappear unless the condition recurs with new evidence.");
+        gomez.closeModal();
         return;
       }
-      jeff.toast("Thanks — feedback recorded.");
+      gomez.toast("Thanks — feedback recorded.");
     } finally {
       setFeedbackBusy(false);
     }
@@ -525,7 +525,7 @@ function FindingModal({ f, onPrepare, onStatus }: { f: FindingItem; onPrepare: (
           ))}
         </div>
         <div className="modal-actions">
-          <button className="button secondary" type="button" onClick={jeff.closeModal}>
+          <button className="button secondary" type="button" onClick={gomez.closeModal}>
             Close
           </button>
           {status === "open" ? (

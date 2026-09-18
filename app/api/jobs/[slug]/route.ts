@@ -2,8 +2,8 @@ import { z } from "zod";
 import { apiError, json, parseBody, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
 import { audit } from "@/lib/audit";
-import { deleteJob, getJob, listRuns, presentJobs, updateJob } from "@/lib/jeff/jobs";
-import { JobPatchSchema } from "@/lib/jeff/jobs/types";
+import { deleteJob, getJob, listRuns, presentJobs, updateJob } from "@/lib/gomez/jobs";
+import { JobPatchSchema } from "@/lib/gomez/jobs/types";
 
 export const dynamic = "force-dynamic";
 

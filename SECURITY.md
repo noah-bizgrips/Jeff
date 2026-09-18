@@ -1,6 +1,6 @@
-# Jeff security model
+# Gomez security model
 
-Jeff is a **single-owner** application. The only permitted user is the configured owner
+Gomez is a **single-owner** application. The only permitted user is the configured owner
 (`OWNER_EMAIL` + `OWNER_USER_ID`). Everything below is enforced on the server and in the
 database, never only in the UI.
 
@@ -9,7 +9,7 @@ database, never only in the UI.
 | Layer | Control |
 | --- | --- |
 | `proxy.ts` | Refreshes the Supabase session, verifies the JWT **signature** via `getClaims()`, requires `sub === OWNER_USER_ID` **and** `email === OWNER_EMAIL`, and requires `aal === "aal2"` for every non-public route. Unauthenticated visitors are redirected to `/login`; wrong accounts to `/unauthorized`; owner-at-aal1 to `/mfa`. |
-| `app/(jeff)/layout.tsx` | Independent second check before any workspace HTML is rendered. |
+| `app/(gomez)/layout.tsx` | Independent second check before any workspace HTML is rendered. |
 | `lib/auth/guard.ts` | Every state-changing API route calls `requireOwnerAal2()` (owner + aal2 + same-origin). MFA routes use `requireOwnerAnyAal()`. |
 | Supabase RLS | `public.is_owner_aal2()` gates every owner table. `connection_secrets` has **no** policies and its privileges are revoked from `anon`/`authenticated`: only the service role (server code) can read it. |
 | `app_owner` | Binds the database to exactly one `auth.users` uuid. Written only by the server bootstrap (`POST /api/admin/bind-owner`, which itself requires the caller to be that exact user). |
@@ -42,7 +42,7 @@ action in the Supabase dashboard.
 
 ## AI boundaries
 
-- Ask Jeff runs server-side with narrow tools (`lib/jeff/tools.ts`). The model never receives provider
+- Ask Gomez runs server-side with narrow tools (`lib/gomez/tools.ts`). The model never receives provider
   tokens. Retrieved content is wrapped as untrusted evidence and the system prompt forbids following
   instructions found in it.
 - Missions created by the model are sandbox-only drafts. Production actions require an approval bound to an

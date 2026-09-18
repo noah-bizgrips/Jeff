@@ -1,6 +1,6 @@
 import { json, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { listBriefings } from "@/lib/jeff/briefings";
+import { listBriefings } from "@/lib/gomez/briefings";
 
 export const dynamic = "force-dynamic";
 

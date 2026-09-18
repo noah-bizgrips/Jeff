@@ -2,11 +2,11 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Icon } from "@/components/jeff/icons";
-import { useJeff } from "@/components/jeff/store";
-import { EmptyState, ModalHeader } from "@/components/jeff/shared";
-import type { ObligationCounts } from "@/lib/jeff/obligations/store";
-import type { ObligationEventRow, ObligationRow, ObligationSourceRow } from "@/lib/jeff/obligations/types";
+import { Icon } from "@/components/gomez/icons";
+import { useGomez } from "@/components/gomez/store";
+import { EmptyState, ModalHeader } from "@/components/gomez/shared";
+import type { ObligationCounts } from "@/lib/gomez/obligations/store";
+import type { ObligationEventRow, ObligationRow, ObligationSourceRow } from "@/lib/gomez/obligations/types";
 
 /**
  * Follow-Through — a calm queue of unresolved work. Complete ≠ dismiss ≠ cancel ≠ snooze.
@@ -16,9 +16,9 @@ export type ObligationView = ObligationRow & { bucket: string };
 
 const BUCKETS: { id: string; label: string; tone: string; hint: string }[] = [
   { id: "overdue", label: "Overdue", tone: "amber", hint: "Past due and still unresolved." },
-  { id: "possibly_complete", label: "Possibly complete", tone: "info", hint: "Jeff found evidence but isn't sure — confirm or reject." },
+  { id: "possibly_complete", label: "Possibly complete", tone: "info", hint: "Gomez found evidence but isn't sure — confirm or reject." },
   { id: "waiting_on_me", label: "Waiting on me", tone: "neutral", hint: "Open and owed by you." },
-  { id: "waiting_on_other", label: "Waiting on someone else", tone: "neutral", hint: "Jeff tracks the outstanding time; consider following up." },
+  { id: "waiting_on_other", label: "Waiting on someone else", tone: "neutral", hint: "Gomez tracks the outstanding time; consider following up." },
   { id: "snoozed", label: "Snoozed", tone: "neutral", hint: "Quiet until the snooze ends." },
 ];
 
@@ -37,7 +37,7 @@ function dueLabel(o: ObligationView, now: Date) {
 }
 
 export function FollowThroughView({ initial, counts: initialCounts }: { initial: ObligationView[]; counts: ObligationCounts }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const [rows, setRows] = useState(initial);
   const [counts, setCounts] = useState(initialCounts);
   const [view, setView] = useState<"live" | "done">("live");
@@ -60,10 +60,10 @@ export function FollowThroughView({ initial, counts: initialCounts }: { initial:
     try {
       const res = await fetch(`/api/obligations/${o.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action) });
       const d = (await res.json().catch(() => null)) as { error?: string } | null;
-      if (!res.ok) return jeff.toast(`Could not update (${d?.error ?? res.status}).`);
-      jeff.toast(toast);
-      jeff.closeModal();
-      void jeff.refreshBrain({ force: true });
+      if (!res.ok) return gomez.toast(`Could not update (${d?.error ?? res.status}).`);
+      gomez.toast(toast);
+      gomez.closeModal();
+      void gomez.refreshBrain({ force: true });
       await refresh("live");
       if (view === "done") await refresh("done");
     } finally {
@@ -79,10 +79,10 @@ export function FollowThroughView({ initial, counts: initialCounts }: { initial:
     try {
       const res = await fetch("/api/obligations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: t }) });
       const d = (await res.json().catch(() => null)) as { obligation?: ObligationView; interpretation?: { tracking_mode: string; due_at: string | null; completion_strategy: { description: string | null }; ambiguities: string[] }; error?: string } | null;
-      if (!res.ok || !d?.obligation) return jeff.toast(`Could not create the reminder (${d?.error ?? res.status}).`);
+      if (!res.ok || !d?.obligation) return gomez.toast(`Could not create the reminder (${d?.error ?? res.status}).`);
       setText("");
       const i = d.interpretation;
-      jeff.toast(`Tracking "${d.obligation.title}" · ${i?.tracking_mode ?? "once"}${i?.due_at ? ` · due ${fmtDate(i.due_at)}` : ""}${i?.ambiguities?.length ? ` · ${i.ambiguities[0]}` : ""}`);
+      gomez.toast(`Tracking "${d.obligation.title}" · ${i?.tracking_mode ?? "once"}${i?.due_at ? ` · due ${fmtDate(i.due_at)}` : ""}${i?.ambiguities?.length ? ` · ${i.ambiguities[0]}` : ""}`);
       await refresh("live");
     } finally {
       setBusy(null);
@@ -96,7 +96,7 @@ export function FollowThroughView({ initial, counts: initialCounts }: { initial:
       ["In 3 days", 72],
       ["Next week", 168],
     ];
-    jeff.openModal(
+    gomez.openModal(
       <>
         <ModalHeader title={`Snooze "${o.title}"`} desc="No reminders until then. Tracking resumes afterwards — nothing is marked done." eyebrow="FOLLOW-THROUGH" />
         <div className="modal-body">
@@ -113,7 +113,7 @@ export function FollowThroughView({ initial, counts: initialCounts }: { initial:
   }
 
   function openDetail(o: ObligationView) {
-    jeff.openModal(<ObligationModal o={o} onAct={act} onSnooze={snoozeMenu} busy={busy === o.id} />);
+    gomez.openModal(<ObligationModal o={o} onAct={act} onSnooze={snoozeMenu} busy={busy === o.id} />);
   }
 
   const groups = BUCKETS.map((b) => ({ ...b, items: rows.filter((o) => o.bucket === b.id) }));
@@ -133,7 +133,7 @@ export function FollowThroughView({ initial, counts: initialCounts }: { initial:
         <div className="composer-tools">
           <span>
             <Icon name="sparkles" />
-            Jeff infers the due date, persistence and what counts as done.
+            Gomez infers the due date, persistence and what counts as done.
           </span>
           <button className="send-button" type="submit" aria-label="Add reminder" disabled={busy === "new"}>
             <Icon name="plus" />
@@ -184,7 +184,7 @@ export function FollowThroughView({ initial, counts: initialCounts }: { initial:
                           <button className="button secondary" type="button" disabled={busy === o.id} onClick={() => act(o, { action: "confirm_complete" }, "Confirmed complete.")}>
                             Yes, done
                           </button>
-                          <button className="button secondary" type="button" disabled={busy === o.id} onClick={() => act(o, { action: "not_complete" }, "Kept open — Jeff will keep tracking it.")}>
+                          <button className="button secondary" type="button" disabled={busy === o.id} onClick={() => act(o, { action: "not_complete" }, "Kept open — Gomez will keep tracking it.")}>
                             No
                           </button>
                         </>
@@ -209,7 +209,7 @@ export function FollowThroughView({ initial, counts: initialCounts }: { initial:
             ) : null,
           )
         ) : (
-          <EmptyState icon="check" title="Nothing unresolved.">Add a reminder above, or let Jeff pick up commitments and tasks from your connected sources.</EmptyState>
+          <EmptyState icon="check" title="Nothing unresolved.">Add a reminder above, or let Gomez pick up commitments and tasks from your connected sources.</EmptyState>
         )
       ) : (done ?? []).length ? (
         <div className="audit-list">
@@ -240,7 +240,7 @@ export function FollowThroughView({ initial, counts: initialCounts }: { initial:
 }
 
 function ObligationModal({ o, onAct, onSnooze, busy }: { o: ObligationView; onAct: (o: ObligationView, action: Record<string, unknown>, toast: string) => Promise<void>; onSnooze: (o: ObligationView) => void; busy: boolean }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const [detail, setDetail] = useState<{ events: ObligationEventRow[]; sources: ObligationSourceRow[]; explanation: string } | null>(null);
   if (!detail) {
     fetch(`/api/obligations/${o.id}`)
@@ -249,7 +249,7 @@ function ObligationModal({ o, onAct, onSnooze, busy }: { o: ObligationView; onAc
       .catch(() => setDetail({ events: [], sources: [], explanation: "" }));
   }
   const why =
-    o.origin === "jeff" ? "You asked Jeff to track it." : o.origin === "commitment" ? "Jeff found this promise in your messages." : o.origin === "portal" ? "An overdue task in the client portal." : o.origin === "notion" ? "A task in Notion." : o.origin === "calendar" ? "A deadline-style calendar event." : `From ${o.origin}.`;
+    o.origin === "gomez" ? "You asked Gomez to track it." : o.origin === "commitment" ? "Gomez found this promise in your messages." : o.origin === "portal" ? "An overdue task in the client portal." : o.origin === "notion" ? "A task in Notion." : o.origin === "calendar" ? "A deadline-style calendar event." : `From ${o.origin}.`;
   return (
     <>
       <ModalHeader title={o.title} desc={why} eyebrow={`FOLLOW-THROUGH · ${o.bucket.replace(/_/g, " ").toUpperCase()}`} />
@@ -364,11 +364,11 @@ function ObligationModal({ o, onAct, onSnooze, busy }: { o: ObligationView; onAc
           ))}
         </div>
         <div className="modal-actions">
-          <button className="button secondary" type="button" onClick={jeff.closeModal}>
+          <button className="button secondary" type="button" onClick={gomez.closeModal}>
             Close
           </button>
-          <button className="button secondary" type="button" disabled={busy} onClick={() => jeff.ask(`About my reminder "${o.title}": what's the status and what evidence do you see?`)}>
-            Ask Jeff
+          <button className="button secondary" type="button" disabled={busy} onClick={() => gomez.ask(`About my reminder "${o.title}": what's the status and what evidence do you see?`)}>
+            Ask Gomez
           </button>
           <button className="button secondary" type="button" disabled={busy} onClick={() => onSnooze(o)}>
             Snooze

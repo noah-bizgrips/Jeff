@@ -12,7 +12,7 @@ describe("route classification", () => {
     expect(classifyRoute("/api/auth/mfa/enroll")).toBe("aal1");
   });
   it("everything else is protected", () => {
-    for (const p of ["/", "/connections", "/security", "/api/connections", "/api/jeff/chat", "/api/oauth/google/start"]) {
+    for (const p of ["/", "/connections", "/security", "/api/connections", "/api/gomez/chat", "/api/oauth/google/start"]) {
       expect(classifyRoute(p)).toBe("protected");
     }
   });
@@ -26,7 +26,7 @@ describe("access decisions", () => {
   });
   it("wrong user → /unauthorized (403 for API)", () => {
     expect(decideAccess("/", { status: "unauthorized" })).toMatchObject({ allow: false, redirect: "/unauthorized", apiStatus: 403 });
-    expect(decideAccess("/api/jeff/chat", { status: "unauthorized" })).toMatchObject({ allow: false, apiStatus: 403, apiCode: "not_owner" });
+    expect(decideAccess("/api/gomez/chat", { status: "unauthorized" })).toMatchObject({ allow: false, apiStatus: 403, apiCode: "not_owner" });
   });
   it("owner at aal1 → only the MFA flow is allowed", () => {
     expect(decideAccess("/", { status: "owner", aal: "aal1" })).toMatchObject({ allow: false, redirect: "/mfa", apiStatus: 403, apiCode: "mfa_required" });
@@ -35,7 +35,7 @@ describe("access decisions", () => {
     expect(decideAccess("/api/auth/mfa/verify", { status: "owner", aal: "aal1" })).toEqual({ allow: true });
   });
   it("owner at aal2 → allowed everywhere", () => {
-    for (const p of ["/", "/connections", "/security", "/api/connections", "/api/jeff/chat", "/mfa"]) {
+    for (const p of ["/", "/connections", "/security", "/api/connections", "/api/gomez/chat", "/mfa"]) {
       expect(decideAccess(p, { status: "owner", aal: "aal2" })).toEqual({ allow: true });
     }
   });

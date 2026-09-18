@@ -1,6 +1,6 @@
 import { json, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { runBlindSpotsForOwner } from "@/lib/jeff/blindspots";
+import { runBlindSpotsForOwner } from "@/lib/gomez/blindspots";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;

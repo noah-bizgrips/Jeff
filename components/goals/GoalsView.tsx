@@ -1,14 +1,14 @@
 "use client";
 
-import { noteAttention } from "@/lib/jeff/attention/client";
+import { noteAttention } from "@/lib/gomez/attention/client";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Icon } from "@/components/jeff/icons";
-import { useJeff } from "@/components/jeff/store";
-import { EmptyState, ModalHeader } from "@/components/jeff/shared";
-import type { GoalEventRow, GoalMetricRow, GoalRecommendationRow, GoalRow, GoalSnapshotRow } from "@/lib/jeff/goals/store";
-import { TRAJECTORY_LABEL, type MetricResult, type Trajectory } from "@/lib/jeff/goals/schema";
-import { describeInput, formatMetricValue, formatTarget } from "@/lib/jeff/goals/format";
+import { Icon } from "@/components/gomez/icons";
+import { useGomez } from "@/components/gomez/store";
+import { EmptyState, ModalHeader } from "@/components/gomez/shared";
+import type { GoalEventRow, GoalMetricRow, GoalRecommendationRow, GoalRow, GoalSnapshotRow } from "@/lib/gomez/goals/store";
+import { TRAJECTORY_LABEL, type MetricResult, type Trajectory } from "@/lib/gomez/goals/schema";
+import { describeInput, formatMetricValue, formatTarget } from "@/lib/gomez/goals/format";
 
 export interface GoalListItem {
   goal: GoalRow;
@@ -36,7 +36,7 @@ function primaryOf(item: GoalListItem): GoalMetricRow | null {
 }
 
 export function GoalsView({ initial }: { initial: GoalListItem[] }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const [items, setItems] = useState(initial);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -52,8 +52,8 @@ export function GoalsView({ initial }: { initial: GoalListItem[] }) {
     try {
       const res = await fetch("/api/goals/refresh", { method: "POST" });
       const d = (await res.json().catch(() => null)) as { refreshed?: number; changed?: number; error?: string } | null;
-      if (!res.ok) return jeff.toast(`Could not refresh goals (${d?.error ?? res.status}).`);
-      jeff.toast(`Refreshed ${d?.refreshed ?? 0} goal${d?.refreshed === 1 ? "" : "s"} · ${d?.changed ?? 0} trajectory change${d?.changed === 1 ? "" : "s"}.`);
+      if (!res.ok) return gomez.toast(`Could not refresh goals (${d?.error ?? res.status}).`);
+      gomez.toast(`Refreshed ${d?.refreshed ?? 0} goal${d?.refreshed === 1 ? "" : "s"} · ${d?.changed ?? 0} trajectory change${d?.changed === 1 ? "" : "s"}.`);
       await reload();
     } finally {
       setRefreshing(false);
@@ -79,7 +79,7 @@ export function GoalsView({ initial }: { initial: GoalListItem[] }) {
             {refreshing ? <span className="spinner" /> : <Icon name="refresh" />}
             Refresh now
           </button>
-          <button className="button primary" type="button" onClick={() => jeff.openModal(<NewGoalModal onCreated={reload} />)}>
+          <button className="button primary" type="button" onClick={() => gomez.openModal(<NewGoalModal onCreated={reload} />)}>
             <Icon name="plus" />
             New goal
           </button>
@@ -91,7 +91,7 @@ export function GoalsView({ initial }: { initial: GoalListItem[] }) {
           <div className="section-label">DRAFTS — REVIEW & APPROVE</div>
           <div className="goal-grid">
             {drafts.map((it) => (
-              <GoalCard key={it.goal.id} item={it} onOpen={() => jeff.openModal(<GoalReviewModal goalId={it.goal.id} onChanged={reload} />)} />
+              <GoalCard key={it.goal.id} item={it} onOpen={() => gomez.openModal(<GoalReviewModal goalId={it.goal.id} onChanged={reload} />)} />
             ))}
           </div>
         </>
@@ -100,10 +100,10 @@ export function GoalsView({ initial }: { initial: GoalListItem[] }) {
       <div className="section-label">ACTIVE</div>
       <div className="goal-grid">
         {active.length ? (
-          active.map((it) => <GoalCard key={it.goal.id} item={it} onOpen={() => jeff.openModal(<GoalDetailModal goalId={it.goal.id} onChanged={reload} />)} />)
+          active.map((it) => <GoalCard key={it.goal.id} item={it} onOpen={() => gomez.openModal(<GoalDetailModal goalId={it.goal.id} onChanged={reload} />)} />)
         ) : (
-          <EmptyState icon="target" title="Tell Jeff what you're aiming for.">
-            Type a goal in plain language — Jeff turns it into metrics with sources, lists its assumptions, and asks about anything ambiguous before tracking begins.
+          <EmptyState icon="target" title="Tell Gomez what you're aiming for.">
+            Type a goal in plain language — Gomez turns it into metrics with sources, lists its assumptions, and asks about anything ambiguous before tracking begins.
           </EmptyState>
         )}
       </div>
@@ -113,7 +113,7 @@ export function GoalsView({ initial }: { initial: GoalListItem[] }) {
           <div className="section-label">COMPLETED / ARCHIVED</div>
           <div className="goal-grid">
             {done.map((it) => (
-              <GoalCard key={it.goal.id} item={it} onOpen={() => jeff.openModal(<GoalDetailModal goalId={it.goal.id} onChanged={reload} />)} />
+              <GoalCard key={it.goal.id} item={it} onOpen={() => gomez.openModal(<GoalDetailModal goalId={it.goal.id} onChanged={reload} />)} />
             ))}
           </div>
         </>
@@ -167,7 +167,7 @@ function GoalCard({ item, onOpen }: { item: GoalListItem; onOpen: () => void }) 
 /* ------------------------------------------------------------------ */
 
 function NewGoalModal({ onCreated }: { onCreated: () => Promise<void> }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [created, setCreated] = useState<string | null>(null);
@@ -178,10 +178,10 @@ function NewGoalModal({ onCreated }: { onCreated: () => Promise<void> }) {
     try {
       const res = await fetch("/api/goals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt }) });
       const d = (await res.json().catch(() => null)) as { goal?: GoalRow; notes?: string[]; error?: string } | null;
-      if (!res.ok || !d?.goal) return jeff.toast(`Could not interpret the goal (${d?.error ?? res.status}).`);
+      if (!res.ok || !d?.goal) return gomez.toast(`Could not interpret the goal (${d?.error ?? res.status}).`);
       await onCreated();
       setCreated(d.goal.id);
-      if (d.notes?.length) jeff.toast(d.notes[0]!);
+      if (d.notes?.length) gomez.toast(d.notes[0]!);
     } finally {
       setBusy(false);
     }
@@ -190,16 +190,16 @@ function NewGoalModal({ onCreated }: { onCreated: () => Promise<void> }) {
   if (created) return <GoalReviewModal goalId={created} onChanged={onCreated} />;
   return (
     <>
-      <ModalHeader title="What are you aiming for?" desc="Write it the way you'd say it. Jeff proposes the metrics, sources and assumptions — you approve them." eyebrow="NEW GOAL" />
+      <ModalHeader title="What are you aiming for?" desc="Write it the way you'd say it. Gomez proposes the metrics, sources and assumptions — you approve them." eyebrow="NEW GOAL" />
       <form className="modal-body form-grid" onSubmit={submit}>
         <label className="field">
           Goal
           <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={prompt.length > 300 ? 12 : 4} maxLength={6000} required placeholder="Onboard 10 new clients in the next 60 days with a CAC under $1,000 and a sign date to first payment date in under 14 days." />
-          <small>One sentence or a full brief — define what counts, what to exclude, and list your open questions; Jeff keeps them as questions instead of guessing.</small>
+          <small>One sentence or a full brief — define what counts, what to exclude, and list your open questions; Gomez keeps them as questions instead of guessing.</small>
         </label>
-        <div className="callout">Jeff will not track anything until you review the interpretation. Ambiguous definitions (what counts as a client, which spend is CAC…) are asked, not assumed.</div>
+        <div className="callout">Gomez will not track anything until you review the interpretation. Ambiguous definitions (what counts as a client, which spend is CAC…) are asked, not assumed.</div>
         <div className="modal-actions">
-          <button className="button secondary" type="button" onClick={jeff.closeModal}>
+          <button className="button secondary" type="button" onClick={gomez.closeModal}>
             Cancel
           </button>
           <button className="button primary" type="submit" disabled={busy || prompt.trim().length < 8}>
@@ -270,7 +270,7 @@ function interpreterNotes(events: GoalEventRow[]): string[] {
 }
 
 function GoalReviewModal({ goalId, onChanged }: { goalId: string; onChanged: () => Promise<void> }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const { detail, error, reload } = useGoalDetail(goalId);
   const [resolutions, setResolutions] = useState<Record<string, string>>({});
   const [name, setName] = useState<string | null>(null);
@@ -305,10 +305,10 @@ function GoalReviewModal({ goalId, onChanged }: { goalId: string; onChanged: () 
         body: JSON.stringify({ approve: { resolutions, name: name ?? undefined, start_date: effectiveStart, end_date: effectiveEnd || undefined } }),
       });
       const d = (await res.json().catch(() => null)) as { error?: string; fields?: string[] } | null;
-      if (!res.ok) return jeff.toast(`Could not approve (${d?.error ?? res.status}${d?.fields?.length ? `: ${d.fields.join(", ")}` : ""}).`);
-      jeff.toast("Goal approved. Jeff is tracking it now.");
+      if (!res.ok) return gomez.toast(`Could not approve (${d?.error ?? res.status}${d?.fields?.length ? `: ${d.fields.join(", ")}` : ""}).`);
+      gomez.toast("Goal approved. Gomez is tracking it now.");
       await onChanged();
-      jeff.closeModal();
+      gomez.closeModal();
     } finally {
       setBusy(false);
     }
@@ -317,9 +317,9 @@ function GoalReviewModal({ goalId, onChanged }: { goalId: string; onChanged: () 
   async function discard() {
     if (!confirm("Delete this draft goal?")) return;
     const res = await fetch(`/api/goals/${goalId}`, { method: "DELETE" });
-    if (!res.ok) return jeff.toast("Could not delete the draft.");
+    if (!res.ok) return gomez.toast("Could not delete the draft.");
     await onChanged();
-    jeff.closeModal();
+    gomez.closeModal();
   }
 
   return (
@@ -353,7 +353,7 @@ function GoalReviewModal({ goalId, onChanged }: { goalId: string; onChanged: () 
           </div>
         ) : null}
 
-        <div className="section-label">METRICS JEFF WILL TRACK</div>
+        <div className="section-label">METRICS GOMEZ WILL TRACK</div>
         <div className="goal-metric-table">
           {detail.metrics.map((m) => (
             <div className="policy-row" key={m.id}>
@@ -408,7 +408,7 @@ function GoalReviewModal({ goalId, onChanged }: { goalId: string; onChanged: () 
         ) : null}
 
         <div className="modal-actions">
-          <button className="button secondary" type="button" onClick={jeff.closeModal}>
+          <button className="button secondary" type="button" onClick={gomez.closeModal}>
             Later
           </button>
           <button className="button secondary danger-button" type="button" onClick={discard}>
@@ -435,7 +435,7 @@ function GoalReviewModal({ goalId, onChanged }: { goalId: string; onChanged: () 
 /* ------------------------------------------------------------------ */
 
 function GoalDetailModal({ goalId, onChanged }: { goalId: string; onChanged: () => Promise<void> }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const { detail, error, reload } = useGoalDetail(goalId);
   const [busy, setBusy] = useState(false);
 
@@ -451,9 +451,9 @@ function GoalDetailModal({ goalId, onChanged }: { goalId: string; onChanged: () 
     setBusy(true);
     try {
       const res = await fetch(`/api/goals/${goalId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
-      if (!res.ok) return jeff.toast("Could not update the goal.");
+      if (!res.ok) return gomez.toast("Could not update the goal.");
       await Promise.all([reload(), onChanged()]);
-      jeff.toast(`Goal ${action === "pause" ? "paused" : action === "resume" ? "resumed" : "archived"}.`);
+      gomez.toast(`Goal ${action === "pause" ? "paused" : action === "resume" ? "resumed" : "archived"}.`);
     } finally {
       setBusy(false);
     }
@@ -463,9 +463,9 @@ function GoalDetailModal({ goalId, onChanged }: { goalId: string; onChanged: () 
     setBusy(true);
     try {
       const res = await fetch(`/api/goals/${goalId}/refresh`, { method: "POST" });
-      if (!res.ok) return jeff.toast("Could not refresh the goal.");
+      if (!res.ok) return gomez.toast("Could not refresh the goal.");
       await Promise.all([reload(), onChanged()]);
-      jeff.toast("Goal refreshed.");
+      gomez.toast("Goal refreshed.");
     } finally {
       setBusy(false);
     }
@@ -476,8 +476,8 @@ function GoalDetailModal({ goalId, onChanged }: { goalId: string; onChanged: () 
     try {
       const res = await fetch(`/api/goals/${goalId}/recommendations/${rec.id}/prepare`, { method: "POST" });
       const d = (await res.json().catch(() => null)) as { mission?: { code: string } } | null;
-      if (!res.ok || !d?.mission) return jeff.toast("Could not prepare the mission.");
-      jeff.toast(`Mission ${d.mission.code} drafted. Nothing runs until you approve it.`);
+      if (!res.ok || !d?.mission) return gomez.toast("Could not prepare the mission.");
+      gomez.toast(`Mission ${d.mission.code} drafted. Nothing runs until you approve it.`);
       await reload();
     } finally {
       setBusy(false);
@@ -589,7 +589,7 @@ function GoalDetailModal({ goalId, onChanged }: { goalId: string; onChanged: () 
 
         {detail.recommendations.filter((r) => r.status !== "dismissed").length ? (
           <>
-            <div className="section-label">JEFF RECOMMENDS</div>
+            <div className="section-label">GOMEZ RECOMMENDS</div>
             {detail.recommendations
               .filter((r) => r.status !== "dismissed")
               .map((r) => (
@@ -611,7 +611,7 @@ function GoalDetailModal({ goalId, onChanged }: { goalId: string; onChanged: () 
                   ) : null}
                   {r.jeff_can_prepare ? (
                     <p>
-                      <strong>Jeff can prepare:</strong> {r.jeff_can_prepare}
+                      <strong>Gomez can prepare:</strong> {r.jeff_can_prepare}
                     </p>
                   ) : null}
                   {r.status === "prepared" && r.mission_id ? (
@@ -658,7 +658,7 @@ function GoalDetailModal({ goalId, onChanged }: { goalId: string; onChanged: () 
         </div>
 
         <div className="modal-actions">
-          <button className="button secondary" type="button" onClick={jeff.closeModal}>
+          <button className="button secondary" type="button" onClick={gomez.closeModal}>
             Close
           </button>
           <button className="button secondary" type="button" disabled={busy} onClick={refresh}>

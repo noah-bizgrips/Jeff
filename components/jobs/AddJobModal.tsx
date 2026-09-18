@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Icon } from "@/components/jeff/icons";
-import { useJeff } from "@/components/jeff/store";
-import { ModalHeader } from "@/components/jeff/shared";
+import { Icon } from "@/components/gomez/icons";
+import { useGomez } from "@/components/gomez/store";
+import { ModalHeader } from "@/components/gomez/shared";
 import { api, SOURCE_LABEL, type DetectorItem, type Interpretation, type JobItem, type TemplateItem } from "./types";
 
 type Tab = "describe" | "templates" | "manual";
@@ -19,7 +19,7 @@ const SCHEDULES: [string, string][] = [
 ];
 
 /**
- * + Add Job. Three doors: describe it in plain language (Jeff proposes a
+ * + Add Job. Three doors: describe it in plain language (Gomez proposes a
  * declarative definition and shows what it can and cannot cover), pick a
  * template, or configure it by hand. Jobs are configuration, never code.
  */
@@ -27,7 +27,7 @@ export function AddJobModal({ onCreated }: { onCreated: (job?: JobItem) => Promi
   const [tab, setTab] = useState<Tab>("describe");
   return (
     <>
-      <ModalHeader title="What should Jeff keep an eye on?" desc="Describe it the way you'd tell a new analyst. Jeff only uses sources you've connected and tells you what it would still need." eyebrow="ADD JOB" />
+      <ModalHeader title="What should Gomez keep an eye on?" desc="Describe it the way you'd tell a new analyst. Gomez only uses sources you've connected and tells you what it would still need." eyebrow="ADD JOB" />
       <div className="modal-body">
         <div className="job-tabs" role="tablist">
           {(
@@ -53,7 +53,7 @@ export function AddJobModal({ onCreated }: { onCreated: (job?: JobItem) => Promi
 /* ------------------------------------------------------------------ */
 
 function DescribeTab({ onCreated }: { onCreated: (job?: JobItem) => Promise<void> }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [proposal, setProposal] = useState<Interpretation | null>(null);
@@ -63,7 +63,7 @@ function DescribeTab({ onCreated }: { onCreated: (job?: JobItem) => Promise<void
     setBusy(true);
     try {
       const res = await api<{ interpretation: Interpretation }>("/api/jobs/interpret", { method: "POST", body: JSON.stringify({ description: text }) });
-      if (!res.ok || !res.data) return jeff.toast(`Could not interpret that (${res.error ?? res.status}).`);
+      if (!res.ok || !res.data) return gomez.toast(`Could not interpret that (${res.error ?? res.status}).`);
       setProposal(res.data.interpretation);
     } finally {
       setBusy(false);
@@ -74,20 +74,20 @@ function DescribeTab({ onCreated }: { onCreated: (job?: JobItem) => Promise<void
     setBusy(true);
     try {
       const res = await api<{ outcome: string; job: JobItem | null; reason?: string | null; notes?: string[] }>("/api/jobs", { method: "POST", body: JSON.stringify({ description: text, draft }) });
-      if (!res.ok || !res.data) return jeff.toast(`Could not create the job (${res.error ?? res.status}).`);
+      if (!res.ok || !res.data) return gomez.toast(`Could not create the job (${res.error ?? res.status}).`);
       const d = res.data;
       if (d.outcome === "matches_system_job") {
-        jeff.toast(`An existing job already covers this${d.job ? `: ${d.job.ui_name}` : ""}. Open it to run or resume.`);
+        gomez.toast(`An existing job already covers this${d.job ? `: ${d.job.ui_name}` : ""}. Open it to run or resume.`);
       } else if (d.outcome === "needs_input") {
-        jeff.toast(d.reason ?? "Jeff needs one more detail before creating this job.");
+        gomez.toast(d.reason ?? "Gomez needs one more detail before creating this job.");
         return;
       } else if (d.outcome === "created_draft") {
-        jeff.toast(`Created “${d.job?.name}” as a draft — review it before it runs.`);
+        gomez.toast(`Created “${d.job?.name}” as a draft — review it before it runs.`);
       } else if (d.job) {
-        jeff.toast(`Created “${d.job.name}” · ${d.job.schedule_label}.`);
+        gomez.toast(`Created “${d.job.name}” · ${d.job.schedule_label}.`);
       }
       await onCreated(d.job ?? undefined);
-      jeff.closeModal();
+      gomez.closeModal();
     } finally {
       setBusy(false);
     }
@@ -131,13 +131,13 @@ function DescribeTab({ onCreated }: { onCreated: (job?: JobItem) => Promise<void
           ) : null}
           {proposal.ambiguities.length ? (
             <div className="callout">
-              <strong>Jeff would ask:</strong> {proposal.ambiguities.map((a) => a.question).join(" ")}
+              <strong>Gomez would ask:</strong> {proposal.ambiguities.map((a) => a.question).join(" ")}
             </div>
           ) : null}
           {proposal.matches_system_job ? <div className="callout">This matches an existing system job ({proposal.matches_system_job}). Creating will point you there instead of duplicating it.</div> : null}
         </div>
       ) : (
-        <div className="callout">Jeff proposes a definition first — sources, schedule, what it would still need — and creates nothing until you confirm.</div>
+        <div className="callout">Gomez proposes a definition first — sources, schedule, what it would still need — and creates nothing until you confirm.</div>
       )}
       <div className="modal-actions">
         {proposal ? (
@@ -166,7 +166,7 @@ function DescribeTab({ onCreated }: { onCreated: (job?: JobItem) => Promise<void
 /* ------------------------------------------------------------------ */
 
 function TemplatesTab({ onCreated }: { onCreated: (job?: JobItem) => Promise<void> }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const [templates, setTemplates] = useState<TemplateItem[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -176,8 +176,8 @@ function TemplatesTab({ onCreated }: { onCreated: (job?: JobItem) => Promise<voi
 
   async function use(t: TemplateItem) {
     if (t.system_slug) {
-      jeff.closeModal();
-      jeff.navigate(`/jobs/${t.system_slug}`);
+      gomez.closeModal();
+      gomez.navigate(`/jobs/${t.system_slug}`);
       return;
     }
     if (!t.scaffold) return;
@@ -186,10 +186,10 @@ function TemplatesTab({ onCreated }: { onCreated: (job?: JobItem) => Promise<voi
       const slug = `${t.id}-${Math.random().toString(36).slice(2, 6)}`;
       const job = { slug, name: t.name, description: t.description, purpose: t.description, job_type: "user", status: t.missing_sources.length ? "draft" : "active", ...t.scaffold };
       const res = await api<{ job: JobItem }>("/api/jobs", { method: "POST", body: JSON.stringify({ job }) });
-      if (!res.ok || !res.data?.job) return jeff.toast(`Could not create from template (${res.error ?? res.status}).`);
-      jeff.toast(`Created “${t.name}”${t.missing_sources.length ? " as a draft — connect its sources to activate" : ""}.`);
+      if (!res.ok || !res.data?.job) return gomez.toast(`Could not create from template (${res.error ?? res.status}).`);
+      gomez.toast(`Created “${t.name}”${t.missing_sources.length ? " as a draft — connect its sources to activate" : ""}.`);
       await onCreated(res.data.job);
-      jeff.closeModal();
+      gomez.closeModal();
     } finally {
       setBusy(null);
     }
@@ -229,7 +229,7 @@ function TemplatesTab({ onCreated }: { onCreated: (job?: JobItem) => Promise<voi
 /* ------------------------------------------------------------------ */
 
 function ManualTab({ onCreated }: { onCreated: (job?: JobItem) => Promise<void> }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const [catalog, setCatalog] = useState<{ detectors: DetectorItem[]; connected: string[] } | null>(null);
   const [name, setName] = useState("");
   const [purpose, setPurpose] = useState("");
@@ -276,9 +276,9 @@ function ManualTab({ onCreated }: { onCreated: (job?: JobItem) => Promise<void> 
       };
       const res = await api<{ job: JobItem; issues?: { path: string; message: string }[] }>("/api/jobs", { method: "POST", body: JSON.stringify({ job }) });
       if (!res.ok || !res.data?.job) return setError(res.data?.issues?.map((i) => `${i.path}: ${i.message}`).join("; ") ?? res.error ?? `HTTP ${res.status}`);
-      jeff.toast(`Created “${name}”.`);
+      gomez.toast(`Created “${name}”.`);
       await onCreated(res.data.job);
-      jeff.closeModal();
+      gomez.closeModal();
     } finally {
       setBusy(false);
     }

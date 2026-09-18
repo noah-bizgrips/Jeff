@@ -53,7 +53,7 @@ export const GET = withErrorBoundary(async (req, ctx) => {
   const cookieStore = await cookies();
   const state = verifyState(
     provider,
-    cookieStore.get(`jeff_oauth_${provider}`)?.value,
+    cookieStore.get(`gomez_oauth_${provider}`)?.value,
     url.searchParams.get("state"),
   );
   await clearStateCookie(provider);

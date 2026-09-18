@@ -1,6 +1,6 @@
 import { json, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { refreshGoals } from "@/lib/jeff/goals/refresh";
+import { refreshGoals } from "@/lib/gomez/goals/refresh";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;

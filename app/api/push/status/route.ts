@@ -1,7 +1,7 @@
 import { json, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { pushConfigured } from "@/lib/jeff/push/send";
+import { pushConfigured } from "@/lib/gomez/push/send";
 
 export const dynamic = "force-dynamic";
 

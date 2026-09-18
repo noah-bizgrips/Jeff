@@ -9,18 +9,18 @@ const listAlerts = vi.fn(async () => [{ id: "a1", importance: "urgent", status: 
 const runAlertsForOwner = vi.fn(async () => ({ candidates: 1, created: 1, updated: 0, resolved: 0, skippedByCooldown: 0, suppressedByRules: 0 }));
 const updateAlert = vi.fn(async (_o: string, id: string, a: { action: string }) => ({ id, status: a.action === "snooze" ? "snoozed" : "acknowledged" }));
 const getAlert = vi.fn(async () => ({ id: "11111111-1111-4111-8111-111111111111", kind: "finding", ref_id: "f1", title: "x" }));
-vi.mock("@/lib/jeff/alerts/store", () => ({ listAlerts, runAlertsForOwner, updateAlert, getAlert, surfacedAlerts: vi.fn(async () => []) }));
+vi.mock("@/lib/gomez/alerts/store", () => ({ listAlerts, runAlertsForOwner, updateAlert, getAlert, surfacedAlerts: vi.fn(async () => []) }));
 
 const updateSettings = vi.fn(async (_o: string, raw: unknown) => {
   const r = raw as Record<string, unknown>;
   if ("mfa_required" in r) return { ok: false as const, reason: "unknown key" };
   return { ok: true as const, settings: { timezone: "America/Denver" }, changed: Object.keys(r) };
 });
-vi.mock("@/lib/jeff/settings-store", () => ({ getSettings: vi.fn(async () => ({ timezone: "America/Denver" })), updateSettings }));
+vi.mock("@/lib/gomez/settings-store", () => ({ getSettings: vi.fn(async () => ({ timezone: "America/Denver" })), updateSettings }));
 
 const generateDueBriefings = vi.fn(async () => ({ generated: ["daily"], skipped: [] }));
-vi.mock("@/lib/jeff/briefings", () => ({ generateDueBriefings, listBriefings: vi.fn(async () => []), generateBriefing: vi.fn(async () => ({ briefing: { id: "b1" }, created: true, usedModel: false })) }));
-vi.mock("@/lib/jeff/outcomes-store", () => ({ measureOutcomes: vi.fn(async () => ({ measured: 0, pending: 0 })) }));
+vi.mock("@/lib/gomez/briefings", () => ({ generateDueBriefings, listBriefings: vi.fn(async () => []), generateBriefing: vi.fn(async () => ({ briefing: { id: "b1" }, created: true, usedModel: false })) }));
+vi.mock("@/lib/gomez/outcomes-store", () => ({ measureOutcomes: vi.fn(async () => ({ measured: 0, pending: 0 })) }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({ from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { user_id: OWNER_ID } }) }) }) }) }) }));
 
 process.env.CRON_SECRET = "test-cron-secret-value";

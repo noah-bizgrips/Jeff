@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { insightsWindow, leadsFromActions, mapAdInsight, mapCampaign, mapIgMedia, mapPageInsights, mapPost, toMinor } from "@/lib/integrations/sync/meta-mappers";
-import { summarizeAds } from "@/lib/jeff/tools";
-import { computeMetric } from "@/lib/jeff/goals/metrics";
-import { GoalMetricSchema } from "@/lib/jeff/goals/schema";
+import { summarizeAds } from "@/lib/gomez/tools";
+import { computeMetric } from "@/lib/gomez/goals/metrics";
+import { GoalMetricSchema } from "@/lib/gomez/goals/schema";
 
 describe("Meta mappers", () => {
   it("stores spend in minor units and extracts leads from actions without double counting", () => {

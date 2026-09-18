@@ -12,6 +12,6 @@ export const POST = withErrorBoundary(async (req) => {
   const body = await parseBody(req, z.object({ mode: z.enum(["demo", "live"]) }));
   if (!body.ok) return body.response;
   const store = await cookies();
-  store.set("jeff_mode", body.data.mode, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 365 });
+  store.set("gomez_mode", body.data.mode, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 365 });
   return json({ ok: true, mode: body.data.mode });
 });

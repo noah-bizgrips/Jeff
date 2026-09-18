@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OWNER_ID } from "../helpers";
 import { FakeDb } from "../fake-db";
-import { emailHash } from "@/lib/jeff/clients/client-leads";
+import { emailHash } from "@/lib/gomez/clients/client-leads";
 
 let db = new FakeDb();
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => db.client() }));
 vi.mock("@/lib/audit", () => ({ audit: vi.fn(async () => {}) }));
 
-const { ensureSystemRules, CLIENT_LEAD_RULE_NAME, GITHUB_NOTIFICATION_RULE_NAME, reprocessFindingsForRule, undoRuleSuppression } = await import("@/lib/jeff/rules/apply");
-const { listRules } = await import("@/lib/jeff/rules/store");
+const { ensureSystemRules, CLIENT_LEAD_RULE_NAME, GITHUB_NOTIFICATION_RULE_NAME, reprocessFindingsForRule, undoRuleSuppression } = await import("@/lib/gomez/rules/apply");
+const { listRules } = await import("@/lib/gomez/rules/store");
 
 const NOW = new Date("2026-09-14T12:00:00Z");
 const ago = (d: number) => new Date(NOW.getTime() - d * 86_400_000).toISOString();

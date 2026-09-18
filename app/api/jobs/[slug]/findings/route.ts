@@ -1,6 +1,6 @@
 import { apiError, json, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { getJob } from "@/lib/jeff/jobs";
+import { getJob } from "@/lib/gomez/jobs";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { redact } from "@/lib/security/redact";
 

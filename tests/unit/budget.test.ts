@@ -14,8 +14,8 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
-const { estimateCostUsd, dailyBudgetUsd, priceFor } = await import("@/lib/jeff/pricing");
-const { budgetStatus, recordUsage, utcDayStart } = await import("@/lib/jeff/budget");
+const { estimateCostUsd, dailyBudgetUsd, priceFor } = await import("@/lib/gomez/pricing");
+const { budgetStatus, recordUsage, utcDayStart } = await import("@/lib/gomez/budget");
 
 describe("cost estimator", () => {
   it("uses per-model prices with cache discounts", () => {

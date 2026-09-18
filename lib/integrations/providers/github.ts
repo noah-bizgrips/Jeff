@@ -45,7 +45,7 @@ const ghHeaders = (token: string) => ({
   Authorization: `Bearer ${token}`,
   Accept: "application/vnd.github+json",
   "X-GitHub-Api-Version": "2022-11-28",
-  "User-Agent": "jeff-bizgrips",
+  "User-Agent": "gomez-bizgrips",
 });
 
 export async function listInstallations() {

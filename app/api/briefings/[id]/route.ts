@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { apiError, json, parseBody, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { recordAttention } from "@/lib/jeff/attention/store";
+import { recordAttention } from "@/lib/gomez/attention/store";
 import { audit } from "@/lib/audit";
-import { getBriefing, updateBriefing } from "@/lib/jeff/briefings";
+import { getBriefing, updateBriefing } from "@/lib/gomez/briefings";
 
 export const dynamic = "force-dynamic";
 

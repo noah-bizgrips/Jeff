@@ -1,11 +1,11 @@
 "use client";
 
-import { noteAttention } from "@/lib/jeff/attention/client";
+import { noteAttention } from "@/lib/gomez/attention/client";
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Icon } from "@/components/jeff/icons";
-import { useJeff } from "@/components/jeff/store";
-import { EmptyState, ModalHeader } from "@/components/jeff/shared";
+import { Icon } from "@/components/gomez/icons";
+import { useGomez } from "@/components/gomez/store";
+import { EmptyState, ModalHeader } from "@/components/gomez/shared";
 
 export interface AlertItem {
   id: string;
@@ -201,7 +201,7 @@ function MemberList({ g, limit }: { g: AlertGroupItem; limit?: number }) {
 }
 
 export function AlertsView({ initial, groups: initialGroups = [] }: { initial: AlertItem[]; groups?: AlertGroupItem[] }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const [alerts, setAlerts] = useState(initial);
   const [groups, setGroups] = useState(initialGroups);
   const [filter, setFilter] = useState<Filter | null>(null);
@@ -222,11 +222,11 @@ export function AlertsView({ initial, groups: initialGroups = [] }: { initial: A
     try {
       const res = await fetch(`/api/alerts/${a.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = (await res.json().catch(() => null)) as { alert?: AlertItem; rule?: { name: string } | null; suppressed?: number; error?: string } | null;
-      if (!res.ok || !data?.alert) return jeff.toast(`Could not update the alert (${data?.error ?? res.status}).`);
+      if (!res.ok || !data?.alert) return gomez.toast(`Could not update the alert (${data?.error ?? res.status}).`);
       setAlerts((xs) => xs.map((x) => (x.id === a.id ? { ...x, ...data.alert! } : x)));
-      void jeff.refreshBrain({ force: true });
-      jeff.toast(data.rule ? `${okText} Rule added: "${data.rule.name}"${data.suppressed ? ` (${data.suppressed} findings suppressed)` : ""}. Review under Memory & rules.` : okText);
-      jeff.closeModal();
+      void gomez.refreshBrain({ force: true });
+      gomez.toast(data.rule ? `${okText} Rule added: "${data.rule.name}"${data.suppressed ? ` (${data.suppressed} findings suppressed)` : ""}. Review under Memory & rules.` : okText);
+      gomez.closeModal();
     } finally {
       setBusy(null);
     }
@@ -238,16 +238,16 @@ export function AlertsView({ initial, groups: initialGroups = [] }: { initial: A
     try {
       const res = await fetch(`/api/alert-groups/${g.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = (await res.json().catch(() => null)) as { group?: AlertGroupItem; mission?: { id: string; code: string; title: string }; error?: string } | null;
-      if (!res.ok || !data?.group) return jeff.toast(`Could not update the group (${data?.error ?? res.status}).`);
+      if (!res.ok || !data?.group) return gomez.toast(`Could not update the group (${data?.error ?? res.status}).`);
       const updated = data.group;
       setGroups((xs) => xs.map((x) => (x.id === g.id ? { ...x, ...updated } : x)));
       if (updated.alert_id) setAlerts((xs) => xs.map((x) => (x.id === updated.alert_id ? { ...x, status: updated.status, snoozed_until: updated.snoozed_until } : x)));
-      void jeff.refreshBrain({ force: true });
-      jeff.closeModal();
+      void gomez.refreshBrain({ force: true });
+      gomez.closeModal();
       if (data.mission) {
-        jeff.toast(`${okText} Draft ${data.mission.code} created — nothing is sent until you approve it.`);
-        jeff.navigate("/missions");
-      } else jeff.toast(okText);
+        gomez.toast(`${okText} Draft ${data.mission.code} created — nothing is sent until you approve it.`);
+        gomez.navigate("/missions");
+      } else gomez.toast(okText);
     } finally {
       setBusy(null);
     }
@@ -255,10 +255,10 @@ export function AlertsView({ initial, groups: initialGroups = [] }: { initial: A
 
   async function prepareFix(a: AlertItem) {
     const res = await fetch("/api/missions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: a.title.slice(0, 120), goal: `${a.title}\n\n${a.summary ?? ""}\n\nPrepare a fix in the sandbox; no production effects.`.slice(0, 4000) }) });
-    if (!res.ok) return jeff.toast("Could not create the mission draft.");
-    jeff.toast("Task draft created. Nothing runs until you approve it.");
-    jeff.closeModal();
-    jeff.navigate("/missions");
+    if (!res.ok) return gomez.toast("Could not create the mission draft.");
+    gomez.toast("Task draft created. Nothing runs until you approve it.");
+    gomez.closeModal();
+    gomez.navigate("/missions");
   }
 
   async function refresh() {
@@ -271,8 +271,8 @@ export function AlertsView({ initial, groups: initialGroups = [] }: { initial: A
       const gdata = (await gres.json().catch(() => null)) as { groups?: AlertGroupItem[] } | null;
       if (data?.alerts) setAlerts(data.alerts);
       if (gdata?.groups) setGroups(gdata.groups);
-      void jeff.refreshBrain({ force: true });
-      jeff.toast(`Re-evaluated: ${summary?.created ?? 0} new, ${summary?.updated ?? 0} updated, ${summary?.resolved ?? 0} resolved.`);
+      void gomez.refreshBrain({ force: true });
+      gomez.toast(`Re-evaluated: ${summary?.created ?? 0} new, ${summary?.updated ?? 0} updated, ${summary?.resolved ?? 0} resolved.`);
     } finally {
       setBusy(null);
     }
@@ -292,7 +292,7 @@ export function AlertsView({ initial, groups: initialGroups = [] }: { initial: A
     const split = f.owner_split;
     const splitText = split ? [split.bizgrips ? `${split.bizgrips} owed by BizGrips` : null, split.client ? `${split.client} owed by the client` : null, split.you ? `${split.you} on you` : null, split.other ? `${split.other} waiting on others` : null].filter(Boolean).join(" · ") : "";
     const live = ["open", "acknowledged", "snoozed"].includes(g.status);
-    jeff.openModal(
+    gomez.openModal(
       <>
         <ModalHeader title={g.title} desc={g.summary ?? a.summary ?? ""} eyebrow={`${g.importance.toUpperCase()} · GROUP · ${g.entity_kind.toUpperCase()} · ${g.issue_kind.replace(/_/g, " ")}`} />
         <div className="modal-body">
@@ -320,7 +320,7 @@ export function AlertsView({ initial, groups: initialGroups = [] }: { initial: A
               first {new Date(g.first_seen).toLocaleString()} · last {new Date(g.last_seen).toLocaleString()}
             </dd>
           </dl>
-          <div className="section-label">JEFF&apos;S INTERPRETATION</div>
+          <div className="section-label">GOMEZ&apos;S INTERPRETATION</div>
           <p className="muted">{g.interpretation ?? "Deterministic summary only — an interpretation is added when the daily AI budget allows."}</p>
           <div className="section-label">RELATED ITEMS ({g.members.length})</div>
           <MemberList g={g} />
@@ -330,7 +330,7 @@ export function AlertsView({ initial, groups: initialGroups = [] }: { initial: A
               href={reviewHref(g)}
               onClick={() => {
                 noteAttention({ kind: "alert_viewed", ref_id: a.id });
-                jeff.closeModal();
+                gomez.closeModal();
               }}
             >
               Review tasks <Icon name="arrowUpRight" />
@@ -372,7 +372,7 @@ export function AlertsView({ initial, groups: initialGroups = [] }: { initial: A
   function open(a: AlertItem) {
     const g = groupFor(a);
     if (g) return openGroup(a, g);
-    jeff.openModal(
+    gomez.openModal(
       <>
         <ModalHeader title={a.title} desc={a.summary ?? ""} eyebrow={`${a.importance.toUpperCase()} · ${a.kind.toUpperCase()}${a.category ? ` · ${a.category.replace(/_/g, " ")}` : ""}`} />
         <div className="modal-body">
@@ -414,7 +414,7 @@ export function AlertsView({ initial, groups: initialGroups = [] }: { initial: A
                 href={refHref(a)!}
                 onClick={() => {
                   noteAttention({ kind: "alert_viewed", ref_id: a.id });
-                  jeff.closeModal();
+                  gomez.closeModal();
                 }}
               >
                 Investigate <Icon name="arrowUpRight" />
@@ -434,7 +434,7 @@ export function AlertsView({ initial, groups: initialGroups = [] }: { initial: A
                   </button>
                 ) : null}
                 {a.kind === "finding" ? (
-                  <Link className="button secondary" href="/memory" onClick={jeff.closeModal}>
+                  <Link className="button secondary" href="/memory" onClick={gomez.closeModal}>
                     Change rule
                   </Link>
                 ) : null}
@@ -459,7 +459,7 @@ export function AlertsView({ initial, groups: initialGroups = [] }: { initial: A
       <div className="preview-banner">
         <Icon name="bell" />
         <span>
-          <strong>Jeff stays quiet by default.</strong> One alert per condition; repeats bump the count instead of re-notifying. Related signals for the same client, goal or workflow bundle into one group. Rules, quiet hours and your minimum importance shape what appears here.
+          <strong>Gomez stays quiet by default.</strong> One alert per condition; repeats bump the count instead of re-notifying. Related signals for the same client, goal or workflow bundle into one group. Rules, quiet hours and your minimum importance shape what appears here.
         </span>
       </div>
       <div className="view-toolbar">

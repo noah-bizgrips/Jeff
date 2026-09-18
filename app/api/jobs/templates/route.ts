@@ -1,7 +1,7 @@
 import { json, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { connectedProviders, listTemplates } from "@/lib/jeff/jobs";
-import { DETECTOR_SPECS } from "@/lib/jeff/jobs/detectors";
+import { connectedProviders, listTemplates } from "@/lib/gomez/jobs";
+import { DETECTOR_SPECS } from "@/lib/gomez/jobs/detectors";
 
 export const dynamic = "force-dynamic";
 

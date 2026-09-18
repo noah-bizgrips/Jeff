@@ -1,9 +1,9 @@
 /**
- * Client-side shapes for Jeff's Jobs — mirrors the API payloads built from
- * lib/jeff/jobs (which is server-only). Keep in sync with JobPresentation,
+ * Client-side shapes for Gomez's Jobs — mirrors the API payloads built from
+ * lib/gomez/jobs (which is server-only). Keep in sync with JobPresentation,
  * JobRunRow and JobDefinitionInterpretation.
  */
-import type { CoverageEntry, JobRunRow, JobRow, NotificationPolicy, TestResult } from "@/lib/jeff/jobs/types";
+import type { CoverageEntry, JobRunRow, JobRow, NotificationPolicy, TestResult } from "@/lib/gomez/jobs/types";
 
 export type { CoverageEntry, JobRunRow, NotificationPolicy, TestResult };
 

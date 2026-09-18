@@ -1,4 +1,4 @@
-/* Jeff service worker: Web Push only. No caching, no offline shell — the app
+/* Gomez service worker: Web Push only. No caching, no offline shell — the app
    stays server-rendered and owner-gated; this file only receives notifications. */
 
 self.addEventListener("install", () => {
@@ -10,16 +10,16 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let data = { title: "Jeff", body: "", url: "/", tag: "jeff" };
+  let data = { title: "Gomez", body: "", url: "/", tag: "gomez" };
   try {
     if (event.data) data = Object.assign(data, event.data.json());
   } catch {
     if (event.data) data.body = event.data.text();
   }
   event.waitUntil(
-    self.registration.showNotification(data.title || "Jeff", {
+    self.registration.showNotification(data.title || "Gomez", {
       body: data.body || "",
-      tag: data.tag || "jeff",
+      tag: data.tag || "gomez",
       renotify: false,
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",

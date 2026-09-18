@@ -1,4 +1,4 @@
-/* Jeff design system — premium black "Intelligence OS". Black is the environment, white is the information,
+/* Gomez design system — premium black "Intelligence OS". Black is the environment, white is the information,
    electric blue is intelligence/activity. Tokens are the single source of truth; legacy names are aliases. */
 :root {
   color-scheme: dark;
@@ -2419,7 +2419,7 @@ dialog::backdrop {
   }
 }
 
-/* Jeff / Midnight Blue: brand accents and neural illumination. */
+/* Gomez / Midnight Blue: brand accents and neural illumination. */
 
 .brand {
   letter-spacing: -1.25px;
@@ -4356,7 +4356,7 @@ pre {
     min-height: 44px;
   }
   .toast-container {
-    bottom: calc(84px + var(--safe-bottom)); /* clear the floating Ask Jeff button */
+    bottom: calc(84px + var(--safe-bottom)); /* clear the floating Ask Gomez button */
   }
 }
 
@@ -4464,7 +4464,7 @@ pre {
     font-size: 24px;
   }
 
-  /* Ask Jeff: full-screen sheet, composer pinned above the keyboard */
+  /* Ask Gomez: full-screen sheet, composer pinned above the keyboard */
   .agent-panel,
   .wide-page .agent-panel {
     width: 100vw;
@@ -4757,7 +4757,7 @@ pre {
 }
 
 /* ------------------------------------------------------------------ */
-/* Jeff's Jobs                                                         */
+/* Gomez's Jobs                                                         */
 /* ------------------------------------------------------------------ */
 .job-list {
   display: grid;
@@ -5103,7 +5103,7 @@ pre {
   font-weight: 600;
 }
 
-/* Intelligent brain: heartbeat status, centre button, anchor tones, "What Jeff sees" (brain spec §10–§21).
+/* Intelligent brain: heartbeat status, centre button, anchor tones, "What Gomez sees" (brain spec §10–§21).
    Additive only — the brain card's layout, sizes and type scale are unchanged. */
 .brain-center-button {
   position: absolute;

@@ -1,4 +1,4 @@
-# Jeff — setup status
+# Gomez — setup status
 
 Legend: **DONE** · **USER ACTION REQUIRED** · **BLOCKED** · **NOT STARTED**
 No credential values appear in this file. Env var NAMES only.
@@ -20,7 +20,7 @@ Last updated: 2026-09-11
 
 | Item | Status | Notes |
 | --- | --- | --- |
-| Next.js structure (`app/(auth)`, `app/(jeff)`, `components/*`, `lib/*`) | DONE | |
+| Next.js structure (`app/(auth)`, `app/(gomez)`, `components/*`, `lib/*`) | DONE | |
 | `lib/supabase/{client,server,admin}.ts` + `proxy.ts` (Next 16 Proxy) | DONE | `getClaims()` signature-verified sessions. |
 | `/login` (owner-only, no signup) | DONE | Server-side `/api/auth/login`, audited failures. |
 | `/unauthorized` for non-owner accounts | DONE | |
@@ -48,7 +48,7 @@ Last updated: 2026-09-11
 | Zod validation + same-origin check on state-changing APIs | DONE | |
 | OAuth state (signed cookie) + PKCE (Google) | DONE | |
 | Redaction utility + redacted structured logging | DONE | |
-| Audit events table + `audit()` helper | DONE | login, login_failed, mfa_*, connection_*, oauth_*, mission_*, approval_*, webhook_*, jeff_chat |
+| Audit events table + `audit()` helper | DONE | login, login_failed, mfa_*, connection_*, oauth_*, mission_*, approval_*, webhook_*, gomez_chat |
 | Generate `JEFF_CREDENTIAL_ENCRYPTION_KEY` and add to Vercel (Sensitive) | USER ACTION REQUIRED | `npm run key:generate` prints one key; paste into Vercel only. |
 
 ## Phase 7–16 — Connections
@@ -64,14 +64,14 @@ Last updated: 2026-09-11
 | Plaid / Financial Accounts (Link, exchange, webhook verify, transactions sync) | DONE | USER ACTION REQUIRED | Fill `PLAID_CLIENT_ID`, `PLAID_SECRET` placeholders (sandbox). |
 | Meta (Ads/Pages/Instagram, v26.0, asset selection) | DONE | USER ACTION REQUIRED | Fill `META_APP_ID`, `META_APP_SECRET` placeholders. |
 | GitHub App (JWT/installation tokens, repo selection, webhook) | DONE | USER ACTION REQUIRED | Create GitHub App; add `GITHUB_APP_*` vars |
-| n8n adapter (read all; write only `jeff-test` tagged) | DONE | USER ACTION REQUIRED | Add `N8N_BASE_URL`, `N8N_API_KEY` |
+| n8n adapter (read all; write only `gomez-test` tagged) | DONE | USER ACTION REQUIRED | Add `N8N_BASE_URL`, `N8N_API_KEY` |
 
-## Phase 17–22 — Ask Jeff, worker, add-a-service, data model, findings, sample data
+## Phase 17–22 — Ask Gomez, worker, add-a-service, data model, findings, sample data
 
 | Item | Status | Notes |
 | --- | --- | --- |
-| `/api/jeff/chat` (Claude via tools, untrusted-evidence handling) | DONE | Live on `claude-sonnet-5`; daily budget guard ($2 default, `ai_usage` ledger). |
-| Tool architecture (`lib/jeff/tools.ts`) | DONE | get_connection_status, search_sources, get_calendar_context, get_crm_pipeline, get_financial_summary, get_ad_performance, get_findings, list_missions, create_mission |
+| `/api/gomez/chat` (Claude via tools, untrusted-evidence handling) | DONE | Live on `claude-sonnet-5`; daily budget guard ($2 default, `ai_usage` ledger). |
+| Tool architecture (`lib/gomez/tools.ts`) | DONE | get_connection_status, search_sources, get_calendar_context, get_crm_pipeline, get_financial_summary, get_ad_performance, get_findings, list_missions, create_mission |
 | Claude technical worker (Vercel Sandbox) | NOT STARTED | Scaffolded via missions/approvals model; execution intentionally disabled in V1. |
 | "Add a service" (`service_requests`, classifier, UI) | DONE | No installs / remote code. |
 | `source_items` ingestion: Google, HighLevel, Stripe (charges/invoices/subscriptions/customers/refunds/disputes/balance/payouts), Plaid (transactions sync + balances) | DONE | Manual "Sync now" + Vercel cron every 30 min (`/api/cron/sync`). First Google sync: 480 records. |
@@ -102,6 +102,10 @@ Last updated: 2026-09-11
 | GitHub Actions CI on PRs | DONE | `.github/workflows/ci.yml` incl. secret-pattern scan |
 | Secret scan of repo | DONE | No credential patterns present. |
 
+## Rebrand (2026-09-18): Jeff → Gomez
+
+Product name, UI, persona, push notifications, PWA manifest/icon ("G"), docs, code directories (`lib/gomez`, `components/gomez`, `app/(gomez)`, `/api/gomez/chat`) and stored actor values (`operating_rules.created_by`, `obligations.origin`, migration `20260924000000_rebrand_gomez.sql`) now say Gomez. Infrastructure identifiers deliberately keep the old name because changing them needs owner action and has no user-visible effect: domain `jeff.bizgrips.com`, Vercel project `jeff`, Supabase project "Jeff Production", GitHub repo `noah-bizgrips/Jeff`, env var names `JEFF_MODEL` / `JEFF_MODE` / `JEFF_BRAIN_LAB` / `JEFF_CREDENTIAL_ENCRYPTION_KEY` / `JEFF_DAILY_BUDGET_USD`, DB column `goal_recommendations.jeff_can_prepare`, and the portal export hook `/api/hooks/jeff-export` (`JEFF_EXPORT_TOKEN`). A new domain (e.g. `gomez.bizgrips.com`) can be added later: Cloudflare CNAME + Vercel domain + OAuth redirect URIs in Google/HighLevel/Slack/Meta/Notion.
+
 ## Intelligence upgrade (memory & rules, goals, alerts, briefings)
 
 | Item | Status | Notes |
@@ -113,12 +117,12 @@ Last updated: 2026-09-11
 | Daily/weekly/monthly briefings (`/briefings`), cron every 15 min | DONE | 7:30 AM America/Denver default; configurable in `/settings`. |
 | Commitments, outcome measurement, data freshness, Settings | DONE | |
 | Web Push (PWA), mobile pass, blind spots | DONE | |
-| Jeff's Jobs (13 system jobs, Test/Run now, NL job creation), Find what I'm missing, Follow-Through (obligations, persistent reminders, completion detection) | DONE | Production 2026-09-12; see `JEFF_JOBS_STATUS.md`. |
+| Gomez's Jobs (13 system jobs, Test/Run now, NL job creation), Find what I'm missing, Follow-Through (obligations, persistent reminders, completion detection) | DONE | Production 2026-09-12; see `GOMEZ_JOBS_STATUS.md`. |
 
 ## Phase 27–30
 
 | Item | Status |
 | --- | --- |
 | Preview URL tests | DONE |
-| Production deployment | DONE — 2026-09-11, alias jeff-noah-1259s-projects.vercel.app; owner login + TOTP enrollment verified on preview; health/gating/CSP/HSTS verified on production |
+| Production deployment | DONE — 2026-09-11, alias gomez-noah-1259s-projects.vercel.app; owner login + TOTP enrollment verified on preview; health/gating/CSP/HSTS verified on production |
 | Connect services one by one | IN PROGRESS — Google ✓ · HighLevel ✓ · Stripe ✓ · next: Meta, Plaid, Slack, Notion, GitHub, n8n |

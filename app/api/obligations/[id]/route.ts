@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { apiError, json, parseBody, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { applyAction, getObligation, listEvents, listSources } from "@/lib/jeff/obligations/store";
-import { ObligationActionSchema, bucketOf } from "@/lib/jeff/obligations/types";
-import { explainCompletion } from "@/lib/jeff/obligations/completion";
+import { applyAction, getObligation, listEvents, listSources } from "@/lib/gomez/obligations/store";
+import { ObligationActionSchema, bucketOf } from "@/lib/gomez/obligations/types";
+import { explainCompletion } from "@/lib/gomez/obligations/completion";
 
 export const dynamic = "force-dynamic";
 

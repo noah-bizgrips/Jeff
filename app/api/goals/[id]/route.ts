@@ -2,9 +2,9 @@ import { z } from "zod";
 import { apiError, json, parseBody, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
 import { audit } from "@/lib/audit";
-import { GoalMetricSchema } from "@/lib/jeff/goals/schema";
-import { approveGoal, deleteDraftGoal, getGoal, listGoalEvents, listGoalMetrics, listGoalMissions, listRecommendations, listSnapshots, updateGoal } from "@/lib/jeff/goals/store";
-import { refreshGoal } from "@/lib/jeff/goals/refresh";
+import { GoalMetricSchema } from "@/lib/gomez/goals/schema";
+import { approveGoal, deleteDraftGoal, getGoal, listGoalEvents, listGoalMetrics, listGoalMissions, listRecommendations, listSnapshots, updateGoal } from "@/lib/gomez/goals/store";
+import { refreshGoal } from "@/lib/gomez/goals/refresh";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;

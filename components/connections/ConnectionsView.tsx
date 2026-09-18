@@ -3,9 +3,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Script from "next/script";
 import { useSearchParams } from "next/navigation";
-import { Icon, SourceIcon } from "@/components/jeff/icons";
-import { useJeff } from "@/components/jeff/store";
-import { AddNoteModal, ModalHeader } from "@/components/jeff/shared";
+import { Icon, SourceIcon } from "@/components/gomez/icons";
+import { useGomez } from "@/components/gomez/store";
+import { AddNoteModal, ModalHeader } from "@/components/gomez/shared";
 import type { ConnectionStatus, ConnectionSummary, ProviderDefinition } from "@/lib/integrations/types";
 import { looksSensitiveClient } from "@/lib/security/client-redact";
 
@@ -61,7 +61,7 @@ function statusFor(p: CatalogEntry, conns: ConnectionSummary[]): ConnectionStatu
 }
 
 export function ConnectionsView({ catalog, requests: initialRequests }: { catalog: CatalogEntry[]; requests: ServiceRequestItem[] }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const params = useSearchParams();
   const [requests, setRequests] = useState(initialRequests);
 
@@ -69,16 +69,16 @@ export function ConnectionsView({ catalog, requests: initialRequests }: { catalo
   useEffect(() => {
     const err = params.get("oauth_error");
     const ok = params.get("connected");
-    if (ok) jeff.toast(`${ok} connection verified.`);
-    if (err) jeff.toast(`Authorization did not complete: ${err.replace(/_/g, " ")}.`);
+    if (ok) gomez.toast(`${ok} connection verified.`);
+    if (err) gomez.toast(`Authorization did not complete: ${err.replace(/_/g, " ")}.`);
     if (ok || err) {
-      void jeff.refreshConnections();
+      void gomez.refreshConnections();
       window.history.replaceState(null, "", "/connections");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const live = jeff.connections.filter((c) => ["connected", "limited"].includes(c.status)).length;
+  const live = gomez.connections.filter((c) => ["connected", "limited"].includes(c.status)).length;
   const claude = catalog.find((p) => p.id === "claude");
   const providers = catalog.filter((p) => p.id !== "claude");
 
@@ -99,7 +99,7 @@ export function ConnectionsView({ catalog, requests: initialRequests }: { catalo
           <div className="connection-top">
             <Icon name="sparkles" />
             <h3>Claude technical worker</h3>
-            <span className={`pill ${jeff.aiEnabled ? "ok" : "neutral"}`}>{jeff.aiEnabled ? "Ask Jeff enabled" : "Worker not configured"}</span>
+            <span className={`pill ${gomez.aiEnabled ? "ok" : "neutral"}`}>{gomez.aiEnabled ? "Ask Gomez enabled" : "Worker not configured"}</span>
           </div>
           <p>{claude.description}</p>
           <div className="worker-capabilities">
@@ -108,7 +108,7 @@ export function ConnectionsView({ catalog, requests: initialRequests }: { catalo
             <span className="permission-tag">Budget &amp; time limits</span>
             <span className="permission-tag">No raw credentials</span>
           </div>
-          <button className="button secondary" type="button" onClick={() => jeff.openModal(<GuideModal p={claude} />)}>
+          <button className="button secondary" type="button" onClick={() => gomez.openModal(<GuideModal p={claude} />)}>
             View integration requirements <Icon name="arrowUpRight" />
           </button>
         </section>
@@ -117,7 +117,7 @@ export function ConnectionsView({ catalog, requests: initialRequests }: { catalo
       <div className="section-label">KNOWLEDGE SOURCES &amp; ACTION TOOLS</div>
       <div className="connections-grid">
         {providers.map((p) => {
-          const conns = jeff.connections.filter((c) => c.provider === p.id);
+          const conns = gomez.connections.filter((c) => c.provider === p.id);
           const st = statusFor(p, conns);
           return (
             <article className="connection-card" key={p.id}>
@@ -155,12 +155,12 @@ export function ConnectionsView({ catalog, requests: initialRequests }: { catalo
                 </div>
               ))}
               <div className="connection-actions">
-                <button className="button secondary" type="button" onClick={() => jeff.openModal(<SetupModal p={p} conns={conns} />)}>
+                <button className="button secondary" type="button" onClick={() => gomez.openModal(<SetupModal p={p} conns={conns} />)}>
                   {conns.length ? "Manage" : "Connection setup"}
                 </button>
-                {jeff.mode === "demo" ? (
-                  <button className="button secondary" type="button" onClick={() => toggleDemoSources(p, jeff)}>
-                    {demoSourcesOn(p, jeff) ? "Remove sample" : "Add sample"}
+                {gomez.mode === "demo" ? (
+                  <button className="button secondary" type="button" onClick={() => toggleDemoSources(p, gomez)}>
+                    {demoSourcesOn(p, gomez) ? "Remove sample" : "Add sample"}
                   </button>
                 ) : null}
               </div>
@@ -172,10 +172,10 @@ export function ConnectionsView({ catalog, requests: initialRequests }: { catalo
       <section className="signal-strip">
         <div>
           <span className="mini-eyebrow">ADD A SERVICE</span>
-          <h3>Tell Jeff what you want to connect.</h3>
-          <p>Jeff identifies the supported official API/OAuth path, records the request, and prepares a connector through a reviewed branch. Nothing is installed or executed automatically. Secrets go into protected setup forms, never chat.</p>
+          <h3>Tell Gomez what you want to connect.</h3>
+          <p>Gomez identifies the supported official API/OAuth path, records the request, and prepares a connector through a reviewed branch. Nothing is installed or executed automatically. Secrets go into protected setup forms, never chat.</p>
         </div>
-        <button className="button primary" type="button" onClick={() => jeff.openModal(<AddServiceModal onCreated={(r) => setRequests((rs) => [r, ...rs])} />)}>
+        <button className="button primary" type="button" onClick={() => gomez.openModal(<AddServiceModal onCreated={(r) => setRequests((rs) => [r, ...rs])} />)}>
           Add a service <Icon name="plus" />
         </button>
       </section>
@@ -207,9 +207,9 @@ export function ConnectionsView({ catalog, requests: initialRequests }: { catalo
         <div>
           <span className="mini-eyebrow">YOUR OWN CONTEXT</span>
           <h3>Add a note to your brain.</h3>
-          <p>{jeff.mode === "live" ? "Notes are stored privately in Jeff's database." : "Demo notes stay in this tab only."} Do not paste confidential credentials.</p>
+          <p>{gomez.mode === "live" ? "Notes are stored privately in Gomez's database." : "Demo notes stay in this tab only."} Do not paste confidential credentials.</p>
         </div>
-        <button className="button secondary" type="button" onClick={() => jeff.openModal(<AddNoteModal />)}>
+        <button className="button secondary" type="button" onClick={() => gomez.openModal(<AddNoteModal />)}>
           Add note <Icon name="plus" />
         </button>
       </section>
@@ -217,7 +217,7 @@ export function ConnectionsView({ catalog, requests: initialRequests }: { catalo
   );
 }
 
-/** Data freshness (spec §44) from the last successful sync; thresholds mirror lib/jeff/freshness.ts. */
+/** Data freshness (spec §44) from the last successful sync; thresholds mirror lib/gomez/freshness.ts. */
 function freshnessText(lastSyncAt: string | null): string {
   if (!lastSyncAt) return "no data synced yet";
   const h = (Date.now() - Date.parse(lastSyncAt)) / 3_600_000;
@@ -234,11 +234,11 @@ const DEMO_SOURCE_IDS: Record<string, string[]> = {
   highlevel: ["leadconnector"],
   meta: ["metaads", "facebook", "instagram"],
 };
-function demoSourcesOn(p: CatalogEntry, jeff: ReturnType<typeof useJeff>) {
-  return (DEMO_SOURCE_IDS[p.id] ?? [p.id]).some((id) => jeff.sources.has(id));
+function demoSourcesOn(p: CatalogEntry, gomez: ReturnType<typeof useGomez>) {
+  return (DEMO_SOURCE_IDS[p.id] ?? [p.id]).some((id) => gomez.sources.has(id));
 }
-function toggleDemoSources(p: CatalogEntry, jeff: ReturnType<typeof useJeff>) {
-  for (const id of DEMO_SOURCE_IDS[p.id] ?? [p.id]) jeff.toggleSource(id);
+function toggleDemoSources(p: CatalogEntry, gomez: ReturnType<typeof useGomez>) {
+  for (const id of DEMO_SOURCE_IDS[p.id] ?? [p.id]) gomez.toggleSource(id);
 }
 
 /* ------------------------------------------------------------------ */
@@ -246,7 +246,7 @@ function toggleDemoSources(p: CatalogEntry, jeff: ReturnType<typeof useJeff>) {
 /* ------------------------------------------------------------------ */
 
 function SetupModal({ p, conns }: { p: CatalogEntry; conns: ConnectionSummary[] }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const [testing, setTesting] = useState<string | null>(null);
   const [syncing, setSyncing] = useState<string | null>(null);
 
@@ -255,10 +255,10 @@ function SetupModal({ p, conns }: { p: CatalogEntry; conns: ConnectionSummary[] 
     try {
       const res = await fetch(`/api/sync/${p.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ connectionId: c.id }) });
       const data = (await res.json().catch(() => null)) as { results?: { capability: string; seen: number; upserted: number; error?: string | null }[]; error?: string } | null;
-      if (!res.ok || !data?.results) return jeff.toast(`Sync failed (${data?.error ?? res.status}).`);
+      if (!res.ok || !data?.results) return gomez.toast(`Sync failed (${data?.error ?? res.status}).`);
       const parts = data.results.map((r) => (r.error ? `${r.capability}: error` : `${r.capability}: ${r.upserted} of ${r.seen}`));
-      jeff.toast(`Synced — ${parts.join(", ")}.`);
-      await jeff.refreshConnections();
+      gomez.toast(`Synced — ${parts.join(", ")}.`);
+      await gomez.refreshConnections();
     } finally {
       setSyncing(null);
     }
@@ -272,9 +272,9 @@ function SetupModal({ p, conns }: { p: CatalogEntry; conns: ConnectionSummary[] 
       const res = await fetch(`/api/integrations/${p.id}/test`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(connectionId ? { connectionId } : {}) });
       const data = (await res.json().catch(() => null)) as { ok?: boolean; error?: string; details?: unknown; missingEnv?: string[] } | null;
       setResult(data ?? { error: `HTTP ${res.status}` });
-      if (data?.ok) jeff.toast(`${p.name} verified.`);
-      else jeff.toast(`${p.name} test failed${data?.error ? `: ${data.error}` : ""}.`);
-      await jeff.refreshConnections();
+      if (data?.ok) gomez.toast(`${p.name} verified.`);
+      else gomez.toast(`${p.name} test failed${data?.error ? `: ${data.error}` : ""}.`);
+      await gomez.refreshConnections();
     } finally {
       setTesting(null);
     }
@@ -283,10 +283,10 @@ function SetupModal({ p, conns }: { p: CatalogEntry; conns: ConnectionSummary[] 
   async function remove(c: ConnectionSummary) {
     if (!confirm(`Remove ${c.displayName}? The stored credential is deleted.`)) return;
     const res = await fetch(`/api/connections/${c.id}`, { method: "DELETE" });
-    if (!res.ok) return jeff.toast("Could not remove the connection.");
-    await jeff.refreshConnections();
-    jeff.toast("Connection removed and credential deleted.");
-    jeff.closeModal();
+    if (!res.ok) return gomez.toast("Could not remove the connection.");
+    await gomez.refreshConnections();
+    gomez.toast("Connection removed and credential deleted.");
+    gomez.closeModal();
   }
 
   return (
@@ -336,7 +336,7 @@ function SetupModal({ p, conns }: { p: CatalogEntry; conns: ConnectionSummary[] 
                     </button>
                   ) : null}
                   {(p.id === "meta" || p.id === "github") && ["connected", "limited"].includes(c.status) ? (
-                    <button className="button secondary" type="button" onClick={() => jeff.openModal(<PermissionsModal p={p} c={c} />)}>
+                    <button className="button secondary" type="button" onClick={() => gomez.openModal(<PermissionsModal p={p} c={c} />)}>
                       Select accounts
                     </button>
                   ) : null}
@@ -355,14 +355,14 @@ function SetupModal({ p, conns }: { p: CatalogEntry; conns: ConnectionSummary[] 
         <div className="section-label">{conns.length ? "ADD ANOTHER / RECONNECT" : "SET UP"}</div>
         {p.authType === "oauth2" ? (
           <p className="detail-content">
-            Authorize in a new window. You will see exactly which read-only permissions are requested. Jeff verifies the grant with a harmless read before marking it Connected.
+            Authorize in a new window. You will see exactly which read-only permissions are requested. Gomez verifies the grant with a harmless read before marking it Connected.
           </p>
         ) : null}
         {p.id === "stripe" ? <StripeForm /> : null}
         {p.id === "plaid" ? <PlaidLinkButton configured={p.configured} /> : null}
 
         <div className="modal-actions">
-          <button className="button secondary" type="button" onClick={jeff.closeModal}>
+          <button className="button secondary" type="button" onClick={gomez.closeModal}>
             Close
           </button>
           <a className="button secondary" href={p.docsUrl} target="_blank" rel="noopener noreferrer">
@@ -392,7 +392,7 @@ function SetupModal({ p, conns }: { p: CatalogEntry; conns: ConnectionSummary[] 
 }
 
 function GuideModal({ p }: { p: CatalogEntry }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   return (
     <>
       <ModalHeader title={p.name} desc={p.setupSummary} eyebrow="WORKER / REQUIREMENTS" />
@@ -401,10 +401,10 @@ function GuideModal({ p }: { p: CatalogEntry }) {
         <p className="detail-content">{p.permissionBoundary}</p>
         <div className="section-label">CONFIGURATION</div>
         <p className="detail-content">
-          {p.configured ? "ANTHROPIC_API_KEY is configured on the server. Ask Jeff is live." : `Missing on the server: ${p.missingEnv.join(", ")}. Add it in Vercel (Sensitive).`} Sandbox execution (Vercel Sandbox) stays disabled until a mission is approved.
+          {p.configured ? "ANTHROPIC_API_KEY is configured on the server. Ask Gomez is live." : `Missing on the server: ${p.missingEnv.join(", ")}. Add it in Vercel (Sensitive).`} Sandbox execution (Vercel Sandbox) stays disabled until a mission is approved.
         </p>
         <div className="modal-actions">
-          <button className="button primary" type="button" onClick={jeff.closeModal}>
+          <button className="button primary" type="button" onClick={gomez.closeModal}>
             Close
           </button>
         </div>
@@ -418,7 +418,7 @@ function GuideModal({ p }: { p: CatalogEntry }) {
 /* ------------------------------------------------------------------ */
 
 function StripeForm() {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const [busy, setBusy] = useState(false);
   const [label, setLabel] = useState("");
   const [outcome, setOutcome] = useState<string | null>(null);
@@ -438,9 +438,9 @@ function StripeForm() {
       if (!res.ok) setOutcome(data?.hint ?? `Rejected: ${data?.error ?? res.status}`);
       else if (data?.ok) {
         setOutcome(`Verified. Readable: ${Object.entries(data.details ?? {}).filter(([, v]) => v).map(([k]) => k).join(", ")}`);
-        jeff.toast("Stripe verified (read-only).");
+        gomez.toast("Stripe verified (read-only).");
       } else setOutcome(`Stored but verification failed: ${data?.error ?? "unknown"}`);
-      await jeff.refreshConnections();
+      await gomez.refreshConnections();
     } finally {
       setBusy(false);
     }
@@ -487,17 +487,17 @@ declare global {
 }
 
 function PlaidLinkButton({ configured }: { configured: boolean }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function start() {
-    if (!window.Plaid) return jeff.toast("Plaid Link is still loading.");
+    if (!window.Plaid) return gomez.toast("Plaid Link is still loading.");
     setBusy(true);
     try {
       const res = await fetch("/api/plaid/link-token", { method: "POST" });
       const data = (await res.json().catch(() => null)) as { linkToken?: string; error?: string; env?: string } | null;
-      if (!res.ok || !data?.linkToken) return jeff.toast(`Could not start Plaid Link (${data?.error ?? res.status}).`);
+      if (!res.ok || !data?.linkToken) return gomez.toast(`Could not start Plaid Link (${data?.error ?? res.status}).`);
       const handler = window.Plaid.create({
         token: data.linkToken,
         onSuccess: async (publicToken, metadata) => {
@@ -507,8 +507,8 @@ function PlaidLinkButton({ configured }: { configured: boolean }) {
             body: JSON.stringify({ publicToken, institution: metadata.institution ? { id: metadata.institution.institution_id, name: metadata.institution.name } : undefined }),
           });
           const out = (await ex.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
-          jeff.toast(out?.ok ? "Financial account connected (read-only)." : `Connection stored but verification failed: ${out?.error ?? ex.status}`);
-          await jeff.refreshConnections();
+          gomez.toast(out?.ok ? "Financial account connected (read-only)." : `Connection stored but verification failed: ${out?.error ?? ex.status}`);
+          await gomez.refreshConnections();
         },
         onExit: () => setBusy(false),
       });
@@ -522,7 +522,7 @@ function PlaidLinkButton({ configured }: { configured: boolean }) {
     <div className="form-grid">
       <Script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js" strategy="afterInteractive" onLoad={() => setReady(true)} />
       <div className="callout">
-        Plaid Link opens in a secure window from Plaid. Jeff requests <strong>Transactions only</strong>. Your bank credentials are entered with Plaid, never with Jeff. The resulting access token is stored encrypted server-side.
+        Plaid Link opens in a secure window from Plaid. Gomez requests <strong>Transactions only</strong>. Your bank credentials are entered with Plaid, never with Gomez. The resulting access token is stored encrypted server-side.
       </div>
       <div>
         <button className="button primary" type="button" disabled={!configured || !ready || busy} onClick={start}>
@@ -549,7 +549,7 @@ interface GithubAssets {
 }
 
 function PermissionsModal({ p, c }: { p: CatalogEntry; c: ConnectionSummary }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const [loading, setLoading] = useState(true);
   const [assets, setAssets] = useState<MetaAssets | GithubAssets[] | null>(null);
   const [selected, setSelected] = useState<Record<string, string[]>>({
@@ -564,7 +564,7 @@ function PermissionsModal({ p, c }: { p: CatalogEntry; c: ConnectionSummary }) {
     fetch(`/api/connections/${c.id}/permissions`)
       .then((r) => r.json())
       .then((d: { assets: MetaAssets | GithubAssets[] | null }) => setAssets(d.assets))
-      .catch(() => jeff.toast("Could not load selectable accounts."))
+      .catch(() => gomez.toast("Could not load selectable accounts."))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [c.id]);
@@ -582,10 +582,10 @@ function PermissionsModal({ p, c }: { p: CatalogEntry; c: ConnectionSummary }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...selected, installation_id: installationId }),
     });
-    if (!res.ok) return jeff.toast("Could not save the selection.");
-    await jeff.refreshConnections();
-    jeff.toast("Selection saved. Jeff analyzes only the selected accounts.");
-    jeff.closeModal();
+    if (!res.ok) return gomez.toast("Could not save the selection.");
+    await gomez.refreshConnections();
+    gomez.toast("Selection saved. Gomez analyzes only the selected accounts.");
+    gomez.closeModal();
   }
 
   function list(key: string, items: { id: string; name: string }[]) {
@@ -608,7 +608,7 @@ function PermissionsModal({ p, c }: { p: CatalogEntry; c: ConnectionSummary }) {
 
   return (
     <>
-      <ModalHeader title={`${p.name}: select what Jeff may analyze`} desc="Only selected accounts are read. You can change this any time." eyebrow="PERMISSIONS" />
+      <ModalHeader title={`${p.name}: select what Gomez may analyze`} desc="Only selected accounts are read. You can change this any time." eyebrow="PERMISSIONS" />
       <div className="modal-body">
         {loading ? (
           <p className="muted">Loading…</p>
@@ -639,7 +639,7 @@ function PermissionsModal({ p, c }: { p: CatalogEntry; c: ConnectionSummary }) {
           <p className="muted">Nothing to select for this provider.</p>
         )}
         <div className="modal-actions">
-          <button className="button secondary" type="button" onClick={jeff.closeModal}>
+          <button className="button secondary" type="button" onClick={gomez.closeModal}>
             Cancel
           </button>
           <button className="button primary" type="button" onClick={save} disabled={loading}>
@@ -656,7 +656,7 @@ function PermissionsModal({ p, c }: { p: CatalogEntry; c: ConnectionSummary }) {
 /* ------------------------------------------------------------------ */
 
 function AddServiceModal({ onCreated }: { onCreated: (r: ServiceRequestItem) => void }) {
-  const jeff = useJeff();
+  const gomez = useGomez();
   const [name, setName] = useState("");
   const [capability, setCapability] = useState("");
   const [intent, setIntent] = useState<"read" | "read_write">("read");
@@ -666,7 +666,7 @@ function AddServiceModal({ onCreated }: { onCreated: (r: ServiceRequestItem) => 
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (looksSensitiveClient(`${name} ${capability}`)) return jeff.toast("Do not include credentials in a service request.");
+    if (looksSensitiveClient(`${name} ${capability}`)) return gomez.toast("Do not include credentials in a service request.");
     setBusy(true);
     try {
       const res = await fetch("/api/service-requests", {
@@ -683,7 +683,7 @@ function AddServiceModal({ onCreated }: { onCreated: (r: ServiceRequestItem) => 
         }),
       });
       const data = (await res.json().catch(() => null)) as { request?: ServiceRequestItem; error?: string } | null;
-      if (!res.ok || !data?.request) return jeff.toast(`Could not record the request (${data?.error ?? res.status}).`);
+      if (!res.ok || !data?.request) return gomez.toast(`Could not record the request (${data?.error ?? res.status}).`);
       setResult(data.request);
       onCreated(data.request);
     } finally {
@@ -694,13 +694,13 @@ function AddServiceModal({ onCreated }: { onCreated: (r: ServiceRequestItem) => 
   const STATUS_TEXT: Record<string, string> = {
     existing_connector: "Existing connector — use its setup flow above.",
     connector_can_be_prepared: "A connector can be prepared through a reviewed Git branch.",
-    manual_investigation_required: "Jeff will investigate the official integration method first.",
-    unsupported: "Not supported: Jeff only uses official APIs with explicit authorization.",
+    manual_investigation_required: "Gomez will investigate the official integration method first.",
+    unsupported: "Not supported: Gomez only uses official APIs with explicit authorization.",
   };
 
   return (
     <>
-      <ModalHeader title="Add a service" desc="Jeff, add [service] as an integration." eyebrow="CONNECTIONS / REQUEST" />
+      <ModalHeader title="Add a service" desc="Gomez, add [service] as an integration." eyebrow="CONNECTIONS / REQUEST" />
       {result ? (
         <div className="modal-body">
           <div className="callout">
@@ -709,7 +709,7 @@ function AddServiceModal({ onCreated }: { onCreated: (r: ServiceRequestItem) => 
             {result.classification_notes}
           </div>
           <div className="modal-actions">
-            <button className="button primary" type="button" onClick={jeff.closeModal}>
+            <button className="button primary" type="button" onClick={gomez.closeModal}>
               Done
             </button>
           </div>
@@ -721,7 +721,7 @@ function AddServiceModal({ onCreated }: { onCreated: (r: ServiceRequestItem) => 
             <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={80} placeholder="QuickBooks, HubSpot, Zoom…" />
           </label>
           <label className="field">
-            What should Jeff be able to do?
+            What should Gomez be able to do?
             <textarea value={capability} onChange={(e) => setCapability(e.target.value)} required maxLength={1000} placeholder="Read invoices and expenses for cash-flow analysis" />
           </label>
           <label className="field">
@@ -737,7 +737,7 @@ function AddServiceModal({ onCreated }: { onCreated: (r: ServiceRequestItem) => 
           </label>
           <div className="callout">No packages are installed and no remote code runs from this form. Requests are classified, recorded, and implemented through review.</div>
           <div className="modal-actions">
-            <button className="button secondary" type="button" onClick={jeff.closeModal}>
+            <button className="button secondary" type="button" onClick={gomez.closeModal}>
               Cancel
             </button>
             <button className="button primary" type="submit" disabled={busy}>

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { leadFollowupGap, GAP_DAYS } from "@/lib/jeff/monitors/lead-followup-gap";
-import { pipelineAging } from "@/lib/jeff/monitors/pipeline-aging";
-import { missedCommitment } from "@/lib/jeff/monitors/missed-commitment";
-import { automationFailure } from "@/lib/jeff/monitors/automation-failure";
-import { operationalBottleneck } from "@/lib/jeff/monitors/operational-bottleneck";
-import type { SourceRow } from "@/lib/jeff/monitors/types";
+import { leadFollowupGap, GAP_DAYS } from "@/lib/gomez/monitors/lead-followup-gap";
+import { pipelineAging } from "@/lib/gomez/monitors/pipeline-aging";
+import { missedCommitment } from "@/lib/gomez/monitors/missed-commitment";
+import { automationFailure } from "@/lib/gomez/monitors/automation-failure";
+import { operationalBottleneck } from "@/lib/gomez/monitors/operational-bottleneck";
+import type { SourceRow } from "@/lib/gomez/monitors/types";
 
 const NOW = new Date("2026-09-12T12:00:00.000Z");
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000).toISOString();

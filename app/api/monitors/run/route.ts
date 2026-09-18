@@ -1,6 +1,6 @@
 import { json, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { runMonitorsForOwner } from "@/lib/jeff/monitors";
+import { runMonitorsForOwner } from "@/lib/gomez/monitors";
 import { audit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";

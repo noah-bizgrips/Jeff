@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { composeContext, extractCommitments, isOverdue } from "@/lib/jeff/commitments/extract";
-import type { SourceRow } from "@/lib/jeff/monitors/types";
-import { emailHash } from "@/lib/jeff/clients/client-leads";
+import { composeContext, extractCommitments, isOverdue } from "@/lib/gomez/commitments/extract";
+import type { SourceRow } from "@/lib/gomez/monitors/types";
+import { emailHash } from "@/lib/gomez/clients/client-leads";
 
 const NOW = new Date("2026-09-16T18:00:00.000Z");
 

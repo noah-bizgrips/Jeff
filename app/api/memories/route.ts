@@ -2,8 +2,8 @@ import { z } from "zod";
 import { apiError, json, parseBody, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
 import { audit } from "@/lib/audit";
-import { forgetMemory, listMemories, rememberMemory, updateMemory } from "@/lib/jeff/rules/store";
-import { MemoryCategorySchema, MemoryInputSchema, ScopeSchema } from "@/lib/jeff/rules/schema";
+import { forgetMemory, listMemories, rememberMemory, updateMemory } from "@/lib/gomez/rules/store";
+import { MemoryCategorySchema, MemoryInputSchema, ScopeSchema } from "@/lib/gomez/rules/schema";
 import { looksSensitive } from "@/lib/security/redact";
 
 export const dynamic = "force-dynamic";

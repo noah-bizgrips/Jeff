@@ -24,7 +24,7 @@ describe("OAuth state", () => {
     const url = new URL(start.url);
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
     expect(url.searchParams.get("code_challenge")).toBeTruthy();
-    expect(url.searchParams.get("redirect_uri")).toBe("https://jeff.test/api/oauth/google/callback");
+    expect(url.searchParams.get("redirect_uri")).toBe("https://gomez.test/api/oauth/google/callback");
     expect(url.searchParams.get("client_id")).toBe("test-client-id");
     expect(url.toString()).not.toContain("test-client-secret");
     const state = url.searchParams.get("state")!;
@@ -74,9 +74,9 @@ describe("route slug for providers that forbid their name in redirect URIs", () 
   it("HighLevel uses /api/oauth/crm/callback", () => {
     const start = buildAuthorizationStart({ ...cfg, id: "highlevel", routeSlug: "crm", pkce: false, clientIdEnv: "GOOGLE_CLIENT_ID", clientSecretEnv: "GOOGLE_CLIENT_SECRET" });
     const url = new URL(start.url);
-    expect(url.searchParams.get("redirect_uri")).toBe("https://jeff.test/api/oauth/crm/callback");
+    expect(url.searchParams.get("redirect_uri")).toBe("https://gomez.test/api/oauth/crm/callback");
     expect(url.searchParams.get("redirect_uri")).not.toMatch(/highlevel|leadconnector/i);
     // state cookie stays bound to the canonical provider id
-    expect(start.cookie.name).toBe("jeff_oauth_highlevel");
+    expect(start.cookie.name).toBe("gomez_oauth_highlevel");
   });
 });

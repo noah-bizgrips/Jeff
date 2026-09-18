@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { apiError, json, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { listAlertGroups, syncAlertGroups } from "@/lib/jeff/grouping/store";
+import { listAlertGroups, syncAlertGroups } from "@/lib/gomez/grouping/store";
 
 export const dynamic = "force-dynamic";
 

@@ -1,6 +1,6 @@
-# Supabase CLI configuration for Jeff.
+# Supabase CLI configuration for Gomez.
 # Local defaults only; the linked remote project is set via `supabase link`.
-project_id = "jeff"
+project_id = "gomez"
 
 [api]
 enabled = true

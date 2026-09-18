@@ -1,7 +1,7 @@
 import { json, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { listRules } from "@/lib/jeff/rules/store";
-import { detectConflicts } from "@/lib/jeff/rules/conflicts";
+import { listRules } from "@/lib/gomez/rules/store";
+import { detectConflicts } from "@/lib/gomez/rules/conflicts";
 
 export const dynamic = "force-dynamic";
 
