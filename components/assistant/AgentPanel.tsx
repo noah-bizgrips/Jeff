@@ -76,7 +76,7 @@ export function AgentPanel() {
               <span className="orbit-dot od3" />
             </div>
             <div className="eyebrow">YOUR PERSONAL THINKING PARTNER</div>
-            <h3>Hey, I&apos;m Gomez.</h3>
+            <h3>Hola, I&apos;m Gomez.</h3>
             <p>
               Find the signal. Give it direction.
               <br />
