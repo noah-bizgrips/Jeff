@@ -359,6 +359,7 @@ function SetupModal({ p, conns }: { p: CatalogEntry; conns: ConnectionSummary[] 
           </p>
         ) : null}
         {p.id === "stripe" ? <StripeForm /> : null}
+        {p.id === "meta" ? <MetaTokenForm /> : null}
         {p.id === "plaid" ? <PlaidLinkButton configured={p.configured} /> : null}
 
         <div className="modal-actions">
@@ -458,6 +459,62 @@ function StripeForm() {
       <label className="field">
         Restricted key
         <input name="restrictedKey" type="password" autoComplete="off" spellCheck={false} placeholder="rk_live_…" required />
+      </label>
+      {outcome ? <div className="callout">{outcome}</div> : null}
+      <div>
+        <button className="button primary" type="submit" disabled={busy}>
+          {busy ? <span className="spinner" /> : <Icon name="lock" />}
+          Encrypt &amp; verify
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Meta: system user token (no login dialog)                           */
+/* ------------------------------------------------------------------ */
+
+function MetaTokenForm() {
+  const jeff = useJeff();
+  const [busy, setBusy] = useState(false);
+  const [label, setLabel] = useState("");
+  const [outcome, setOutcome] = useState<string | null>(null);
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const input = e.currentTarget.elements.namedItem("token") as HTMLInputElement;
+    const token = input.value.trim();
+    input.value = ""; // never keep the token in state or the DOM longer than needed
+    if (token.length < 40) return setOutcome("That does not look like a Meta access token.");
+    setBusy(true);
+    setOutcome(null);
+    try {
+      const res = await fetch("/api/integrations/meta/connect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, label: label || undefined }) });
+      const data = (await res.json().catch(() => null)) as { ok?: boolean; limited?: boolean; error?: string; hint?: string; details?: { granted?: string[]; missing?: string[] } } | null;
+      if (!res.ok) setOutcome(data?.hint ?? `Rejected: ${data?.error ?? res.status}`);
+      else if (data?.ok) {
+        setOutcome(`Verified. Granted: ${(data.details?.granted ?? []).join(", ") || "—"}${data.details?.missing?.length ? ` · missing: ${data.details.missing.join(", ")}` : ""}. Next: Select accounts → pick the BizGrips ad account.`);
+        jeff.toast(data.limited ? "Meta token stored (limited)." : "Meta verified (ads read-only).");
+      } else setOutcome(`Stored but verification failed: ${data?.error ?? "unknown"}`);
+      await jeff.refreshConnections();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="form-grid" onSubmit={onSubmit} autoComplete="off">
+      <div className="callout">
+        <strong>Alternative to the login dialog:</strong> a Business Manager <em>system user</em> token with only <code>ads_read</code>. business.facebook.com → Settings → Users → System users → Add → assign the app and the ad account (View performance) → Generate token → app, expiry <em>Never</em>, permission <code>ads_read</code>. Paste it once here — it is encrypted immediately and never displayed again.
+      </div>
+      <label className="field">
+        Label (optional)
+        <input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={80} placeholder="BizGrips ads (system user)" />
+      </label>
+      <label className="field">
+        System user token
+        <input name="token" type="password" autoComplete="off" spellCheck={false} placeholder="EAA…" required />
       </label>
       {outcome ? <div className="callout">{outcome}</div> : null}
       <div>

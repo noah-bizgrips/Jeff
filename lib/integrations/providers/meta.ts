@@ -106,7 +106,12 @@ export const metaAdapter: OAuthProviderAdapter = {
     const me = await fetchJson<{ id?: string; name?: string }>(`${GRAPH}/me?fields=id,name&${q}`);
     if (me.status !== 200 || !me.body?.id) return { ok: false, error: `meta_me_failed:${me.status}` };
     const perms = await fetchJson<{ data?: { permission: string; status: string }[] }>(`${GRAPH}/me/permissions?${q}`);
-    const granted = (perms.body?.data ?? []).filter((p) => p.status === "granted").map((p) => p.permission);
+    let granted = (perms.body?.data ?? []).filter((p) => p.status === "granted").map((p) => p.permission);
+    // System user tokens do not always expose /me/permissions; prove ads access with a harmless read instead.
+    if (!granted.length) {
+      const ads = await fetchJson<{ data?: { id: string }[] }>(`${GRAPH}/me/adaccounts?fields=id&limit=1&${q}`);
+      if (ads.status === 200) granted = ["ads_read"];
+    }
     const missing = metaRequestedScopes().filter((p) => !granted.includes(p));
     return {
       ok: true,

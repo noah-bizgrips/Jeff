@@ -122,7 +122,7 @@ export const PROVIDERS: ProviderDefinition[] = [
     requiredEnv: ["META_APP_ID", "META_APP_SECRET"],
     // META_LOGIN_CONFIG_ID is optional (Facebook Login for Business configuration).
     docsUrl: "https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow",
-    setupSummary: "Create a Meta app (Business type), add Facebook Login with the redirect URI, and store the app id/secret in Vercel. After authorizing, choose which ad accounts, Pages, and Instagram accounts Jeff may analyze.",
+    setupSummary: "Two ways in: authorize through Facebook Login (needs a Meta app with ads permissions), or paste a Business Manager system user token limited to ads_read. Then choose which ad accounts (and later Pages/Instagram) Jeff may analyze.",
     permissionBoundary: "Read-only: ads_read, pages_read_engagement, pages_show_list, instagram_basic, instagram_manage_insights, business_management. No posting, messaging, budget changes, or campaign control.",
     accessCaption: "Read-only by default",
   },
