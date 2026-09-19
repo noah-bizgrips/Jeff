@@ -353,7 +353,7 @@ function SetupModal({ p, conns }: { p: CatalogEntry; conns: ConnectionSummary[] 
         {result ? <div className="diff-preview">{JSON.stringify(result, null, 2)}</div> : null}
 
         <div className="section-label">{conns.length ? "ADD ANOTHER / RECONNECT" : "SET UP"}</div>
-        {p.authType === "oauth2" ? (
+        {p.authType === "oauth2" && !(p.id === "meta" && conns.some((c) => c.metadata.auth === "system_user_token")) ? (
           <p className="detail-content">
             Authorize in a new window. You will see exactly which read-only permissions are requested. Jeff verifies the grant with a harmless read before marking it Connected.
           </p>
@@ -369,7 +369,7 @@ function SetupModal({ p, conns }: { p: CatalogEntry; conns: ConnectionSummary[] 
           <a className="button secondary" href={p.docsUrl} target="_blank" rel="noopener noreferrer">
             Official docs <Icon name="arrowUpRight" />
           </a>
-          {p.authType === "oauth2" ? (
+          {p.authType === "oauth2" && !(p.id === "meta" && conns.some((c) => c.metadata.auth === "system_user_token" && ["connected", "limited"].includes(c.status))) ? (
             p.configured ? (
               <a className="button primary" href={`/api/oauth/${p.oauthSlug ?? p.id}/start`}>
                 Authorize {p.name} <Icon name="arrowUpRight" />
