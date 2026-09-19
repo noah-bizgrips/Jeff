@@ -9,7 +9,7 @@ const audit = vi.fn(async () => {});
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => fakeSupabase(claims) }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => db.client() }));
 vi.mock("@/lib/audit", () => ({ audit: (...a: unknown[]) => audit(...(a as [])) }));
-vi.mock("@/lib/gomez/settings-store", () => ({ getSettings: async () => ({ timezone: "America/Denver", quiet_hours_start: "21:00", quiet_hours_end: "07:00" }) }));
+vi.mock("@/lib/jeff/settings-store", () => ({ getSettings: async () => ({ timezone: "America/Denver", quiet_hours_start: "21:00", quiet_hours_end: "07:00" }) }));
 
 const list = await import("@/app/api/obligations/route");
 const detail = await import("@/app/api/obligations/[id]/route");

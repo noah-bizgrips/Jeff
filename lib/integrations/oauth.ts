@@ -48,7 +48,7 @@ interface StatePayload {
 function stateKey(): Buffer {
   // Derive a distinct key for state signing so the encryption key is never used directly.
   const master = Buffer.from(requireEnv("JEFF_CREDENTIAL_ENCRYPTION_KEY").trim(), "base64");
-  return createHmac("sha256", master).update("gomez:oauth-state:v1").digest();
+  return createHmac("sha256", master).update("jeff:oauth-state:v1").digest();
 }
 
 function sign(payload: string): string {
@@ -64,7 +64,7 @@ export function redirectUri(providerId: string): string {
 }
 
 function cookieName(providerId: string) {
-  return `gomez_oauth_${providerId}`;
+  return `jeff_oauth_${providerId}`;
 }
 
 export interface StartResult {

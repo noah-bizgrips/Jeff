@@ -45,5 +45,5 @@ describe("requireOwnerAal2", () => {
 describe("isTrustedOrigin", () => {
   it("allows GET without origin", () => expect(isTrustedOrigin(req("/x", { sameOrigin: false }))).toBe(true));
   it("blocks POST without any origin signal", () => expect(isTrustedOrigin(req("/x", { method: "POST", sameOrigin: false }))).toBe(false));
-  it("allows POST whose Origin matches the app URL", () => expect(isTrustedOrigin(req("/x", { method: "POST", sameOrigin: false, origin: "https://gomez.test" }))).toBe(true));
+  it("allows POST whose Origin matches the app URL", () => expect(isTrustedOrigin(req("/x", { method: "POST", sameOrigin: false, origin: "https://jeff.test" }))).toBe(true));
 });

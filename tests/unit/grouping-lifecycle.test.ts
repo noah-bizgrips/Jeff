@@ -62,12 +62,12 @@ function chain(table: string) {
 
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({ from: (table: string) => chain(table) }) }));
 vi.mock("@/lib/audit", () => ({ audit: vi.fn(async () => {}) }));
-vi.mock("@/lib/gomez/clients/map", () => ({ loadClientMap: vi.fn(async () => []) }));
-vi.mock("@/lib/gomez/obligations/store", () => ({ listObligations: vi.fn(async () => []) }));
-vi.mock("@/lib/gomez/commitments/store", () => ({ listCommitments: vi.fn(async () => []) }));
-vi.mock("@/lib/gomez/goals/store", () => ({ listGoals: vi.fn(async () => []) }));
+vi.mock("@/lib/jeff/clients/map", () => ({ loadClientMap: vi.fn(async () => []) }));
+vi.mock("@/lib/jeff/obligations/store", () => ({ listObligations: vi.fn(async () => []) }));
+vi.mock("@/lib/jeff/commitments/store", () => ({ listCommitments: vi.fn(async () => []) }));
+vi.mock("@/lib/jeff/goals/store", () => ({ listGoals: vi.fn(async () => []) }));
 
-const { nextGroupStatus, updateAlertGroup, REOPEN_DAYS } = await import("@/lib/gomez/grouping/store");
+const { nextGroupStatus, updateAlertGroup, REOPEN_DAYS } = await import("@/lib/jeff/grouping/store");
 
 const NOW = new Date("2026-09-14T16:00:00Z");
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000).toISOString();

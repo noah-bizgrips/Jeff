@@ -1,13 +1,13 @@
 # Mobile conventions
 
-Gomez is used as an installed iOS home-screen web app (PWA) as well as on desktop. The desktop
+Jeff is used as an installed iOS home-screen web app (PWA) as well as on desktop. The desktop
 design is the source of truth; phone layouts adapt it without redesigning it.
 
 ## Breakpoints (app/globals.css)
 
 | Query | Meaning | What changes |
 | --- | --- | --- |
-| `max-width: 1000px` | tablets and phones | Ask Gomez becomes a full-height sheet with a close button; floating "Ask Gomez" button appears; workspace body stacks. |
+| `max-width: 1000px` | tablets and phones | Ask Jeff becomes a full-height sheet with a close button; floating "Ask Jeff" button appears; workspace body stacks. |
 | `max-width: 720px` | phones | Sidebar becomes a drawer with a tap-to-close scrim; topbar is sticky and safe-area padded; every grid is single column; filter tabs scroll horizontally; modals are bottom sheets with sticky header/actions; all form controls are 16px (no iOS focus zoom) and ≥44px tall. |
 | `max-width: 380px` | small phones | Action buttons go full width. |
 | `display-mode: standalone` | installed PWA | Extra top padding under the iOS status bar. |
@@ -25,7 +25,7 @@ Never pad regular page content with them (it would double up).
 
 ## Overlays
 
-`components/gomez/store.tsx` mirrors `sidebarOpen` / `agentOpen` onto `<body>` as `sidebar-open` /
+`components/jeff/store.tsx` mirrors `sidebarOpen` / `agentOpen` onto `<body>` as `sidebar-open` /
 `agent-open` so CSS can react without `:has()`. Both drawers close automatically on route change and
 on Escape; the sidebar also closes when the scrim (`.drawer-scrim`) is tapped.
 
@@ -57,4 +57,4 @@ Only `.diff-preview`, `.code-hint` and `pre` may scroll horizontally.
 There is no device farm in CI. Before merging UI changes, open the page in Safari's Responsive
 Design Mode at 390×844 and in the installed PWA on an iPhone, and check: no horizontal scroll,
 the bottom of every modal is reachable, the composer stays above the keyboard, and the floating
-Ask Gomez button does not cover the last action on the page.
+Ask Jeff button does not cover the last action on the page.

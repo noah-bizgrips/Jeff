@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Icon } from "@/components/gomez/icons";
-import { useGomez } from "@/components/gomez/store";
-import { sourcesForJob } from "@/lib/gomez/brain/sources";
-import { ModalHeader } from "@/components/gomez/shared";
+import { Icon } from "@/components/jeff/icons";
+import { useJeff } from "@/components/jeff/store";
+import { sourcesForJob } from "@/lib/jeff/brain/sources";
+import { ModalHeader } from "@/components/jeff/shared";
 import { RuleEditor } from "@/components/memory/MemoryRulesView";
-import type { PresentedRule } from "@/lib/gomez/rules/present";
-import type { RuleAction, RuleCondition } from "@/lib/gomez/rules/schema";
+import type { PresentedRule } from "@/lib/jeff/rules/present";
+import type { RuleAction, RuleCondition } from "@/lib/jeff/rules/schema";
 import { TestModePanel } from "./TestModePanel";
 import { api, fmtWhen, SOURCE_LABEL, STATUS_TONE, type JobFinding, type JobItem, type JobRunRow, type RunOutcome } from "./types";
 
@@ -25,7 +25,7 @@ interface RuleProposal {
 
 /** One job, every section from spec §6.2. Actions are Tier 1 (reversible configuration); runs go through the same runner as the cron. */
 export function JobDetailView({ initialJob, initialRuns, obligations = null }: { initialJob: JobItem; initialRuns: JobRunRow[]; obligations?: { live: number; overdue: number; waiting_on_me: number; waiting_on_other: number; possibly_complete: number; snoozed: number } | null }) {
-  const gomez = useGomez();
+  const jeff = useJeff();
   const [job, setJob] = useState(initialJob);
   const [runs, setRuns] = useState(initialRuns);
   const [findings, setFindings] = useState<JobFinding[] | null>(null);
@@ -56,9 +56,9 @@ export function JobDetailView({ initialJob, initialRuns, obligations = null }: {
     setBusy(label);
     try {
       const res = await api<{ job: JobItem }>(`/api/jobs/${job.slug}`, { method: "PATCH", body: JSON.stringify(body) });
-      if (!res.ok || !res.data) return gomez.toast(`Could not update (${res.error ?? res.status}).`);
+      if (!res.ok || !res.data) return jeff.toast(`Could not update (${res.error ?? res.status}).`);
       setJob(res.data.job);
-      gomez.toast(`${job.ui_name}: ${label}.`);
+      jeff.toast(`${job.ui_name}: ${label}.`);
     } finally {
       setBusy(null);
     }
@@ -66,11 +66,11 @@ export function JobDetailView({ initialJob, initialRuns, obligations = null }: {
 
   // While a run/test is in flight the brain shows the job's declared sources being examined; afterwards it re-reads state.
   function jobStarted() {
-    gomez.setBrainActivity({ kind: "job", sources: sourcesForJob(job.sources, gomez.connectedSources()) });
+    jeff.setBrainActivity({ kind: "job", sources: sourcesForJob(job.sources, jeff.connectedSources()) });
   }
   function jobFinished() {
-    gomez.setBrainActivity({ kind: null, sources: [] });
-    void gomez.refreshBrain({ force: true });
+    jeff.setBrainActivity({ kind: null, sources: [] });
+    void jeff.refreshBrain({ force: true });
   }
 
   async function test() {
@@ -78,8 +78,8 @@ export function JobDetailView({ initialJob, initialRuns, obligations = null }: {
     jobStarted();
     try {
       const res = await api<RunOutcome>(`/api/jobs/${job.slug}/test`, { method: "POST" });
-      if (!res.ok || !res.data) return gomez.toast(`Test failed (${res.error ?? res.status}).`);
-      gomez.openModal(<TestModePanel job={job} outcome={res.data} onRuleSaved={reload} />);
+      if (!res.ok || !res.data) return jeff.toast(`Test failed (${res.error ?? res.status}).`);
+      jeff.openModal(<TestModePanel job={job} outcome={res.data} onRuleSaved={reload} />);
       await reload();
     } finally {
       setBusy(null);
@@ -92,9 +92,9 @@ export function JobDetailView({ initialJob, initialRuns, obligations = null }: {
     jobStarted();
     try {
       const res = await api<RunOutcome>(`/api/jobs/${job.slug}/run`, { method: "POST" });
-      if (!res.ok || !res.data) return gomez.toast(`Run failed (${res.error ?? res.status}).`);
+      if (!res.ok || !res.data) return jeff.toast(`Run failed (${res.error ?? res.status}).`);
       const s = res.data.stats;
-      gomez.toast(`Run ${res.data.status}: ${s.findings_created ?? 0} new · ${s.findings_updated ?? 0} updated · ${s.findings_resolved ?? 0} resolved · ${s.alerts_created ?? 0} alerts.`);
+      jeff.toast(`Run ${res.data.status}: ${s.findings_created ?? 0} new · ${s.findings_updated ?? 0} updated · ${s.findings_resolved ?? 0} resolved · ${s.alerts_created ?? 0} alerts.`);
       await reload();
     } finally {
       setBusy(null);
@@ -105,9 +105,9 @@ export function JobDetailView({ initialJob, initialRuns, obligations = null }: {
   async function remove() {
     if (!confirm(`Delete “${job.name}”? Its findings stay; the job and its history are removed.`)) return;
     const res = await api<{ ok: boolean }>(`/api/jobs/${job.slug}`, { method: "DELETE" });
-    if (!res.ok) return gomez.toast(`Could not delete (${res.error ?? res.status}).`);
-    gomez.toast("Job deleted.");
-    gomez.navigate("/jobs");
+    if (!res.ok) return jeff.toast(`Could not delete (${res.error ?? res.status}).`);
+    jeff.toast("Job deleted.");
+    jeff.navigate("/jobs");
   }
 
   const lastRun = runs[0] ?? null;
@@ -118,7 +118,7 @@ export function JobDetailView({ initialJob, initialRuns, obligations = null }: {
     <section className="page-view" id="jobDetailView">
       <div className="view-toolbar">
         <p>
-          <Link href="/jobs">Gomez&apos;s Jobs</Link> / {job.ui_name}
+          <Link href="/jobs">Jeff&apos;s Jobs</Link> / {job.ui_name}
         </p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button className="button secondary" type="button" disabled={!!busy || !job.detectors.length} onClick={test} title="Analyse now without creating findings or alerts">
@@ -136,7 +136,7 @@ export function JobDetailView({ initialJob, initialRuns, obligations = null }: {
               <Icon name="play" /> {job.status === "draft" ? "Activate" : "Resume"}
             </button>
           )}
-          <button className="button secondary" type="button" onClick={() => gomez.openModal(<EditJobModal job={job} onSaved={reload} />)}>
+          <button className="button secondary" type="button" onClick={() => jeff.openModal(<EditJobModal job={job} onSaved={reload} />)}>
             Edit
           </button>
           {job.status !== "disabled" ? (
@@ -298,7 +298,7 @@ export function JobDetailView({ initialJob, initialRuns, obligations = null }: {
                     <strong>{r.name}</strong>
                     <small>{r.summary}</small>
                   </span>
-                  <button className="button secondary" type="button" onClick={() => gomez.openModal(<RuleEditor rule={r} targetJob={job.slug} onSaved={reload} />)}>
+                  <button className="button secondary" type="button" onClick={() => jeff.openModal(<RuleEditor rule={r} targetJob={job.slug} onSaved={reload} />)}>
                     Edit
                   </button>
                 </div>
@@ -307,7 +307,7 @@ export function JobDetailView({ initialJob, initialRuns, obligations = null }: {
               <p className="muted">No job-scoped rules. Global rules from Memory & rules still apply.</p>
             )}
             <div>
-              <button className="button secondary" type="button" onClick={() => gomez.openModal(<RuleEditor targetJob={job.slug} onSaved={reload} />)}>
+              <button className="button secondary" type="button" onClick={() => jeff.openModal(<RuleEditor targetJob={job.slug} onSaved={reload} />)}>
                 <Icon name="plus" /> Add rule for this job
               </button>
             </div>
@@ -359,7 +359,7 @@ export function JobDetailView({ initialJob, initialRuns, obligations = null }: {
                 <code>{job.slug}</code>
               </dd>
               <dt>Managed by</dt>
-              <dd>{job.system_managed ? "Gomez (system job — name, purpose and detectors refresh with updates; your schedule, policy and status are kept)" : `you (created by ${job.created_by})`}</dd>
+              <dd>{job.system_managed ? "Jeff (system job — name, purpose and detectors refresh with updates; your schedule, policy and status are kept)" : `you (created by ${job.created_by})`}</dd>
               <dt>Created</dt>
               <dd>{fmtWhen(job.created_at)}</dd>
               {job.config.request ? (
@@ -419,7 +419,7 @@ function RunSummary({ run }: { run: JobRunRow }) {
 }
 
 function FindingRow({ finding, job, onChanged }: { finding: JobFinding; job: JobItem; onChanged: () => Promise<void> }) {
-  const gomez = useGomez();
+  const jeff = useJeff();
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(finding.status);
 
@@ -427,24 +427,24 @@ function FindingRow({ finding, job, onChanged }: { finding: JobFinding; job: Job
     setBusy(true);
     try {
       const res = await api<{ rule?: { name: string }; suppressed?: number; proposed?: RuleProposal | null }>(`/api/findings/${finding.id}/feedback`, { method: "POST", body: JSON.stringify({ verdict }) });
-      if (!res.ok) return gomez.toast(`Could not record feedback (${res.error ?? res.status}).`);
-      void gomez.refreshBrain({ force: true });
+      if (!res.ok) return jeff.toast(`Could not record feedback (${res.error ?? res.status}).`);
+      void jeff.refreshBrain({ force: true });
       const d = res.data;
       if (verdict === "useful") {
         setStatus("accepted");
-        gomez.toast("Marked useful.");
+        jeff.toast("Marked useful.");
       } else if (verdict === "already_knew") {
         setStatus("acknowledged");
-        gomez.toast(d?.proposed ? "Noted — you already knew. Want a rule so this job stops repeating it? Use Create rule." : "Noted — you already knew. It stays out of your attention.");
+        jeff.toast(d?.proposed ? "Noted — you already knew. Want a rule so this job stops repeating it? Use Create rule." : "Noted — you already knew. It stays out of your attention.");
       } else if (verdict === "not_useful") {
         setStatus("dismissed");
-        gomez.toast("Dismissed.");
+        jeff.toast("Dismissed.");
       } else if (verdict === "dont_show") {
         setStatus(d?.rule ? "suppressed_by_rule" : "dismissed");
-        gomez.toast(d?.rule ? `Rule added: “${d.rule.name}” · ${d.suppressed ?? 0} suppressed.` : "Dismissed. No safe narrow rule could be inferred.");
+        jeff.toast(d?.rule ? `Rule added: “${d.rule.name}” · ${d.suppressed ?? 0} suppressed.` : "Dismissed. No safe narrow rule could be inferred.");
       } else if (verdict === "change_rule") {
-        if (d?.proposed) return gomez.openModal(<RuleEditor proposed={d.proposed} targetJob={job.slug} onSaved={onChanged} />);
-        return gomez.openModal(<RuleEditor targetJob={job.slug} onSaved={onChanged} />);
+        if (d?.proposed) return jeff.openModal(<RuleEditor proposed={d.proposed} targetJob={job.slug} onSaved={onChanged} />);
+        return jeff.openModal(<RuleEditor targetJob={job.slug} onSaved={onChanged} />);
       }
       await onChanged();
     } finally {
@@ -493,7 +493,7 @@ function FindingRow({ finding, job, onChanged }: { finding: JobFinding; job: Job
 /* ------------------------------------------------------------------ */
 
 function EditJobModal({ job, onSaved }: { job: JobItem; onSaved: () => Promise<void> }) {
-  const gomez = useGomez();
+  const jeff = useJeff();
   const [name, setName] = useState(job.name);
   const [purpose, setPurpose] = useState(job.purpose);
   const [schedule, setSchedule] = useState(job.schedule_type);
@@ -527,8 +527,8 @@ function EditJobModal({ job, onSaved }: { job: JobItem; onSaved: () => Promise<v
       const res = await api<{ job: JobItem; issues?: { path: string; message: string }[] }>(`/api/jobs/${job.slug}`, { method: "PATCH", body: JSON.stringify(body) });
       if (!res.ok) return setError(res.data?.issues?.map((i) => `${i.path}: ${i.message}`).join("; ") ?? res.error ?? `HTTP ${res.status}`);
       await onSaved();
-      gomez.closeModal();
-      gomez.toast("Job updated.");
+      jeff.closeModal();
+      jeff.toast("Job updated.");
     } finally {
       setBusy(false);
     }
@@ -536,7 +536,7 @@ function EditJobModal({ job, onSaved }: { job: JobItem; onSaved: () => Promise<v
 
   return (
     <>
-      <ModalHeader title={`Edit ${job.ui_name}`} desc={job.system_managed ? "System job: schedule, scope and notification policy are yours; name and purpose update with Gomez." : "Tier-1 configuration. Changes take effect on the next run."} eyebrow="EDIT JOB" />
+      <ModalHeader title={`Edit ${job.ui_name}`} desc={job.system_managed ? "System job: schedule, scope and notification policy are yours; name and purpose update with Jeff." : "Tier-1 configuration. Changes take effect on the next run."} eyebrow="EDIT JOB" />
       <form className="modal-body form-grid" onSubmit={submit}>
         {error ? <div className="auth-error">{error}</div> : null}
         {!job.system_managed ? (
@@ -609,7 +609,7 @@ function EditJobModal({ job, onSaved }: { job: JobItem; onSaved: () => Promise<v
           <input type="checkbox" checked={briefingOnly} onChange={(e) => setBriefingOnly(e.target.checked)} /> Briefing only (never interrupt; include in the next brief)
         </label>
         <div className="modal-actions">
-          <button className="button secondary" type="button" onClick={gomez.closeModal}>
+          <button className="button secondary" type="button" onClick={jeff.closeModal}>
             Cancel
           </button>
           <button className="button primary" type="submit" disabled={busy}>

@@ -6,7 +6,7 @@ export default function UnauthorizedPage() {
   return (
     <AuthCard>
       <h1>This workspace is private.</h1>
-      <p>Gomez is a single-owner application. The account you signed in with is not the configured owner, so nothing here is available to it.</p>
+      <p>Jeff is a single-owner application. The account you signed in with is not the configured owner, so nothing here is available to it.</p>
       <form action="/auth/signout" method="post">
         <button className="button primary" type="submit">
           Sign out

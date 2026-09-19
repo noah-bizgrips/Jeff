@@ -3,8 +3,8 @@ import { apiError, json, parseBody, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
 import { audit } from "@/lib/audit";
 import { looksSensitive } from "@/lib/security/redact";
-import { GOAL_PROMPT_MAX_CHARS, interpretGoal } from "@/lib/gomez/goals/interpret";
-import { createDraftGoal, latestSnapshot, listGoalMetrics, listGoals } from "@/lib/gomez/goals/store";
+import { GOAL_PROMPT_MAX_CHARS, interpretGoal } from "@/lib/jeff/goals/interpret";
+import { createDraftGoal, latestSnapshot, listGoalMetrics, listGoals } from "@/lib/jeff/goals/store";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;

@@ -1,17 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/gomez/budget", () => ({ budgetStatus: vi.fn(async () => ({ spentUsd: 0, budgetUsd: 2, exhausted: false })), recordUsage: vi.fn(async () => 0) }));
+vi.mock("@/lib/jeff/budget", () => ({ budgetStatus: vi.fn(async () => ({ spentUsd: 0, budgetUsd: 2, exhausted: false })), recordUsage: vi.fn(async () => 0) }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => { throw new Error("no db in unit tests"); } }));
 
-const { computeMetric, emailHashOf, buildIdentityIndex, identityKeys } = await import("@/lib/gomez/goals/metrics");
-const { GoalMetricSchema, GoalInterpretationSchema, GOAL_INTERPRETATION_JSON_SCHEMA, fromToolInput } = await import("@/lib/gomez/goals/schema");
-const { preParseAnchor, preParseBaseline, preParseGoal, isDetailedBrief, interpretGoal, applyAnchorResolution, GOAL_PROMPT_MAX_CHARS } = await import("@/lib/gomez/goals/interpret");
-const { applyDefinitionResolutions } = await import("@/lib/gomez/goals/store");
-const { rankAnchorCandidates } = await import("@/lib/gomez/goals/anchor");
+const { computeMetric, emailHashOf, buildIdentityIndex, identityKeys } = await import("@/lib/jeff/goals/metrics");
+const { GoalMetricSchema, GoalInterpretationSchema, GOAL_INTERPRETATION_JSON_SCHEMA, fromToolInput } = await import("@/lib/jeff/goals/schema");
+const { preParseAnchor, preParseBaseline, preParseGoal, isDetailedBrief, interpretGoal, applyAnchorResolution, GOAL_PROMPT_MAX_CHARS } = await import("@/lib/jeff/goals/interpret");
+const { applyDefinitionResolutions } = await import("@/lib/jeff/goals/store");
+const { rankAnchorCandidates } = await import("@/lib/jeff/goals/anchor");
 const { inventoryOf } = await import("@/lib/integrations/sync/portal");
-const { describeInput } = await import("@/lib/gomez/goals/format");
+const { describeInput } = await import("@/lib/jeff/goals/format");
 
-type Row = import("@/lib/gomez/goals/metrics").MetricRow;
+type Row = import("@/lib/jeff/goals/metrics").MetricRow;
 
 const NOW = new Date("2026-10-01T12:00:00Z");
 const WINDOW = { start: "2026-08-20T00:00:00Z", end: "2026-10-19T00:00:00Z" };

@@ -2,8 +2,8 @@ import { z } from "zod";
 import { apiError, json, parseBody, withErrorBoundary } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { getRun } from "@/lib/gomez/jobs";
-import { PROGRESS_LABEL, type ProgressStep } from "@/lib/gomez/jobs/types";
+import { getRun } from "@/lib/jeff/jobs";
+import { PROGRESS_LABEL, type ProgressStep } from "@/lib/jeff/jobs/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { redact } from "@/lib/security/redact";
 

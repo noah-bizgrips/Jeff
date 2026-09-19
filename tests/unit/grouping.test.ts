@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { clientByName, entityKeyForAlert, groupKeyOf, issueOfCategory, issueOfText, slug } from "@/lib/gomez/grouping/keys";
-import { MIN_GROUP_SIZE, planGroups, type GroupableAlert, type GroupableFinding, type GroupableObligation, type GroupingInput } from "@/lib/gomez/grouping/engine";
-import { buildSummary, computeFacts, type SummaryMember } from "@/lib/gomez/grouping/summary";
-import { reconcileAlerts, type AlertCandidate, type ExistingAlert } from "@/lib/gomez/alerts/engine";
-import { shouldPushAlert, GROUP_REPUSH_GROWTH } from "@/lib/gomez/push/decide";
-import { alertEmoji } from "@/lib/gomez/push/emoji";
-import { computeBrainState, attentionCountOf } from "@/lib/gomez/brain/state";
-import { rankAttention, buildTemplate, type BriefingBundle } from "@/lib/gomez/briefings/bundle";
+import { clientByName, entityKeyForAlert, groupKeyOf, issueOfCategory, issueOfText, slug } from "@/lib/jeff/grouping/keys";
+import { MIN_GROUP_SIZE, planGroups, type GroupableAlert, type GroupableFinding, type GroupableObligation, type GroupingInput } from "@/lib/jeff/grouping/engine";
+import { buildSummary, computeFacts, type SummaryMember } from "@/lib/jeff/grouping/summary";
+import { reconcileAlerts, type AlertCandidate, type ExistingAlert } from "@/lib/jeff/alerts/engine";
+import { shouldPushAlert, GROUP_REPUSH_GROWTH } from "@/lib/jeff/push/decide";
+import { alertEmoji } from "@/lib/jeff/push/emoji";
+import { computeBrainState, attentionCountOf } from "@/lib/jeff/brain/state";
+import { rankAttention, buildTemplate, type BriefingBundle } from "@/lib/jeff/briefings/bundle";
 
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({ from: () => ({}) }) }));
 vi.mock("@/lib/audit", () => ({ audit: vi.fn(async () => {}) }));
@@ -24,7 +24,7 @@ function finding(over: Partial<GroupableFinding> & { id: string; category: strin
   return { title: over.category, goal_id: null, severity: "medium", metrics: {}, observed_facts: [], items: [], ...over };
 }
 function obligation(over: Partial<GroupableObligation> & { id: string; title: string }): GroupableObligation {
-  return { description: null, status: "overdue", scope: "business", priority: "normal", due_at: "2026-09-10T00:00:00Z", assigned_to: "me", waiting_on: null, counterparty: null, related_client_id: null, related_goal_id: null, related_mission_id: null, source_provider: null, origin: "gomez", metadata: {}, ...over };
+  return { description: null, status: "overdue", scope: "business", priority: "normal", due_at: "2026-09-10T00:00:00Z", assigned_to: "me", waiting_on: null, counterparty: null, related_client_id: null, related_goal_id: null, related_mission_id: null, source_provider: null, origin: "jeff", metadata: {}, ...over };
 }
 function input(over: Partial<GroupingInput> = {}): GroupingInput {
   return { now: NOW, alerts: [], findings: [], obligations: [], commitments: [], clients: CLIENTS, ...over };

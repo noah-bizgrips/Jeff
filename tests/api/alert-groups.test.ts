@@ -13,10 +13,10 @@ const getAlertGroup = vi.fn(async (_o: string, id: string) => (id === GROUP_ID ?
 const updateAlertGroup = vi.fn(async (_o: string, id: string, a: { action: string; until?: string }) => ({ ...group, id, status: a.action === "snooze" ? "snoozed" : a.action === "dismiss" ? "dismissed" : a.action === "reopen" ? "open" : "acknowledged", snoozed_until: a.until ?? null }));
 const draftGroupMission = vi.fn(async (_o: string, g: typeof group, kind: string) => ({ id: "m-1", code: "M-0007", title: kind === "remind_client" ? `Draft reminder for ${g.entity_name}` : `Prepare action: ${g.title}` }));
 const syncAlertGroups = vi.fn(async () => ({ groups: 1, created: 0, updated: 1, reopened: 0, resolved: 0, membersGrouped: 0, interpreted: 0 }));
-vi.mock("@/lib/gomez/grouping/store", () => ({ listAlertGroups, getAlertGroup, updateAlertGroup, draftGroupMission, syncAlertGroups }));
+vi.mock("@/lib/jeff/grouping/store", () => ({ listAlertGroups, getAlertGroup, updateAlertGroup, draftGroupMission, syncAlertGroups }));
 
 const listAlerts = vi.fn(async () => [{ id: "a-parent", kind: "group", importance: "important", status: "open", title: group.title, ref_id: GROUP_ID, occurrences: 3 }]);
-vi.mock("@/lib/gomez/alerts/store", () => ({ listAlerts, runAlertsForOwner: vi.fn(async () => ({})), updateAlert: vi.fn(), getAlert: vi.fn(), surfacedAlerts: vi.fn(async () => []) }));
+vi.mock("@/lib/jeff/alerts/store", () => ({ listAlerts, runAlertsForOwner: vi.fn(async () => ({})), updateAlert: vi.fn(), getAlert: vi.fn(), surfacedAlerts: vi.fn(async () => []) }));
 
 const list = await import("@/app/api/alert-groups/route");
 const byId = await import("@/app/api/alert-groups/[id]/route");

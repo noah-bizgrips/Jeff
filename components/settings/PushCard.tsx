@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Icon } from "@/components/gomez/icons";
-import { useGomez } from "@/components/gomez/store";
-import { currentSubscription, deviceLabel, isIOS, isStandalone, pushSupport, subscribeToPush, unsubscribeFromPush, type PushSupport } from "@/lib/gomez/push/client";
+import { Icon } from "@/components/jeff/icons";
+import { useJeff } from "@/components/jeff/store";
+import { currentSubscription, deviceLabel, isIOS, isStandalone, pushSupport, subscribeToPush, unsubscribeFromPush, type PushSupport } from "@/lib/jeff/push/client";
 
 interface Status {
   configured: boolean;
@@ -22,7 +22,7 @@ async function fetchStatus(): Promise<Status | null> {
 
 /** "Notifications on this device" card for the Settings page. */
 export function PushCard({ vapidPublicKey, toggles }: { vapidPublicKey: string; toggles: React.ReactNode }) {
-  const gomez = useGomez();
+  const jeff = useJeff();
   const [support, setSupport] = useState<PushSupport | "loading">("loading");
   const [status, setStatus] = useState<Status | null>(null);
   const [busy, setBusy] = useState(false);
@@ -51,10 +51,10 @@ export function PushCard({ vapidPublicKey, toggles }: { vapidPublicKey: string; 
     try {
       const r = await subscribeToPush(vapidPublicKey, deviceLabel());
       if (!r.ok) {
-        const reason = r.reason === "denied" ? "Notifications are blocked for Gomez in this browser. Allow them in the browser/site settings and try again." : `Could not enable push (${r.reason}).`;
-        return gomez.toast(reason);
+        const reason = r.reason === "denied" ? "Notifications are blocked for Jeff in this browser. Allow them in the browser/site settings and try again." : `Could not enable push (${r.reason}).`;
+        return jeff.toast(reason);
       }
-      gomez.toast("Push notifications enabled on this device.");
+      jeff.toast("Push notifications enabled on this device.");
       setSupport(pushSupport());
       await refresh();
     } finally {
@@ -66,7 +66,7 @@ export function PushCard({ vapidPublicKey, toggles }: { vapidPublicKey: string; 
     setBusy(true);
     try {
       await unsubscribeFromPush();
-      gomez.toast("Push disabled on this device.");
+      jeff.toast("Push disabled on this device.");
       await refresh();
     } finally {
       setBusy(false);
@@ -79,8 +79,8 @@ export function PushCard({ vapidPublicKey, toggles }: { vapidPublicKey: string; 
       const sub = await currentSubscription().catch(() => null);
       const res = await fetch("/api/push/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sub ? { endpoint: sub.endpoint } : {}) });
       const d = (await res.json().catch(() => null)) as { delivered?: number; attempted?: number; error?: string } | null;
-      if (!res.ok) return gomez.toast(`Test failed (${d?.error ?? res.status}).`);
-      gomez.toast(d?.delivered ? "Test notification sent." : "No device accepted the test notification.");
+      if (!res.ok) return jeff.toast(`Test failed (${d?.error ?? res.status}).`);
+      jeff.toast(d?.delivered ? "Test notification sent." : "No device accepted the test notification.");
     } finally {
       setBusy(false);
     }
@@ -92,7 +92,7 @@ export function PushCard({ vapidPublicKey, toggles }: { vapidPublicKey: string; 
   return (
     <section className="security-card">
       <h3>Notifications on this device</h3>
-      <p>Push alerts and briefings to the Gomez app on this device. Nothing leaves Gomez unless you enable it here.</p>
+      <p>Push alerts and briefings to the Jeff app on this device. Nothing leaves Jeff unless you enable it here.</p>
       {!serverReady && status ? (
         <div className="callout">
           Push is not configured on the server yet. Add <code>NEXT_PUBLIC_VAPID_PUBLIC_KEY</code> and <code>VAPID_PRIVATE_KEY</code> in Vercel.
@@ -100,11 +100,11 @@ export function PushCard({ vapidPublicKey, toggles }: { vapidPublicKey: string; 
       ) : null}
       {support === "needs-install" ? (
         <div className="callout">
-          On iPhone/iPad, push works only from the installed app: open jeff.bizgrips.com in Safari → Share → <strong>Add to Home Screen</strong>, then open Gomez from the home screen and enable notifications here.
+          On iPhone/iPad, push works only from the installed app: open jeff.bizgrips.com in Safari → Share → <strong>Add to Home Screen</strong>, then open Jeff from the home screen and enable notifications here.
         </div>
       ) : null}
       {support === "unsupported" && !isIOS() ? <div className="callout">This browser does not support Web Push. Use Chrome, Edge, Firefox, or Safari 16.4+.</div> : null}
-      {support === "denied" ? <div className="callout">Notifications are blocked for Gomez in this browser. Allow them in the site settings, then enable again.</div> : null}
+      {support === "denied" ? <div className="callout">Notifications are blocked for Jeff in this browser. Allow them in the site settings, then enable again.</div> : null}
       <div className="policy-row">
         <div>
           <strong>This device</strong>

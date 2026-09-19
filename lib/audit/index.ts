@@ -32,7 +32,7 @@ export type AuditEvent =
   | "service_request_created"
   | "webhook_received"
   | "webhook_rejected"
-  | "gomez_chat"
+  | "jeff_chat"
   | "push_subscribed"
   | "push_unsubscribed"
   | "push_sent"

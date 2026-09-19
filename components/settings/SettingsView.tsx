@@ -1,16 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Icon } from "@/components/gomez/icons";
-import { useGomez } from "@/components/gomez/store";
+import { Icon } from "@/components/jeff/icons";
+import { useJeff } from "@/components/jeff/store";
 import { PushCard } from "./PushCard";
-import type { OwnerSettings } from "@/lib/gomez/settings";
+import type { OwnerSettings } from "@/lib/jeff/settings";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const TIMEZONES = ["America/Denver", "America/Los_Angeles", "America/Phoenix", "America/Chicago", "America/New_York", "UTC", "Europe/London"];
 
 export function SettingsView({ initial, vapidPublicKey = "" }: { initial: OwnerSettings; vapidPublicKey?: string }) {
-  const gomez = useGomez();
+  const jeff = useJeff();
   const [s, setS] = useState<OwnerSettings>(initial);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState<Partial<OwnerSettings>>({});
@@ -21,15 +21,15 @@ export function SettingsView({ initial, vapidPublicKey = "" }: { initial: OwnerS
   }
 
   async function save() {
-    if (!Object.keys(dirty).length) return gomez.toast("No changes.");
+    if (!Object.keys(dirty).length) return jeff.toast("No changes.");
     setSaving(true);
     try {
       const res = await fetch("/api/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dirty) });
       const data = (await res.json().catch(() => null)) as { settings?: OwnerSettings; changed?: string[]; reason?: string; error?: string } | null;
-      if (!res.ok || !data?.settings) return gomez.toast(`Could not save (${data?.reason ?? data?.error ?? res.status}).`);
+      if (!res.ok || !data?.settings) return jeff.toast(`Could not save (${data?.reason ?? data?.error ?? res.status}).`);
       setS(data.settings);
       setDirty({});
-      gomez.toast(`Saved ${data.changed?.length ?? 0} setting${data.changed?.length === 1 ? "" : "s"}.`);
+      jeff.toast(`Saved ${data.changed?.length ?? 0} setting${data.changed?.length === 1 ? "" : "s"}.`);
     } finally {
       setSaving(false);
     }
@@ -56,7 +56,7 @@ export function SettingsView({ initial, vapidPublicKey = "" }: { initial: OwnerS
       <div className="security-grid">
         <section className="security-card">
           <h3>Briefings</h3>
-          <p>When Gomez writes your daily brief and reviews.</p>
+          <p>When Jeff writes your daily brief and reviews.</p>
           <label className="field">
             Timezone
             <select value={s.timezone} onChange={(e) => set("timezone", e.target.value)}>
@@ -102,7 +102,7 @@ export function SettingsView({ initial, vapidPublicKey = "" }: { initial: OwnerS
 
         <section className="security-card">
           <h3>Alerts &amp; quiet hours</h3>
-          <p>Gomez stays quiet by default. Urgent alerts always surface; everything else respects these.</p>
+          <p>Jeff stays quiet by default. Urgent alerts always surface; everything else respects these.</p>
           <label className="field">
             Minimum importance to notify
             <select value={s.alert_min_importance} onChange={(e) => set("alert_min_importance", e.target.value as OwnerSettings["alert_min_importance"])}>
@@ -148,8 +148,8 @@ export function SettingsView({ initial, vapidPublicKey = "" }: { initial: OwnerS
 
         <section className="security-card">
           <h3>Learning</h3>
-          <p>How Gomez turns your feedback into memory and rules.</p>
-          {toggle("learn_from_feedback", "Allow Gomez to learn from feedback", "Chat feedback and finding feedback become memories and rules.")}
+          <p>How Jeff turns your feedback into memory and rules.</p>
+          {toggle("learn_from_feedback", "Allow Jeff to learn from feedback", "Chat feedback and finding feedback become memories and rules.")}
           {toggle("auto_apply_safe_rules", "Automatically apply safe preference rules", "Tier 1 (reversible) rules apply immediately; you can undo them under Memory & rules.")}
           {toggle("ask_before_major_changes", "Ask before major behavior changes", "Tier 2 rules (KPI thresholds, muting a whole financial monitor) need your confirmation.")}
         </section>
@@ -157,7 +157,7 @@ export function SettingsView({ initial, vapidPublicKey = "" }: { initial: OwnerS
       <div className="security-lockbar">
         <div>
           <strong>{Object.keys(dirty).length ? `${Object.keys(dirty).length} unsaved change${Object.keys(dirty).length === 1 ? "" : "s"}` : "All settings saved."}</strong>
-          <p>Changes are audited. Gomez can also change these for you in chat (&ldquo;move my brief to 8am&rdquo;).</p>
+          <p>Changes are audited. Jeff can also change these for you in chat (&ldquo;move my brief to 8am&rdquo;).</p>
         </div>
         <button className="button primary" type="button" disabled={saving || !Object.keys(dirty).length} onClick={save}>
           {saving ? <span className="spinner" /> : <Icon name="check" />}

@@ -1,7 +1,7 @@
 import { apiError, json, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
 import { audit } from "@/lib/audit";
-import { getSettings, updateSettings } from "@/lib/gomez/settings-store";
+import { getSettings, updateSettings } from "@/lib/jeff/settings-store";
 
 export const dynamic = "force-dynamic";
 

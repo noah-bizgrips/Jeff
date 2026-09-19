@@ -39,7 +39,7 @@ export async function createLinkToken(ownerId: string, webhookUrl: string) {
   const client = plaidClient();
   const res = await client.linkTokenCreate({
     user: { client_user_id: ownerId },
-    client_name: "Gomez",
+    client_name: "Jeff",
     products: [Products.Transactions],
     country_codes: [CountryCode.Us],
     language: "en",

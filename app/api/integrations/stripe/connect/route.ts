@@ -16,7 +16,7 @@ const Body = z.object({
  * POST /api/integrations/stripe/connect
  * Accepts a RESTRICTED read-only key once, encrypts it immediately, runs a
  * harmless read probe, and never echoes the key back. Secret keys (sk_) are
- * rejected: Gomez must not be able to move money.
+ * rejected: Jeff must not be able to move money.
  */
 export const POST = withErrorBoundary(async (req) => {
   const g = await requireOwnerAal2(req);

@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { json, parseBody, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { connectedProviders } from "@/lib/gomez/jobs";
-import { interpretJob } from "@/lib/gomez/jobs/interpret";
+import { connectedProviders } from "@/lib/jeff/jobs";
+import { interpretJob } from "@/lib/jeff/jobs/interpret";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;

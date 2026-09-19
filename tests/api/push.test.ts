@@ -20,7 +20,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 const sendPush = vi.fn(async () => ({ attempted: 1, delivered: 1, disabled: 0, failed: 0 }));
-vi.mock("@/lib/gomez/push/send", () => ({ sendPush, pushConfigured: () => true }));
+vi.mock("@/lib/jeff/push/send", () => ({ sendPush, pushConfigured: () => true }));
 
 const subscribe = await import("@/app/api/push/subscribe/route");
 const status = await import("@/app/api/push/status/route");

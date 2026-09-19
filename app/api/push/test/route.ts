@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { apiError, json, parseBody, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { pushConfigured, sendPush } from "@/lib/gomez/push/send";
+import { pushConfigured, sendPush } from "@/lib/jeff/push/send";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export const POST = withErrorBoundary(async (req) => {
   if (!body.ok) return body.response;
   const res = await sendPush(
     g.session.userId,
-    { title: "Gomez is connected", body: "Push notifications are working on this device.", url: "/settings", tag: `test:${Date.now()}` },
+    { title: "Jeff is connected", body: "Push notifications are working on this device.", url: "/settings", tag: `test:${Date.now()}` },
     body.data.endpoint ? { endpoint: body.data.endpoint } : {},
   );
   return json(res);

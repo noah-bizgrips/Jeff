@@ -1,16 +1,16 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { useGomez } from "@/components/gomez/store";
-import { SourceIcon } from "@/components/gomez/icons";
+import { useJeff } from "@/components/jeff/store";
+import { SourceIcon } from "@/components/jeff/icons";
 import { BrainCanvas, type BrainHandle } from "./BrainCanvas";
-import { WhatGomezSeesModal } from "./WhatGomezSees";
-import { SEED_DOCS } from "@/lib/gomez/demo-data";
-import { sourceDef } from "@/lib/gomez/sources";
-import { computeBrainState, liteOf } from "@/lib/gomez/brain/state";
-import { sourcesForProvider } from "@/lib/gomez/brain/sources";
-import { SCENARIOS, alert } from "@/lib/gomez/brain/fixtures";
-import { BRAIN_POLICY } from "@/lib/gomez/brain/policy";
+import { WhatJeffSeesModal } from "./WhatJeffSees";
+import { SEED_DOCS } from "@/lib/jeff/demo-data";
+import { sourceDef } from "@/lib/jeff/sources";
+import { computeBrainState, liteOf } from "@/lib/jeff/brain/state";
+import { sourcesForProvider } from "@/lib/jeff/brain/sources";
+import { SCENARIOS, alert } from "@/lib/jeff/brain/fixtures";
+import { BRAIN_POLICY } from "@/lib/jeff/brain/policy";
 
 /**
  * Dev harness: every brain state on demand, computed by the real aggregator
@@ -18,7 +18,7 @@ import { BRAIN_POLICY } from "@/lib/gomez/brain/policy";
  * unless JEFF_BRAIN_LAB=1.
  */
 export function BrainLab() {
-  const gomez = useGomez();
+  const jeff = useJeff();
   const brain = useRef<BrainHandle>(null);
   const [scenarioId, setScenarioId] = useState(SCENARIOS[2]!.id);
   const [extraReasons, setExtraReasons] = useState(0);
@@ -39,7 +39,7 @@ export function BrainLab() {
   const docs = useMemo(() => SEED_DOCS.filter((d) => ids.includes(d.source)), [ids]);
   const anchors = useMemo(() => ids.map((id, i) => ({ id, x: 0.5 + Math.cos(-Math.PI / 2 + (i * Math.PI * 2) / Math.max(1, ids.length)) * 0.36, y: 0.47 + Math.sin(-Math.PI / 2 + (i * Math.PI * 2) / Math.max(1, ids.length)) * 0.38 })), [ids]);
 
-  const open = () => gomez.openModal(<WhatGomezSeesModal brain={state} />);
+  const open = () => jeff.openModal(<WhatJeffSeesModal brain={state} />);
 
   return (
     <section className="page-view">
@@ -77,7 +77,7 @@ export function BrainLab() {
           {narrow ? "Desktop width" : "Phone width (400px)"}
         </button>
         <button type="button" className="button secondary" onClick={open}>
-          Open “What Gomez sees”
+          Open “What Jeff sees”
         </button>
       </div>
 
@@ -90,7 +90,7 @@ export function BrainLab() {
         </div>
         <div className="brain-stage" data-brain-state={state.state} data-brain-urgency={state.urgency}>
           <BrainCanvas ref={brain} docs={docs} connected={ids} focus={null} motion={motion} anchors={anchors} active brain={lite} activity={activity} onOpen={() => undefined} onCenter={open} onZoom={() => undefined} onHover={setHover} />
-          <button type="button" className="brain-center-button" aria-label={`What Gomez sees: ${state.primaryStatus}`} onClick={open} />
+          <button type="button" className="brain-center-button" aria-label={`What Jeff sees: ${state.primaryStatus}`} onClick={open} />
           <div id="graphAnchors">
             {anchors.map((a) => {
               const s = sourceDef(a.id);

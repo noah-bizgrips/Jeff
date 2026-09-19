@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Icon } from "@/components/gomez/icons";
-import { useGomez } from "@/components/gomez/store";
-import { sourcesForScanStage } from "@/lib/gomez/brain/sources";
+import { Icon } from "@/components/jeff/icons";
+import { useJeff } from "@/components/jeff/store";
+import { sourcesForScanStage } from "@/lib/jeff/brain/sources";
 import { RuleEditor } from "@/components/memory/MemoryRulesView";
-import type { RuleAction, RuleCondition } from "@/lib/gomez/rules/schema";
+import type { RuleAction, RuleCondition } from "@/lib/jeff/rules/schema";
 import { api, fmtWhen, type JobFinding, type JobRunRow } from "./types";
 
 export interface JobsSummary {
@@ -43,7 +43,7 @@ export function JobsStatusLine({ summary }: { summary: JobsSummary | null }) {
 }
 
 export function BlindSpotScanButton({ disabled }: { disabled?: boolean }) {
-  const gomez = useGomez();
+  const jeff = useJeff();
   const [state, setState] = useState<ScanState>({ phase: "idle" });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -52,13 +52,13 @@ export function BlindSpotScanButton({ disabled }: { disabled?: boolean }) {
   }, []);
 
   // The brain shows the scan examining sources by stage ("scanning", not retrieval) and refreshes when it finishes.
-  const goalSources = gomez.brain.reasons.attention.filter((r) => r.kind === "goal").flatMap((r) => r.sources);
+  const goalSources = jeff.brain.reasons.attention.filter((r) => r.kind === "goal").flatMap((r) => r.sources);
   function scanning(stage: string) {
-    gomez.setBrainActivity({ kind: "scan", sources: sourcesForScanStage(stage, gomez.connectedSources(), goalSources) });
+    jeff.setBrainActivity({ kind: "scan", sources: sourcesForScanStage(stage, jeff.connectedSources(), goalSources) });
   }
   function scanFinished() {
-    gomez.setBrainActivity({ kind: null, sources: [] });
-    void gomez.refreshBrain({ force: true });
+    jeff.setBrainActivity({ kind: null, sources: [] });
+    void jeff.refreshBrain({ force: true });
   }
 
   async function poll(scanId: string, attempt = 0) {
@@ -97,15 +97,15 @@ export function BlindSpotScanButton({ disabled }: { disabled?: boolean }) {
 
   async function dismiss(f: JobFinding) {
     const res = await api<{ ok: boolean }>(`/api/findings/${f.id}/feedback`, { method: "POST", body: JSON.stringify({ verdict: "not_useful" }) });
-    if (!res.ok) return gomez.toast(`Could not dismiss (${res.error ?? res.status}).`);
+    if (!res.ok) return jeff.toast(`Could not dismiss (${res.error ?? res.status}).`);
     setState((s) => (s.phase === "done" ? { ...s, dismissed: [...s.dismissed, f.id] } : s));
-    void gomez.refreshBrain({ force: true });
+    void jeff.refreshBrain({ force: true });
   }
 
   async function createRule(f: JobFinding) {
     const res = await api<{ proposed?: { name: string; description?: string; target_monitor: string | null; conditions: RuleCondition; action: RuleAction } | null }>(`/api/findings/${f.id}/feedback`, { method: "POST", body: JSON.stringify({ verdict: "change_rule" }) });
     const proposed = res.data?.proposed ?? undefined;
-    gomez.openModal(<RuleEditor proposed={proposed ?? undefined} targetJob="blind-spot-scanner" onSaved={async () => {}} />);
+    jeff.openModal(<RuleEditor proposed={proposed ?? undefined} targetJob="blind-spot-scanner" onSaved={async () => {}} />);
   }
 
   return (
@@ -150,10 +150,10 @@ export function BlindSpotScanButton({ disabled }: { disabled?: boolean }) {
                     </p>
                   ) : null}
                   <div className="connection-actions feedback-actions">
-                    <button className="button secondary" type="button" onClick={() => gomez.ask(`Tell me more about this blind spot and what to check: "${f.title}"`)}>
-                      Ask Gomez about this
+                    <button className="button secondary" type="button" onClick={() => jeff.ask(`Tell me more about this blind spot and what to check: "${f.title}"`)}>
+                      Ask Jeff about this
                     </button>
-                    <button className="button secondary" type="button" onClick={() => gomez.ask(`Prepare an action for: "${f.title}". Draft a mission with the evidence; I will approve before anything runs.`)}>
+                    <button className="button secondary" type="button" onClick={() => jeff.ask(`Prepare an action for: "${f.title}". Draft a mission with the evidence; I will approve before anything runs.`)}>
                       Prepare action
                     </button>
                     <button className="button secondary" type="button" onClick={() => dismiss(f)}>

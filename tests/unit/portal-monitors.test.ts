@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import type { SourceRow } from "@/lib/gomez/monitors/types";
-import { portalTaskOverdue } from "@/lib/gomez/monitors/portal-task-overdue";
-import { portalStageStalled } from "@/lib/gomez/monitors/portal-stage-stalled";
-import { portalNotificationFailure } from "@/lib/gomez/monitors/portal-notification-failure";
-import { leadNotContacted } from "@/lib/gomez/monitors/lead-not-contacted";
-import { clientUnpaidInvoice } from "@/lib/gomez/monitors/client-unpaid-invoice";
-import { clientAdSpendNoLeads } from "@/lib/gomez/monitors/client-ad-spend-no-leads";
-import { runMonitors } from "@/lib/gomez/monitors";
-import { summarizeClients } from "@/lib/gomez/clients/overview";
-import { buildClientMap } from "@/lib/gomez/clients/map-core";
+import type { SourceRow } from "@/lib/jeff/monitors/types";
+import { portalTaskOverdue } from "@/lib/jeff/monitors/portal-task-overdue";
+import { portalStageStalled } from "@/lib/jeff/monitors/portal-stage-stalled";
+import { portalNotificationFailure } from "@/lib/jeff/monitors/portal-notification-failure";
+import { leadNotContacted } from "@/lib/jeff/monitors/lead-not-contacted";
+import { clientUnpaidInvoice } from "@/lib/jeff/monitors/client-unpaid-invoice";
+import { clientAdSpendNoLeads } from "@/lib/jeff/monitors/client-ad-spend-no-leads";
+import { runMonitors } from "@/lib/jeff/monitors";
+import { summarizeClients } from "@/lib/jeff/clients/overview";
+import { buildClientMap } from "@/lib/jeff/clients/map-core";
 
 const NOW = new Date("2026-09-12T12:00:00Z");
 const ctx = { now: NOW };

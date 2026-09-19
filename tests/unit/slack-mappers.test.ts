@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildUserDirectory, isHumanMessage, mapChannel, mapMessage, newestTs, permalinkFor, resolveMentions } from "@/lib/integrations/sync/slack-mappers";
-import { classifyAuthor } from "@/lib/gomez/rules/engine";
-import { missedCommitment } from "@/lib/gomez/monitors/missed-commitment";
-import type { SourceRow } from "@/lib/gomez/monitors/types";
+import { classifyAuthor } from "@/lib/jeff/rules/engine";
+import { missedCommitment } from "@/lib/jeff/monitors/missed-commitment";
+import type { SourceRow } from "@/lib/jeff/monitors/types";
 
 const users = buildUserDirectory([
   { id: "U1", name: "noah", real_name: "Noah B", profile: { display_name: "noah", real_name: "Noah B" } },

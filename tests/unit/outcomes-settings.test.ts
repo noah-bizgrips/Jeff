@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { baselineWindow, computeOutcome, countInWindow, postWindow, postWindowElapsed, valueAt } from "@/lib/gomez/outcomes";
-import { OwnerSettingsSchema, SettingsPatchSchema, withDefaults } from "@/lib/gomez/settings";
+import { baselineWindow, computeOutcome, countInWindow, postWindow, postWindowElapsed, valueAt } from "@/lib/jeff/outcomes";
+import { OwnerSettingsSchema, SettingsPatchSchema, withDefaults } from "@/lib/jeff/settings";
 
 describe("outcome measurement", () => {
   it("computes delta, direction and cautious wording", () => {

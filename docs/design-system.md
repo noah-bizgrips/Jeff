@@ -1,4 +1,4 @@
-# Gomez design system — premium black
+# Jeff design system — premium black
 
 Black is the environment. White is the information. Electric blue is a signal.
 

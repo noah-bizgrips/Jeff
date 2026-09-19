@@ -21,7 +21,7 @@ const github = await import("@/app/api/webhooks/github/route");
 const plaid = await import("@/app/api/webhooks/plaid/route");
 
 function post(path: string, body: string, headers: Record<string, string> = {}) {
-  return new Request(`https://gomez.test${path}`, { method: "POST", body, headers });
+  return new Request(`https://jeff.test${path}`, { method: "POST", body, headers });
 }
 
 describe("Stripe webhook", () => {

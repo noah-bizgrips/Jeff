@@ -4,14 +4,14 @@ import { fakeSupabase, jsonReq, OWNER_ID, OTHER_ID, req, type Claims } from "../
 let claims: Claims = null;
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => fakeSupabase(claims) }));
 vi.mock("@/lib/audit", () => ({ audit: vi.fn(async () => {}) }));
-vi.mock("@/lib/gomez/budget", () => ({ budgetStatus: vi.fn(async () => ({ spentUsd: 0, budgetUsd: 2, exhausted: false })), recordUsage: vi.fn(async () => 0) }));
+vi.mock("@/lib/jeff/budget", () => ({ budgetStatus: vi.fn(async () => ({ spentUsd: 0, budgetUsd: 2, exhausted: false })), recordUsage: vi.fn(async () => 0) }));
 // Never touch the network: interpretation runs deterministically (no client).
 vi.mock("@/lib/env", async (importOriginal) => {
   const mod = await importOriginal<typeof import("@/lib/env")>();
   return { ...mod, hasEnv: (name: string) => (name === "ANTHROPIC_API_KEY" ? false : mod.hasEnv(name)) };
 });
 
-/** In-memory service-role stand-in covering the query shapes used by lib/gomez/goals/*. */
+/** In-memory service-role stand-in covering the query shapes used by lib/jeff/goals/*. */
 interface Row extends Record<string, unknown> {
   id: string;
 }
@@ -103,9 +103,9 @@ const goalsRoute = await import("@/app/api/goals/route");
 const goalRoute = await import("@/app/api/goals/[id]/route");
 const refreshRoute = await import("@/app/api/goals/refresh/route");
 const prepareRoute = await import("@/app/api/goals/[id]/recommendations/[recId]/prepare/route");
-const { runGoalTool } = await import("@/lib/gomez/goals/tools");
-const { refreshGoal } = await import("@/lib/gomez/goals/refresh");
-const { getGoal } = await import("@/lib/gomez/goals/store");
+const { runGoalTool } = await import("@/lib/jeff/goals/tools");
+const { refreshGoal } = await import("@/lib/jeff/goals/refresh");
+const { getGoal } = await import("@/lib/jeff/goals/store");
 
 const SENTENCE = "Onboard 10 new clients in the next 60 days with a CAC under $1000 and a sign date to first payment date in under 14 days.";
 const ctx = { params: Promise.resolve({}) };

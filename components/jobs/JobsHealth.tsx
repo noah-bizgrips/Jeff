@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Icon } from "@/components/gomez/icons";
+import { Icon } from "@/components/jeff/icons";
 import { api, fmtWhen } from "./types";
 
 /** Shape of GET /api/jobs/metrics (kept local so the component has no server imports). */

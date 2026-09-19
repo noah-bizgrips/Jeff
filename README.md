@@ -1,4 +1,4 @@
-# Gomez
+# Jeff
 
 Private BizGrips second brain and operations command center. Single owner, MFA-only, server-enforced.
 
@@ -14,11 +14,11 @@ Vercel, Anthropic SDK (Claude Opus 5), Stripe, Plaid, Zod, Vitest.
 ```
 app/
   (auth)/login, mfa, unauthorized     public auth screens
-  (gomez)/                             protected workspace (Mission control, Missions, Insights, Approvals,
+  (jeff)/                             protected workspace (Mission control, Missions, Insights, Approvals,
                                       Search, Memories, Saved answers, Connections, Security)
-  api/                                route handlers (auth/mfa, oauth, integrations, plaid, webhooks, gomez/chat, ...)
-components/  gomez | brain | assistant | connections | mission-control | security | auth
-lib/         auth | supabase | crypto | integrations | audit | security | gomez
+  api/                                route handlers (auth/mfa, oauth, integrations, plaid, webhooks, jeff/chat, ...)
+components/  jeff | brain | assistant | connections | mission-control | security | auth
+lib/         auth | supabase | crypto | integrations | audit | security | jeff
 supabase/migrations/                  versioned SQL (schema + RLS)
 docs/prototype/                       the original standalone HTML prototype (reference only, not served)
 tests/                                Vitest security/unit tests
@@ -47,7 +47,7 @@ npm run db:push
 ```
 
 Then bind the owner once (after creating the owner user in Supabase Auth and setting `OWNER_USER_ID`):
-sign in to Gomez and `POST /api/admin/bind-owner`, or locally `npm run owner:bind`.
+sign in to Jeff and `POST /api/admin/bind-owner`, or locally `npm run owner:bind`.
 
 ## Modes
 

@@ -100,7 +100,7 @@ function makeCapability(build: (data: PortalExport, base: string, now: Date) => 
 /**
  * Clients: a full inventory pull every run (the client tables are small) so
  * every client row carries its current users, and accounts deleted in the
- * portal (hard-deleted there, no tombstone in the feed) disappear from Gomez —
+ * portal (hard-deleted there, no tombstone in the feed) disappear from Jeff —
  * and therefore from every goal, report and audit view.
  */
 const clients: CapabilityFetch = async (_conn, cursor) => {

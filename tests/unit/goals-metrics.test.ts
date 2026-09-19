@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { computeMetric, evaluateFormula, formatMetricValue, formatTarget, pairDurations, type ConnectionFreshness, type MetricRow } from "@/lib/gomez/goals/metrics";
-import { computeTrajectory } from "@/lib/gomez/goals/trajectory";
-import { recommendForGoal } from "@/lib/gomez/goals/recommend";
-import { GoalMetricSchema, type GoalMetric } from "@/lib/gomez/goals/schema";
+import { computeMetric, evaluateFormula, formatMetricValue, formatTarget, pairDurations, type ConnectionFreshness, type MetricRow } from "@/lib/jeff/goals/metrics";
+import { computeTrajectory } from "@/lib/jeff/goals/trajectory";
+import { recommendForGoal } from "@/lib/jeff/goals/recommend";
+import { GoalMetricSchema, type GoalMetric } from "@/lib/jeff/goals/schema";
 
 const NOW = new Date("2026-09-30T12:00:00Z");
 const WINDOW = { start: "2026-09-01T00:00:00Z", end: "2026-10-31T00:00:00Z" };

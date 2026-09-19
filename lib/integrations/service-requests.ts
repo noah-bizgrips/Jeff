@@ -43,7 +43,7 @@ const KNOWN_OFFICIAL_APIS: Record<string, { aliases: string[]; method: string }>
   jobber: { aliases: ["jobber"], method: "OAuth 2.0 (GraphQL API) — read scopes" },
   housecall: { aliases: ["housecall pro", "housecallpro"], method: "API key — read jobs/customers (plan-dependent)" },
   servicetitan: { aliases: ["servicetitan"], method: "OAuth client credentials — read scopes (app approval required)" },
-  zapier: { aliases: ["zapier"], method: "No general read API; use Zapier webhooks into Gomez instead" },
+  zapier: { aliases: ["zapier"], method: "No general read API; use Zapier webhooks into Jeff instead" },
   discord: { aliases: ["discord"], method: "Bot token with read message history for selected channels" },
   vercel: { aliases: ["vercel"], method: "Vercel REST API token (read-only scope) — deployments/logs" },
   cloudflare: { aliases: ["cloudflare"], method: "API token with read-only zone/analytics permissions" },
@@ -51,12 +51,12 @@ const KNOWN_OFFICIAL_APIS: Record<string, { aliases: string[]; method: string }>
 
 export function classifyServiceRequest(serviceName: string, desiredCapability: string): ClassificationResult {
   const q = `${serviceName} ${desiredCapability}`.toLowerCase();
-  // Refusals first: a request can name an existing connector and still ask for something Gomez never does.
+  // Refusals first: a request can name an existing connector and still ask for something Jeff never does.
   if (/scrape|crawl|browser automation|headless|login as me|password/i.test(q)) {
     return {
       status: "unsupported",
       matchedProvider: null,
-      notes: "Requests that require scraping, browser automation, or sharing passwords are not supported. Gomez only uses official APIs with explicit authorization.",
+      notes: "Requests that require scraping, browser automation, or sharing passwords are not supported. Jeff only uses official APIs with explicit authorization.",
     };
   }
   const existing = PROVIDERS.find(
@@ -89,6 +89,6 @@ export function classifyServiceRequest(serviceName: string, desiredCapability: s
   return {
     status: "manual_investigation_required",
     matchedProvider: null,
-    notes: "No known official API mapping yet. Gomez will research the vendor's official integration method before preparing anything.",
+    notes: "No known official API mapping yet. Jeff will research the vendor's official integration method before preparing anything.",
   };
 }

@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Icon } from "@/components/gomez/icons";
-import { useGomez } from "@/components/gomez/store";
-import { EmptyState } from "@/components/gomez/shared";
-import type { BriefingSummary, BriefingItem } from "@/lib/gomez/briefings/schema";
+import { Icon } from "@/components/jeff/icons";
+import { useJeff } from "@/components/jeff/store";
+import { EmptyState } from "@/components/jeff/shared";
+import type { BriefingSummary, BriefingItem } from "@/lib/jeff/briefings/schema";
 
 export interface BriefingListItem {
   id: string;
@@ -35,7 +35,7 @@ function refHref(i: BriefingItem): string | null {
 }
 
 export function BriefingsView({ initial }: { initial: BriefingListItem[] }) {
-  const gomez = useGomez();
+  const jeff = useJeff();
   const [items, setItems] = useState(initial);
   const [selectedId, setSelectedId] = useState<string | null>(initial[0]?.id ?? null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -46,10 +46,10 @@ export function BriefingsView({ initial }: { initial: BriefingListItem[] }) {
     try {
       const res = await fetch("/api/briefings/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, force: true }) });
       const data = (await res.json().catch(() => null)) as { briefing?: BriefingListItem; usedModel?: boolean; error?: string } | null;
-      if (!res.ok || !data?.briefing) return gomez.toast(`Could not generate (${data?.error ?? res.status}).`);
+      if (!res.ok || !data?.briefing) return jeff.toast(`Could not generate (${data?.error ?? res.status}).`);
       setItems((xs) => [data.briefing!, ...xs.filter((x) => x.id !== data.briefing!.id)]);
       setSelectedId(data.briefing.id);
-      gomez.toast(`${KIND_LABEL[kind]} generated${data.usedModel ? " with Gomez's AI" : " (deterministic template)"}.`);
+      jeff.toast(`${KIND_LABEL[kind]} generated${data.usedModel ? " with Jeff's AI" : " (deterministic template)"}.`);
     } finally {
       setBusy(null);
     }
@@ -68,9 +68,9 @@ export function BriefingsView({ initial }: { initial: BriefingListItem[] }) {
 
   async function createMission(i: BriefingItem) {
     const res = await fetch("/api/missions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: i.title.slice(0, 120), goal: `${i.title}\n\n${i.detail}`.slice(0, 4000) }) });
-    if (!res.ok) return gomez.toast("Could not create the mission draft.");
-    gomez.toast("Task draft created. Nothing runs until you approve it.");
-    gomez.navigate("/missions");
+    if (!res.ok) return jeff.toast("Could not create the mission draft.");
+    jeff.toast("Task draft created. Nothing runs until you approve it.");
+    jeff.navigate("/missions");
   }
 
   const s = selected?.sections;
@@ -117,9 +117,9 @@ export function BriefingsView({ initial }: { initial: BriefingListItem[] }) {
                     <Icon name="bookmark" />
                     {selected.saved ? "Unsave" : "Save"}
                   </button>
-                  <button className="text-button" type="button" onClick={() => gomez.ask(`About my ${selected.kind} briefing "${s.title}": what should I do first and why?`)}>
+                  <button className="text-button" type="button" onClick={() => jeff.ask(`About my ${selected.kind} briefing "${s.title}": what should I do first and why?`)}>
                     <Icon name="sparkles" />
-                    Ask Gomez
+                    Ask Jeff
                   </button>
                 </div>
               </div>
@@ -181,7 +181,7 @@ export function BriefingsView({ initial }: { initial: BriefingListItem[] }) {
                 </>
               ) : null}
               {s.outcomes.length ? <BriefSection label="DID PREVIOUS CHANGES WORK?" items={s.outcomes} /> : null}
-              <BriefSection label="GOMEZ RECOMMENDS" items={s.recommends} onMission={createMission} empty="No recommendation yet — connect more sources or approve a goal." />
+              <BriefSection label="JEFF RECOMMENDS" items={s.recommends} onMission={createMission} empty="No recommendation yet — connect more sources or approve a goal." />
               {s.freshness.length ? (
                 <p className="auth-note">
                   Data: {s.freshness.join(" · ")}

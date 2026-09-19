@@ -2,17 +2,17 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
-import { Icon } from "@/components/gomez/icons";
-import { useGomez } from "@/components/gomez/store";
-import { EmptyState } from "@/components/gomez/shared";
+import { Icon } from "@/components/jeff/icons";
+import { useJeff } from "@/components/jeff/store";
+import { EmptyState } from "@/components/jeff/shared";
 import { AddJobModal } from "./AddJobModal";
 import { TestModePanel } from "./TestModePanel";
 import { JobsHealth } from "./JobsHealth";
 import { api, fmtWhen, SOURCE_LABEL, STATUS_TONE, type JobItem, type RunOutcome } from "./types";
 
-/** Gomez's Jobs roster (spec §6): one row per analyst with coverage, schedule, last run, findings and Test · Run now · Open. */
+/** Jeff's Jobs roster (spec §6): one row per analyst with coverage, schedule, last run, findings and Test · Run now · Open. */
 export function JobsView({ initial }: { initial: JobItem[] }) {
-  const gomez = useGomez();
+  const jeff = useJeff();
   const [jobs, setJobs] = useState(initial);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -25,8 +25,8 @@ export function JobsView({ initial }: { initial: JobItem[] }) {
     setBusy(`${job.slug}:test`);
     try {
       const res = await api<RunOutcome>(`/api/jobs/${job.slug}/test`, { method: "POST" });
-      if (!res.ok || !res.data) return gomez.toast(`Test failed (${res.error ?? res.status}).`);
-      gomez.openModal(<TestModePanel job={job} outcome={res.data} onRuleSaved={reload} />);
+      if (!res.ok || !res.data) return jeff.toast(`Test failed (${res.error ?? res.status}).`);
+      jeff.openModal(<TestModePanel job={job} outcome={res.data} onRuleSaved={reload} />);
       await reload();
     } finally {
       setBusy(null);
@@ -37,9 +37,9 @@ export function JobsView({ initial }: { initial: JobItem[] }) {
     setBusy(`${job.slug}:run`);
     try {
       const res = await api<RunOutcome>(`/api/jobs/${job.slug}/run`, { method: "POST" });
-      if (!res.ok || !res.data) return gomez.toast(`Run failed (${res.error ?? res.status}).`);
+      if (!res.ok || !res.data) return jeff.toast(`Run failed (${res.error ?? res.status}).`);
       const s = res.data.stats;
-      gomez.toast(`${job.ui_name}: ${s.findings_created ?? 0} new · ${s.findings_updated ?? 0} updated · ${s.findings_resolved ?? 0} resolved · ${s.alerts_created ?? 0} alert${s.alerts_created === 1 ? "" : "s"}${res.data.status === "partial" ? " (partial coverage)" : ""}.`);
+      jeff.toast(`${job.ui_name}: ${s.findings_created ?? 0} new · ${s.findings_updated ?? 0} updated · ${s.findings_resolved ?? 0} resolved · ${s.alerts_created ?? 0} alert${s.alerts_created === 1 ? "" : "s"}${res.data.status === "partial" ? " (partial coverage)" : ""}.`);
       await reload();
     } finally {
       setBusy(null);
@@ -67,7 +67,7 @@ export function JobsView({ initial }: { initial: JobItem[] }) {
           <button className="button secondary" type="button" onClick={reload}>
             <Icon name="refresh" /> Refresh
           </button>
-          <button className="button primary" type="button" onClick={() => gomez.openModal(<AddJobModal onCreated={reload} />)}>
+          <button className="button primary" type="button" onClick={() => jeff.openModal(<AddJobModal onCreated={reload} />)}>
             <Icon name="plus" /> Add Job
           </button>
         </div>

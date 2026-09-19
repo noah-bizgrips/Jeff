@@ -5,7 +5,7 @@ let claims: Claims = null;
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => fakeSupabase(claims) }));
 vi.mock("@/lib/audit", () => ({ audit: vi.fn(async () => {}) }));
 const runMonitorsForOwner = vi.fn(async () => ({ rows: 10, candidates: 2, created: 1, updated: 1, resolved: 0, errors: [] }));
-vi.mock("@/lib/gomez/monitors", () => ({ runMonitorsForOwner, MONITORS: [] }));
+vi.mock("@/lib/jeff/monitors", () => ({ runMonitorsForOwner, MONITORS: [] }));
 
 const route = await import("@/app/api/monitors/run/route");
 

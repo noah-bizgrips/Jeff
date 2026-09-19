@@ -3,18 +3,18 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Icon } from "@/components/gomez/icons";
+import { Icon } from "@/components/jeff/icons";
 
 export function AuthCard({ children, step }: { children: React.ReactNode; step?: 1 | 2 }) {
   return (
     <div className="auth-shell">
       <div className="auth-card">
-        <div className="brand" aria-label="Gomez">
+        <div className="brand" aria-label="Jeff">
           <span className="brand-symbol">
             <Icon name="brain" />
           </span>
           <span>
-            Gomez<span className="brand-period">.</span>
+            Jeff<span className="brand-period">.</span>
           </span>
         </div>
         {step ? (
@@ -45,7 +45,7 @@ export function LoginForm({ ownerEmail }: { ownerEmail: string }) {
       const data = (await res.json().catch(() => null)) as { ok?: boolean; next?: string; error?: string } | null;
       setPassword("");
       if (!res.ok || !data?.ok) {
-        setError(data?.error === "not_owner" ? "This account is not permitted to use Gomez." : "Sign-in failed. Check your email and password.");
+        setError(data?.error === "not_owner" ? "This account is not permitted to use Jeff." : "Sign-in failed. Check your email and password.");
         return;
       }
       router.push(data.next ?? "/");
@@ -60,7 +60,7 @@ export function LoginForm({ ownerEmail }: { ownerEmail: string }) {
   return (
     <AuthCard step={1}>
       <h1>Welcome back, Noah.</h1>
-      <p>Step 1 of 2 · Owner account and password. A password alone never unlocks Gomez.</p>
+      <p>Step 1 of 2 · Owner account and password. A password alone never unlocks Jeff.</p>
       {error ? (
         <div className="auth-error" role="alert">
           {error}
@@ -204,7 +204,7 @@ export function MfaFlow({ aal }: { aal: "aal1" | "aal2" }) {
           ? "Scan the QR code with your authenticator app (1Password, Google Authenticator, Authy…), then enter the 6-digit code."
           : verified.length
             ? "Step 2 of 2 · Enter the 6-digit code from your authenticator app."
-            : "No authenticator is enrolled yet. Gomez requires one before the workspace opens."}
+            : "No authenticator is enrolled yet. Jeff requires one before the workspace opens."}
       </p>
       {error ? (
         <div className="auth-error" role="alert">
@@ -277,7 +277,7 @@ export function MfaFlow({ aal }: { aal: "aal1" | "aal2" }) {
             Add another authenticator
           </button>
           <p className="auth-note">
-            <Link href="/">Back to Gomez</Link>
+            <Link href="/">Back to Jeff</Link>
           </p>
         </>
       ) : null}

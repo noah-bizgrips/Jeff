@@ -32,7 +32,7 @@ export function req(path: string, init: RequestInit & { origin?: string | null; 
   const headers = new Headers(init.headers ?? {});
   if (init.sameOrigin !== false) headers.set("sec-fetch-site", "same-origin");
   if (init.origin) headers.set("origin", init.origin);
-  return new Request(`https://gomez.test${path}`, { ...init, headers });
+  return new Request(`https://jeff.test${path}`, { ...init, headers });
 }
 
 export function jsonReq(path: string, body: unknown, init: Parameters<typeof req>[1] = {}) {

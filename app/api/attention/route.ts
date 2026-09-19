@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { apiError, json, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { recordAttention } from "@/lib/gomez/attention/store";
-import { ATTENTION_KINDS } from "@/lib/gomez/attention/types";
+import { recordAttention } from "@/lib/jeff/attention/store";
+import { ATTENTION_KINDS } from "@/lib/jeff/attention/types";
 
 export const dynamic = "force-dynamic";
 

@@ -2,11 +2,11 @@ import { z } from "zod";
 import { apiError, json, parseBody, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
 import { audit } from "@/lib/audit";
-import { createRule, listRules } from "@/lib/gomez/rules/store";
-import { detectConflicts } from "@/lib/gomez/rules/conflicts";
-import { reprocessFindingsForRule } from "@/lib/gomez/rules/apply";
-import { presentRule } from "@/lib/gomez/rules/present";
-import { RuleInputSchema } from "@/lib/gomez/rules/schema";
+import { createRule, listRules } from "@/lib/jeff/rules/store";
+import { detectConflicts } from "@/lib/jeff/rules/conflicts";
+import { reprocessFindingsForRule } from "@/lib/jeff/rules/apply";
+import { presentRule } from "@/lib/jeff/rules/present";
+import { RuleInputSchema } from "@/lib/jeff/rules/schema";
 
 export const dynamic = "force-dynamic";
 

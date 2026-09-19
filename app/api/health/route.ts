@@ -19,7 +19,7 @@ export async function GET() {
   const supabaseServer = await serverKeyWorks();
   return NextResponse.json(
     {
-      app: "Gomez",
+      app: "Jeff",
       status: "ok",
       version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "local",
       config: {

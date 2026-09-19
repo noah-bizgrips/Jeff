@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { CLASSIFIER_VERSION, UNKNOWN_COUNTERPARTY_CAP, classifyCommitment } from "@/lib/gomez/monitors/commitment-classifier";
-import { extractCommitments } from "@/lib/gomez/commitments/extract";
-import { isKnownCounterparty, knownCounterparties } from "@/lib/gomez/commitments/counterparties";
-import { classifyAuthor } from "@/lib/gomez/rules/engine";
-import { hasMarketingLabel, isPromotionalText, isSocialNotification, isVendorAddress } from "@/lib/gomez/rules/marketing";
-import { emailHash } from "@/lib/gomez/clients/client-leads";
-import type { SourceRow } from "@/lib/gomez/monitors/types";
+import { CLASSIFIER_VERSION, UNKNOWN_COUNTERPARTY_CAP, classifyCommitment } from "@/lib/jeff/monitors/commitment-classifier";
+import { extractCommitments } from "@/lib/jeff/commitments/extract";
+import { isKnownCounterparty, knownCounterparties } from "@/lib/jeff/commitments/counterparties";
+import { classifyAuthor } from "@/lib/jeff/rules/engine";
+import { hasMarketingLabel, isPromotionalText, isSocialNotification, isVendorAddress } from "@/lib/jeff/rules/marketing";
+import { emailHash } from "@/lib/jeff/clients/client-leads";
+import type { SourceRow } from "@/lib/jeff/monitors/types";
 
 const NOW = new Date("2026-09-14T16:00:00.000Z");
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000).toISOString();

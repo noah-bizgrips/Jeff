@@ -5,9 +5,9 @@ let claims: Claims = null;
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => fakeSupabase(claims) }));
 vi.mock("@/lib/audit", () => ({ audit: vi.fn(async () => {}) }));
 const recordAttention = vi.fn(async (_owner: string, signals: unknown[]) => signals.length);
-vi.mock("@/lib/gomez/attention/store", () => ({ recordAttention, listAttention: vi.fn(async () => []) }));
+vi.mock("@/lib/jeff/attention/store", () => ({ recordAttention, listAttention: vi.fn(async () => []) }));
 const runBlindSpotsForOwner = vi.fn(async () => ({ ran: true, candidates: 3, excludedByRules: 1, created: 2, updated: 0, resolved: 1, deferredByCap: 0, usedModel: false, pushed: false, errors: [] }));
-vi.mock("@/lib/gomez/blindspots", () => ({ runBlindSpotsForOwner }));
+vi.mock("@/lib/jeff/blindspots", () => ({ runBlindSpotsForOwner }));
 
 const attention = await import("@/app/api/attention/route");
 const run = await import("@/app/api/blindspots/run/route");

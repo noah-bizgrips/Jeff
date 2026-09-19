@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { attentionCountOf, computeBrainState, liteOf } from "@/lib/gomez/brain/state";
-import { BRAIN_COLORS, BRAIN_POLICY, pulsePeriodMs } from "@/lib/gomez/brain/policy";
-import { sourceForProvider, sourcesForJob, sourcesForProvider, sourcesForScanStage, sourcesForTools } from "@/lib/gomez/brain/sources";
-import { FIXTURE_NOW, SCENARIOS, alert, base, conn, finding, goal, obligation, run } from "@/lib/gomez/brain/fixtures";
+import { attentionCountOf, computeBrainState, liteOf } from "@/lib/jeff/brain/state";
+import { BRAIN_COLORS, BRAIN_POLICY, pulsePeriodMs } from "@/lib/jeff/brain/policy";
+import { sourceForProvider, sourcesForJob, sourcesForProvider, sourcesForScanStage, sourcesForTools } from "@/lib/jeff/brain/sources";
+import { FIXTURE_NOW, SCENARIOS, alert, base, conn, finding, goal, obligation, run } from "@/lib/jeff/brain/fixtures";
 
 const scenario = (id: string) => SCENARIOS.find((s) => s.id === id)!;
 
@@ -227,7 +227,7 @@ describe("brain sources — deterministic mapping (§16, §17, §41)", () => {
     expect(sourcesForTools(["get_financial_summary"], connected).sort()).toEqual(["plaid", "stripe"]);
     expect(sourcesForTools(["search_slack", "get_crm_pipeline"], connected).sort()).toEqual(["leadconnector", "slack"]);
     expect(sourcesForTools(["get_calendar_context"], connected)).toEqual([]); // calendar not connected
-    expect(sourcesForTools(["remember", "list_alerts", "apply_rule"], connected)).toEqual([]); // Gomez's own tables
+    expect(sourcesForTools(["remember", "list_alerts", "apply_rule"], connected)).toEqual([]); // Jeff's own tables
     expect(sourcesForTools(["search_sources"], connected).sort()).toEqual([...connected].sort());
     expect(sourcesForTools([], connected)).toEqual([]);
   });
@@ -248,7 +248,7 @@ describe("brain sources — deterministic mapping (§16, §17, §41)", () => {
 });
 
 describe("brain policy (§27)", () => {
-  it("thresholds are ordered and colours match the Gomez Black theme", () => {
+  it("thresholds are ordered and colours match the Jeff Black theme", () => {
     expect(BRAIN_POLICY.attentionImportantAt).toBeLessThan(BRAIN_POLICY.attentionUrgentAt);
     expect(BRAIN_POLICY.pulseMs.quiet).toBeGreaterThan(BRAIN_POLICY.pulseMs.watching!);
     expect(BRAIN_POLICY.pulseMs.watching).toBeGreaterThan(BRAIN_POLICY.pulseMs.attention!);
@@ -261,6 +261,6 @@ describe("brain policy (§27)", () => {
     expect(BRAIN_COLORS.danger.toUpperCase()).toBe("#E57777");
     expect(BRAIN_COLORS.warning.toUpperCase()).toBe("#E4B669");
     expect(BRAIN_COLORS.active.toUpperCase()).toBe("#78BEFF");
-    expect(BRAIN_COLORS.gomez.toUpperCase()).toBe("#4DA3FF");
+    expect(BRAIN_COLORS.jeff.toUpperCase()).toBe("#4DA3FF");
   });
 });

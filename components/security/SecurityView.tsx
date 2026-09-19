@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Icon } from "@/components/gomez/icons";
-import { useGomez } from "@/components/gomez/store";
+import { Icon } from "@/components/jeff/icons";
+import { useJeff } from "@/components/jeff/store";
 
 export interface AuditRow {
   id: number;
@@ -39,7 +39,7 @@ function Row({ title, desc, label, tone = "" }: { title: string; desc: string; l
 }
 
 export function SecurityView({ facts }: { facts: SecurityFacts }) {
-  const gomez = useGomez();
+  const jeff = useJeff();
   const verified = facts.aal === "aal2";
   const verifiedFactors = facts.factors.filter((f) => f.status === "verified");
   return (
@@ -76,7 +76,7 @@ export function SecurityView({ facts }: { facts: SecurityFacts }) {
               <small>Email + immutable user id pinned in server configuration</small>
             </div>
           </div>
-          <Row title="Password + authenticator" desc="A valid password alone never unlocks Gomez." label={verified ? "AAL2 verified" : "AAL1 only"} tone={verified ? "ok" : "amber"} />
+          <Row title="Password + authenticator" desc="A valid password alone never unlocks Jeff." label={verified ? "AAL2 verified" : "AAL1 only"} tone={verified ? "ok" : "amber"} />
           <Row title="Verified email + fixed account ID" desc="Another account, alias, or changed address is rejected." label="Enforced" tone="ok" />
           <Row title="Database owner binding" desc="app_owner row mirrors OWNER_USER_ID for row-level security." label={facts.ownerBound ? "Bound" : "Not bound"} tone={facts.ownerBound ? "ok" : "amber"} />
           <Row title="Authenticator apps" desc={verifiedFactors.length ? verifiedFactors.map((f) => f.name ?? f.id.slice(0, 8)).join(", ") : "No verified TOTP factor."} label={`${verifiedFactors.length} enrolled`} tone={verifiedFactors.length ? "ok" : "amber"} />
@@ -96,10 +96,10 @@ export function SecurityView({ facts }: { facts: SecurityFacts }) {
         <section className="security-card">
           <h3>Agent execution boundaries</h3>
           <p>A prompt is not a security policy. These controls exist outside the agent.</p>
-          <Row title="Model never sees credentials" desc="Ask Gomez calls narrow server-side tools; provider tokens stay in the broker." label={facts.anthropicConfigured ? "Active" : "Key not set"} tone={facts.anthropicConfigured ? "ok" : "amber"} />
+          <Row title="Model never sees credentials" desc="Ask Jeff calls narrow server-side tools; provider tokens stay in the broker." label={facts.anthropicConfigured ? "Active" : "Key not set"} tone={facts.anthropicConfigured ? "ok" : "amber"} />
           <Row
             title="Daily AI budget"
-            desc={`$${facts.aiSpentTodayUsd.toFixed(2)} of $${facts.aiBudgetUsd.toFixed(2)} used today (UTC). Gomez refuses new AI calls past the cap.`}
+            desc={`$${facts.aiSpentTodayUsd.toFixed(2)} of $${facts.aiBudgetUsd.toFixed(2)} used today (UTC). Jeff refuses new AI calls past the cap.`}
             label={facts.aiSpentTodayUsd >= facts.aiBudgetUsd ? "Exhausted" : "Enforced"}
             tone={facts.aiSpentTodayUsd >= facts.aiBudgetUsd ? "amber" : "ok"}
           />
@@ -113,7 +113,7 @@ export function SecurityView({ facts }: { facts: SecurityFacts }) {
           <Row title="Secure, HttpOnly, SameSite cookies" desc="Access tokens never reach JavaScript." label="Enabled" tone="ok" />
           <Row title="Signed-claim verification" desc="getClaims() checks the JWT signature; a forged cookie is rejected." label="Enabled" tone="ok" />
           <Row title="Connections" desc={`${facts.connectionsCount} stored connection${facts.connectionsCount === 1 ? "" : "s"}.`} label="Encrypted" tone="ok" />
-          <Row title="Workspace mode" desc="Sample data is only shown in Demo mode and never mixed into live analysis." label={gomez.mode === "live" ? "Live" : "Demo"} tone={gomez.mode === "live" ? "ok" : "amber"} />
+          <Row title="Workspace mode" desc="Sample data is only shown in Demo mode and never mixed into live analysis." label={jeff.mode === "live" ? "Live" : "Demo"} tone={jeff.mode === "live" ? "ok" : "amber"} />
         </section>
       </div>
       <div className="section-label">AUDIT LOG</div>

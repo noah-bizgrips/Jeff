@@ -3,8 +3,8 @@ import { apiError, json, parseBody, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
 import { findConnectionByProvider, getConnection } from "@/lib/integrations/store";
 import { hasSyncAdapter, syncConnection } from "@/lib/integrations/sync/runner";
-import { rebuildClientMap } from "@/lib/gomez/clients/map";
-import { attributeSourceItems } from "@/lib/gomez/clients/attribution";
+import { rebuildClientMap } from "@/lib/jeff/clients/map";
+import { attributeSourceItems } from "@/lib/jeff/clients/attribution";
 import { errorMessage, log } from "@/lib/security/log";
 
 export const dynamic = "force-dynamic";

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { apiError, json, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { refreshGoalById } from "@/lib/gomez/goals/refresh";
+import { refreshGoalById } from "@/lib/jeff/goals/refresh";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;

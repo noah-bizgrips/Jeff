@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { SourceRow } from "@/lib/gomez/monitors/types";
-import { failedPayment, HIGH_MINOR } from "@/lib/gomez/monitors/failed-payment";
-import { cashflowChange } from "@/lib/gomez/monitors/cashflow-change";
-import { recurringExpenseChange } from "@/lib/gomez/monitors/recurring-expense-change";
-import { summarizeFinance } from "@/lib/gomez/tools";
+import type { SourceRow } from "@/lib/jeff/monitors/types";
+import { failedPayment, HIGH_MINOR } from "@/lib/jeff/monitors/failed-payment";
+import { cashflowChange } from "@/lib/jeff/monitors/cashflow-change";
+import { recurringExpenseChange } from "@/lib/jeff/monitors/recurring-expense-change";
+import { summarizeFinance } from "@/lib/jeff/tools";
 
 const NOW = new Date("2026-09-12T12:00:00.000Z");
 const DAY = 86_400_000;

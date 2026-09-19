@@ -1,0 +1,510 @@
+"use client";
+
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { SEED_DOCS, type JeffDoc } from "@/lib/jeff/demo-data";
+import { GRAPH_SOURCES, SOURCES, sourceDef } from "@/lib/jeff/sources";
+import { retrieve, extractiveAnswer } from "@/lib/jeff/retrieve";
+import { looksSensitiveClient } from "@/lib/security/client-redact";
+import { noteAttention } from "@/lib/jeff/attention/client";
+import type { ConnectionSummary } from "@/lib/integrations/types";
+import type { BrainState } from "@/lib/jeff/brain/state";
+import { BRAIN_POLICY, resolveMotion } from "@/lib/jeff/brain/policy";
+import { sourcesForTools } from "@/lib/jeff/brain/sources";
+
+export type Mode = "demo" | "live";
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  text: string;
+  refs?: JeffDoc[];
+  citations?: { title: string; provider?: string; url?: string }[];
+  question?: string;
+  ai?: boolean;
+  toolsUsed?: string[];
+}
+
+export interface SavedAnswer {
+  id: string;
+  question: string;
+  text: string;
+  savedAt: string;
+  mode: string;
+}
+
+export interface JeffInitial {
+  mode: Mode;
+  aiEnabled: boolean;
+  aiBudgetUsd: number;
+  ownerEmail: string;
+  aal: "aal1" | "aal2";
+  connections: ConnectionSummary[];
+  liveDocs: JeffDoc[];
+  notes: JeffDoc[];
+  saved: SavedAnswer[];
+  missionCount: number;
+  approvalCount: number;
+  /** Open alerts at or above the owner's minimum importance (live mode). */
+  alertCount: number;
+  /** What Jeff currently sees (read-only aggregate, spec §6). */
+  brain: BrainState;
+}
+
+/**
+ * Live activity the brain should show right now. `kind` non-null means Jeff is
+ * working (investigating). `sources` are the sources actually being read
+ * (chat tools) or examined (scan stages / job declared sources) — never guessed.
+ */
+export interface BrainActivity {
+  kind: "ask" | "scan" | "job" | null;
+  sources: string[];
+}
+
+interface JeffStore extends JeffInitial {
+  sources: Set<string>; // demo sample toggles
+  focusSource: string | null;
+  chatScope: string;
+  motion: boolean;
+  labels: boolean;
+  busy: boolean;
+  messages: ChatMessage[];
+  agentOpen: boolean;
+  sidebarOpen: boolean;
+  modal: ReactNode | null;
+  toasts: { id: number; text: string }[];
+  connectedSources: () => string[];
+  docs: () => JeffDoc[];
+  toggleSource: (id: string) => void;
+  setFocusSource: (id: string | null) => void;
+  setChatScope: (id: string) => void;
+  setMotion: (v: boolean) => void;
+  setAgentOpen: (v: boolean) => void;
+  setSidebarOpen: (v: boolean) => void;
+  openModal: (node: ReactNode) => void;
+  closeModal: () => void;
+  toast: (text: string) => void;
+  ask: (text: string) => Promise<void>;
+  newChat: () => void;
+  saveAnswer: (m: ChatMessage) => Promise<void>;
+  deleteSaved: (id: string) => Promise<void>;
+  addNote: (title: string, content: string, tags: string[]) => Promise<boolean>;
+  deleteNote: (id: string) => Promise<void>;
+  setMode: (m: Mode) => Promise<void>;
+  refreshConnections: () => Promise<void>;
+  navigate: (path: string) => void;
+  brain: BrainState;
+  brainActivity: BrainActivity;
+  /** Re-fetch the brain state (throttled to one call per 10s; callers may fire freely after actions). */
+  refreshBrain: (opts?: { force?: boolean }) => Promise<void>;
+  /** Mark live activity on the brain. Pass `{ kind: null, sources: [] }` to clear. */
+  setBrainActivity: (a: BrainActivity) => void;
+  /** Briefly illuminate sources Jeff actually read (≤1.5s), then clear. */
+  flashBrainSources: (sources: string[]) => void;
+}
+
+const Ctx = createContext<JeffStore | null>(null);
+
+function subscribeReducedMotion(cb: () => void) {
+  const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+function getReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+export function useJeff(): JeffStore {
+  const s = useContext(Ctx);
+  if (!s) throw new Error("useJeff must be used inside JeffProvider");
+  return s;
+}
+
+let toastSeq = 0;
+
+export function JeffProvider({ initial, children }: { initial: JeffInitial; children: ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [mode, setModeState] = useState<Mode>(initial.mode);
+  const [connections, setConnections] = useState(initial.connections);
+  const [notes, setNotes] = useState<JeffDoc[]>(initial.mode === "live" ? initial.notes : []);
+  const [saved, setSaved] = useState<SavedAnswer[]>(initial.mode === "live" ? initial.saved : []);
+  const [sources, setSources] = useState<Set<string>>(() => new Set(GRAPH_SOURCES.map((s) => s.id)));
+  const [focusSource, setFocusSource] = useState<string | null>(null);
+  const [chatScope, setChatScope] = useState("all");
+  const reducedMotion = useSyncExternalStore(subscribeReducedMotion, getReducedMotion, () => false);
+  const [motionOverride, setMotion] = useState<boolean | null>(null);
+  const motion = resolveMotion(reducedMotion, motionOverride);
+  const [labels] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [agentOpen, setAgentOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [modal, setModal] = useState<ReactNode | null>(null);
+  const [toasts, setToasts] = useState<{ id: number; text: string }[]>([]);
+  const lastFocus = useRef<Element | null>(null);
+  const [brain, setBrain] = useState<BrainState>(initial.brain);
+  const [brainActivity, setBrainActivityState] = useState<BrainActivity>({ kind: null, sources: [] });
+  const brainFetchedAt = useRef(0);
+  const brainInFlight = useRef<Promise<void> | null>(null);
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const refreshBrain = useCallback(
+    async (opts?: { force?: boolean }) => {
+      if (mode !== "live") return;
+      const now = Date.now();
+      if (!opts?.force && now - brainFetchedAt.current < BRAIN_POLICY.refreshMinGapMs) return;
+      if (brainInFlight.current) return brainInFlight.current;
+      brainFetchedAt.current = now;
+      brainInFlight.current = (async () => {
+        try {
+          const res = await fetch("/api/brain/state", { cache: "no-store" });
+          if (!res.ok) return;
+          const data = (await res.json().catch(() => null)) as { brain?: BrainState } | null;
+          if (data?.brain) setBrain(data.brain);
+        } catch {
+          /* keep the last known state */
+        } finally {
+          brainInFlight.current = null;
+        }
+      })();
+      return brainInFlight.current;
+    },
+    [mode],
+  );
+
+  // Keep the brain current: every 60s while the tab is visible, and on return to the tab.
+  useEffect(() => {
+    if (mode !== "live") return;
+    brainFetchedAt.current = Date.now(); // the server already rendered a fresh state
+    const tick = () => {
+      if (document.visibilityState === "visible") void refreshBrain();
+    };
+    const id = setInterval(tick, BRAIN_POLICY.refreshEveryMs);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [mode, refreshBrain]);
+
+  const setBrainActivity = useCallback((a: BrainActivity) => {
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    flashTimer.current = null;
+    setBrainActivityState(a);
+  }, []);
+
+  const flashBrainSources = useCallback((srcs: string[]) => {
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    if (!srcs.length) {
+      setBrainActivityState({ kind: null, sources: [] });
+      return;
+    }
+    setBrainActivityState({ kind: null, sources: srcs });
+    flashTimer.current = setTimeout(() => {
+      flashTimer.current = null;
+      setBrainActivityState({ kind: null, sources: [] });
+    }, BRAIN_POLICY.retrievalFlashMs);
+  }, []);
+
+  useEffect(() => {
+    document.body.dataset.jeffMode = mode;
+  }, [mode]);
+
+  // Apply wide-page layout for operational views; close phone drawers on navigation.
+  useEffect(() => {
+    const wide = ["/missions", "/insights", "/approvals", "/connections", "/security", "/guide", "/memory", "/jobs", "/follow-through"].some((p) => pathname.startsWith(p));
+    document.body.classList.toggle("wide-page", wide);
+    // Page views feed blind-spot detection (what the owner is NOT looking at). Throttled per path.
+    if (document.body.dataset.jeffMode === "live") noteAttention({ kind: "page_viewed", path: pathname });
+    // Drawers are overlays on small screens; a route change should always dismiss them.
+    const t = setTimeout(() => {
+      setSidebarOpen(false);
+      setAgentOpen(false);
+    }, 0);
+    return () => clearTimeout(t);
+  }, [pathname]);
+
+  // Mirror overlay state onto <body> so CSS can react without :has() (older iOS).
+  useEffect(() => {
+    document.body.classList.toggle("agent-open", agentOpen);
+    document.body.classList.toggle("sidebar-open", sidebarOpen);
+    return () => {
+      document.body.classList.remove("agent-open", "sidebar-open");
+    };
+  }, [agentOpen, sidebarOpen]);
+
+  const toast = useCallback((text: string) => {
+    const id = ++toastSeq;
+    setToasts((t) => [...t, { id, text }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 5000);
+  }, []);
+
+  const liveSourceIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const c of connections) {
+      if (!["connected", "limited"].includes(c.status)) continue;
+      for (const s of SOURCES) {
+        if (s.provider !== c.provider) continue;
+        if (s.capability && c.capabilities.length && !c.capabilities.includes(s.capability)) continue;
+        ids.add(s.id);
+      }
+    }
+    if (notes.length) ids.add("notes");
+    return [...ids];
+  }, [connections, notes.length]);
+
+  const connectedSources = useCallback(() => (mode === "demo" ? [...sources] : liveSourceIds), [mode, sources, liveSourceIds]);
+
+  const docs = useCallback(() => {
+    const base = mode === "demo" ? SEED_DOCS : initial.liveDocs;
+    const ids = connectedSources();
+    return [...base, ...notes].filter((d) => ids.includes(d.source));
+  }, [mode, initial.liveDocs, notes, connectedSources]);
+
+  const openModal = useCallback((node: ReactNode) => {
+    lastFocus.current = document.activeElement;
+    setModal(node);
+  }, []);
+  const closeModal = useCallback(() => {
+    setModal(null);
+    const el = lastFocus.current as HTMLElement | null;
+    if (el?.isConnected) el.focus();
+  }, []);
+
+  const toggleSource = useCallback(
+    (id: string) => {
+      setSources((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) {
+          next.delete(id);
+          setFocusSource((f) => (f === id ? null : f));
+          setChatScope((c) => (c === id ? "all" : c));
+        } else next.add(id);
+        toast(`${sourceDef(id).name} ${next.has(id) ? "added to" : "removed from"} the sample brain. No account was connected.`);
+        return next;
+      });
+    },
+    [toast],
+  );
+
+  const navigate = useCallback((path: string) => router.push(path), [router]);
+
+  const ask = useCallback(
+    async (text: string) => {
+      const q = text.trim();
+      if (!q || busy) return;
+      if (looksSensitiveClient(q)) {
+        toast("Possible credential or private access link detected. Do not put secrets in chat.");
+        return;
+      }
+      closeModal();
+      setAgentOpen(true);
+      const history = [...messages, { role: "user" as const, text: q }];
+      setMessages(history);
+      setBusy(true);
+      // The brain shows Jeff investigating while the answer is pending; sources light up only once we know which were read.
+      setBrainActivity({ kind: "ask", sources: [] });
+      let used: string[] = [];
+      try {
+        const refs = retrieve(docs(), q, chatScope, 4);
+        if (initial.aiEnabled) {
+          const res = await fetch("/api/jeff/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              messages: history.slice(-12).map((m) => ({ role: m.role, content: m.text })),
+              context: mode === "demo" ? refs.map((r) => ({ title: r.title, source: r.source, content: r.content.slice(0, 1200) })) : [],
+            }),
+          });
+          const data = (await res.json().catch(() => null)) as { text?: string; citations?: ChatMessage["citations"]; toolsUsed?: string[]; error?: string; hint?: string } | null;
+          if (!res.ok || !data?.text) {
+            const msg = data?.hint ?? (data?.error ? `Jeff could not answer (${data.error}).` : "Jeff could not answer right now.");
+            setMessages([...history, { role: "assistant", text: msg, question: q, ai: true }]);
+          } else {
+            setMessages([...history, { role: "assistant", text: data.text, refs: mode === "demo" ? refs : [], citations: data.citations, toolsUsed: data.toolsUsed, question: q, ai: true }]);
+            used = mode === "demo" ? [...new Set(refs.map((r) => r.source))] : sourcesForTools(data.toolsUsed ?? [], connectedSources());
+          }
+        } else {
+          await new Promise((r) => setTimeout(r, 250));
+          setMessages([...history, { role: "assistant", text: extractiveAnswer(q, refs, mode), refs, question: q, ai: false }]);
+          used = [...new Set(refs.map((r) => r.source))];
+        }
+      } finally {
+        setBusy(false);
+        flashBrainSources(used);
+        void refreshBrain();
+      }
+    },
+    [busy, messages, docs, chatScope, initial.aiEnabled, mode, toast, closeModal, connectedSources, setBrainActivity, flashBrainSources, refreshBrain],
+  );
+
+  const newChat = useCallback(() => {
+    if (busy) return toast("Let the current answer finish before starting again.");
+    setMessages([]);
+  }, [busy, toast]);
+
+  const saveAnswer = useCallback(
+    async (m: ChatMessage) => {
+      if (saved.some((a) => a.text === m.text)) return toast("This answer is already saved.");
+      const entry: SavedAnswer = { id: crypto.randomUUID(), question: m.question ?? "", text: m.text, savedAt: new Date().toISOString(), mode: m.ai ? "AI answer" : "Extractive preview" };
+      if (mode === "live") {
+        const res = await fetch("/api/saved-answers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: entry.question || "(no question)", answer: entry.text, mode: entry.mode, citations: m.citations ?? [] }),
+        });
+        const data = (await res.json().catch(() => null)) as { saved?: { id: string } } | null;
+        if (!res.ok || !data?.saved) return toast("Could not save the answer.");
+        entry.id = data.saved.id;
+      }
+      setSaved((s) => [entry, ...s]);
+      toast(mode === "live" ? "Answer saved." : "Answer saved for this tab.");
+    },
+    [saved, mode, toast],
+  );
+
+  const deleteSaved = useCallback(
+    async (id: string) => {
+      if (mode === "live") {
+        const res = await fetch(`/api/saved-answers?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+        if (!res.ok) return toast("Could not remove the saved answer.");
+      }
+      setSaved((s) => s.filter((a) => a.id !== id));
+      toast("Saved answer removed.");
+    },
+    [mode, toast],
+  );
+
+  const addNote = useCallback(
+    async (title: string, content: string, tags: string[]) => {
+      if (looksSensitiveClient(`${title} ${content}`)) {
+        toast("Possible credential or private access link detected. Do not add secrets to Jeff.");
+        return false;
+      }
+      const note: JeffDoc = {
+        id: "note-" + crypto.randomUUID(),
+        source: "notes",
+        title,
+        content,
+        tags: tags.length ? tags : ["ideas"],
+        author: "You / Personal notes",
+        updated: new Date().toISOString(),
+        sample: false,
+        url: "",
+      };
+      if (mode === "live") {
+        const res = await fetch("/api/notes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title, content, tags }) });
+        const data = (await res.json().catch(() => null)) as { note?: { id: string } } | null;
+        if (!res.ok || !data?.note) {
+          toast("Could not save the note.");
+          return false;
+        }
+        note.id = data.note.id;
+      } else {
+        setSources((s) => new Set(s).add("notes"));
+      }
+      setNotes((n) => [note, ...n]);
+      setFocusSource("notes");
+      toast(mode === "live" ? "Note added to your brain." : "A new thought. A new connection. Your note is in your brain for this tab session.");
+      return true;
+    },
+    [mode, toast],
+  );
+
+  const deleteNote = useCallback(
+    async (id: string) => {
+      if (mode === "live") {
+        const res = await fetch(`/api/notes?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+        if (!res.ok) return toast("Could not remove the note.");
+      }
+      setNotes((n) => {
+        const next = n.filter((x) => x.id !== id);
+        if (!next.length) {
+          setSources((s) => {
+            const c = new Set(s);
+            c.delete("notes");
+            return c;
+          });
+          setFocusSource((f) => (f === "notes" ? null : f));
+          setChatScope((c) => (c === "notes" ? "all" : c));
+        }
+        return next;
+      });
+      toast("Note removed.");
+    },
+    [mode, toast],
+  );
+
+  const refreshConnections = useCallback(async () => {
+    // One retry: the list can fail transiently right after a write.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await fetch("/api/connections", { cache: "no-store" }).catch(() => null);
+      if (res?.ok) {
+        const data = (await res.json()) as { connections: ConnectionSummary[] };
+        setConnections(data.connections);
+        void refreshBrain({ force: true });
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 800));
+    }
+  }, [refreshBrain]);
+
+  const setMode = useCallback(
+    async (m: Mode) => {
+      const res = await fetch("/api/mode", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: m }) });
+      if (!res.ok) return toast("Could not switch mode.");
+      setModeState(m);
+      setMessages([]);
+      setFocusSource(null);
+      router.refresh();
+      toast(m === "live" ? "Live workspace. Sample data hidden." : "Demo workspace. Sample data only.");
+    },
+    [router, toast],
+  );
+
+  const value: JeffStore = {
+    ...initial,
+    mode,
+    connections,
+    notes,
+    saved,
+    sources,
+    focusSource,
+    chatScope,
+    motion,
+    labels,
+    busy,
+    messages,
+    agentOpen,
+    sidebarOpen,
+    modal,
+    toasts,
+    connectedSources,
+    docs,
+    toggleSource,
+    setFocusSource,
+    setChatScope,
+    setMotion,
+    setAgentOpen,
+    setSidebarOpen,
+    openModal,
+    closeModal,
+    toast,
+    ask,
+    newChat,
+    saveAnswer,
+    deleteSaved,
+    addNote,
+    deleteNote,
+    setMode,
+    refreshConnections,
+    navigate,
+    brain,
+    brainActivity,
+    refreshBrain,
+    setBrainActivity,
+    flashBrainSources,
+  };
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}

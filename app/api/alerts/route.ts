@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { apiError, json, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { listAlerts, runAlertsForOwner } from "@/lib/gomez/alerts/store";
-import { IMPORTANCE_LEVELS } from "@/lib/gomez/settings";
+import { listAlerts, runAlertsForOwner } from "@/lib/jeff/alerts/store";
+import { IMPORTANCE_LEVELS } from "@/lib/jeff/settings";
 
 export const dynamic = "force-dynamic";
 

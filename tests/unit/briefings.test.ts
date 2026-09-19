@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildTemplate, maxItemsFromMemories, rankAttention, type BriefingBundle } from "@/lib/gomez/briefings/bundle";
-import { BriefingSummarySchema, BRIEFING_JSON_SCHEMA } from "@/lib/gomez/briefings/schema";
-import { guardAgainstAdditions } from "@/lib/gomez/briefings/compose";
-import { dueBriefings, localMidnight, periodFor, periodInstants } from "@/lib/gomez/briefings/schedule";
-import { DEFAULT_SETTINGS } from "@/lib/gomez/settings";
-import { computeFreshness } from "@/lib/gomez/freshness";
+import { buildTemplate, maxItemsFromMemories, rankAttention, type BriefingBundle } from "@/lib/jeff/briefings/bundle";
+import { BriefingSummarySchema, BRIEFING_JSON_SCHEMA } from "@/lib/jeff/briefings/schema";
+import { guardAgainstAdditions } from "@/lib/jeff/briefings/compose";
+import { dueBriefings, localMidnight, periodFor, periodInstants } from "@/lib/jeff/briefings/schedule";
+import { DEFAULT_SETTINGS } from "@/lib/jeff/settings";
+import { computeFreshness } from "@/lib/jeff/freshness";
 
 const NOW = new Date("2026-09-16T14:00:00.000Z"); // 08:00 Denver (MDT)
 

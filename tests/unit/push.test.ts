@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { shouldPushAlert, shouldPushBriefing, type PushableAlert } from "@/lib/gomez/push/decide";
-import { DEFAULT_SETTINGS } from "@/lib/gomez/settings";
+import { shouldPushAlert, shouldPushBriefing, type PushableAlert } from "@/lib/jeff/push/decide";
+import { DEFAULT_SETTINGS } from "@/lib/jeff/settings";
 import { classifyRoute } from "@/lib/auth/routes";
-import { alertEmoji, BRIEFING_EMOJI } from "@/lib/gomez/push/emoji";
+import { alertEmoji, BRIEFING_EMOJI } from "@/lib/jeff/push/emoji";
 
 /* ------------------------------------------------------------------ */
 /* Decision matrix (pure)                                              */
@@ -126,7 +126,7 @@ describe("sendPush", () => {
     sendNotification.mockImplementationOnce(async () => ({ statusCode: 201 })).mockImplementationOnce(async () => {
       throw Object.assign(new Error("gone"), { statusCode: 410 });
     });
-    const { sendPush } = await import("@/lib/gomez/push/send");
+    const { sendPush } = await import("@/lib/jeff/push/send");
     const res = await sendPush("owner", { title: "T", body: "B".repeat(300), url: "/alerts", tag: "t" });
     expect(res).toEqual({ attempted: 2, delivered: 1, disabled: 1, failed: 0 });
     const disabled = updates.find((u) => u.id === "s2");
@@ -137,7 +137,7 @@ describe("sendPush", () => {
   });
   it("is a no-op when VAPID keys are missing", async () => {
     delete process.env.VAPID_PRIVATE_KEY;
-    const { sendPush } = await import("@/lib/gomez/push/send");
+    const { sendPush } = await import("@/lib/jeff/push/send");
     expect(await sendPush("owner", { title: "T", body: "B", url: "/", tag: "t" })).toEqual({ attempted: 0, delivered: 0, disabled: 0, failed: 0 });
     expect(sendNotification).not.toHaveBeenCalled();
   });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { baseImportance, finalizeImportance, atLeast } from "@/lib/gomez/alerts/importance";
-import { candidatesFromCommitments, candidatesFromFindings, candidatesFromGoals, reconcileAlerts, GROUP_THRESHOLD, type ExistingAlert, type FindingInput } from "@/lib/gomez/alerts/engine";
-import { DEFAULT_SETTINGS, inQuietHours, quietHoursEnd, localTime, type OwnerSettings } from "@/lib/gomez/settings";
+import { baseImportance, finalizeImportance, atLeast } from "@/lib/jeff/alerts/importance";
+import { candidatesFromCommitments, candidatesFromFindings, candidatesFromGoals, reconcileAlerts, GROUP_THRESHOLD, type ExistingAlert, type FindingInput } from "@/lib/jeff/alerts/engine";
+import { DEFAULT_SETTINGS, inQuietHours, quietHoursEnd, localTime, type OwnerSettings } from "@/lib/jeff/settings";
 
 // Noon in Denver (MDT = UTC-6) on a Wednesday.
 const NOON = new Date("2026-09-16T18:00:00.000Z");

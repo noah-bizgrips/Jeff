@@ -8,10 +8,10 @@ import { hasEnv, requireEnv } from "@/lib/env";
  * used exclusively inside this module. Claude tools call these narrow
  * functions; they never see the key.
  *
- * V1 rules: read anything; write ONLY to workflows tagged `gomez-test`.
+ * V1 rules: read anything; write ONLY to workflows tagged `jeff-test`.
  * Production workflow changes are refused here regardless of caller.
  */
-const TEST_TAG = "gomez-test";
+const TEST_TAG = "jeff-test";
 
 function base() {
   return requireEnv("N8N_BASE_URL").replace(/\/$/, "");
@@ -71,7 +71,7 @@ export async function listExecutions(workflowId?: string, limit = 20) {
   return (body?.data ?? []).map((e) => ({ id: e.id, status: e.status, startedAt: e.startedAt, stoppedAt: e.stoppedAt, workflowId: e.workflowId }));
 }
 
-/** Guard used by any write path: only `gomez-test` tagged workflows may be modified in V1. */
+/** Guard used by any write path: only `jeff-test` tagged workflows may be modified in V1. */
 export async function assertTestWorkflow(workflowId: string) {
   const all = await listWorkflows();
   const w = all.find((x) => x.id === workflowId);

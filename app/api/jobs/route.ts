@@ -2,9 +2,9 @@ import { z } from "zod";
 import { apiError, json, parseBody, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
 import { audit } from "@/lib/audit";
-import { createJob } from "@/lib/gomez/jobs/store";
-import { JobInputSchema } from "@/lib/gomez/jobs/types";
-import { createJobFromDescription, ensureJobs, getJob, presentJobs } from "@/lib/gomez/jobs";
+import { createJob } from "@/lib/jeff/jobs/store";
+import { JobInputSchema } from "@/lib/jeff/jobs/types";
+import { createJobFromDescription, ensureJobs, getJob, presentJobs } from "@/lib/jeff/jobs";
 
 export const dynamic = "force-dynamic";
 

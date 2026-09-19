@@ -2,8 +2,8 @@ import { apiError, json, withErrorBoundary } from "@/lib/api";
 import { safeEqual } from "@/lib/crypto/secrets";
 import { hasEnv, requireEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { generateDueBriefings } from "@/lib/gomez/briefings";
-import { measureOutcomes } from "@/lib/gomez/outcomes-store";
+import { generateDueBriefings } from "@/lib/jeff/briefings";
+import { measureOutcomes } from "@/lib/jeff/outcomes-store";
 import { errorMessage, log } from "@/lib/security/log";
 
 export const dynamic = "force-dynamic";

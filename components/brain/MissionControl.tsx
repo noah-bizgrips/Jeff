@@ -2,17 +2,17 @@
 
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Icon, SourceIcon } from "@/components/gomez/icons";
-import { useGomez } from "@/components/gomez/store";
-import { DocModal, EmptyState, MemoryRow, ModalHeader } from "@/components/gomez/shared";
+import { Icon, SourceIcon } from "@/components/jeff/icons";
+import { useJeff } from "@/components/jeff/store";
+import { DocModal, EmptyState, MemoryRow, ModalHeader } from "@/components/jeff/shared";
 import { BrainCanvas, type BrainHandle } from "./BrainCanvas";
-import { WhatGomezSeesModal } from "./WhatGomezSees";
-import { liteOf } from "@/lib/gomez/brain/state";
-import { sourceDef } from "@/lib/gomez/sources";
-import { linksFor } from "@/lib/gomez/retrieve";
+import { WhatJeffSeesModal } from "./WhatJeffSees";
+import { liteOf } from "@/lib/jeff/brain/state";
+import { sourceDef } from "@/lib/jeff/sources";
+import { linksFor } from "@/lib/jeff/retrieve";
 import { looksSensitiveClient } from "@/lib/security/client-redact";
-import type { DemoInsight } from "@/lib/gomez/demo-data";
-import { PushPrompt } from "@/components/gomez/PushPrompt";
+import type { DemoInsight } from "@/lib/jeff/demo-data";
+import { PushPrompt } from "@/components/jeff/PushPrompt";
 import { BlindSpotScanButton, JobsStatusLine, type JobsSummary } from "@/components/jobs/BlindSpotScan";
 
 type CommandMode = "prepare" | "ask" | "run";
@@ -82,7 +82,7 @@ export interface FocusData {
 }
 
 export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, jobs = null }: { topInsight: DemoInsight | null; goalsAtRisk?: GoalRiskItem[]; focus?: FocusData | null; jobs?: JobsSummary | null }) {
-  const gomez = useGomez();
+  const jeff = useJeff();
   const brain = useRef<BrainHandle>(null);
   const [zoom, setZoom] = useState(1);
   const [expanded, setExpanded] = useState(false);
@@ -105,41 +105,41 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
         ? await fetch(`/api/obligations/${t.obligationId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: action === "done" ? "complete" : "dismiss" }) })
         : await fetch(`/api/commitments/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: action === "done" ? "done" : "dismissed" }) });
       if (!res.ok) {
-        gomez.toast("Couldn't update that commitment. Try again.");
+        jeff.toast("Couldn't update that commitment. Try again.");
         return;
       }
       setTodayCleared((prev) => new Set(prev).add(`${t.kind}:${t.id}`));
-      gomez.toast(action === "done" ? "Marked done." : "Dismissed. It stays in Follow-Through history.");
-      void gomez.refreshBrain({ force: true });
+      jeff.toast(action === "done" ? "Marked done." : "Dismissed. It stays in Follow-Through history.");
+      void jeff.refreshBrain({ force: true });
     } finally {
       setTodayBusy(null);
     }
   }
 
-  const ids = gomez.connectedSources();
-  const all = gomez.docs();
-  const focused = gomez.focusSource;
+  const ids = jeff.connectedSources();
+  const all = jeff.docs();
+  const focused = jeff.focusSource;
   const visible = all.filter((d) => !focused || d.source === focused);
-  const brainState = gomez.brain;
+  const brainState = jeff.brain;
   const brainLite = useMemo(() => liteOf(brainState), [brainState]);
   const stage = useRef<HTMLDivElement>(null);
 
-  function openWhatGomezSees() {
-    gomez.openModal(<WhatGomezSeesModal brain={gomez.brain} onScan={gomez.mode === "live" ? startScan : undefined} />);
+  function openWhatJeffSees() {
+    jeff.openModal(<WhatJeffSeesModal brain={jeff.brain} onScan={jeff.mode === "live" ? startScan : undefined} />);
   }
   function startScan() {
     const b = document.getElementById("blindSpotScanButton") as HTMLButtonElement | null;
     if (b && !b.disabled) {
       b.click();
-      b.scrollIntoView({ block: "nearest", behavior: gomez.motion ? "smooth" : "auto" });
-    } else gomez.navigate("/jobs/blind-spot-scanner");
+      b.scrollIntoView({ block: "nearest", behavior: jeff.motion ? "smooth" : "auto" });
+    } else jeff.navigate("/jobs/blind-spot-scanner");
   }
-  /** Anchor tooltip (§20): source name, what Gomez sees there, and how to learn more. */
+  /** Anchor tooltip (§20): source name, what Jeff sees there, and how to learn more. */
   function anchorTip(id: string): string {
     const s = sourceDef(id);
     const affected = brainState.affectedSources.find((x) => x.source === id);
-    const reading = gomez.brainActivity.sources.includes(id);
-    if (reading) return `${s.name} · ${gomez.brainActivity.kind === "ask" ? "Reading now" : gomez.brainActivity.kind === "scan" ? "Scanning now" : "In use by a job"}`;
+    const reading = jeff.brainActivity.sources.includes(id);
+    if (reading) return `${s.name} · ${jeff.brainActivity.kind === "ask" ? "Reading now" : jeff.brainActivity.kind === "scan" ? "Scanning now" : "In use by a job"}`;
     if (!affected) return `${s.name} · Nothing needs attention · Click to filter`;
     return `${s.name} · ${affected.label}${affected.count > 1 ? ` (${affected.count})` : ""} · Click to filter, open the centre to see why`;
   }
@@ -164,19 +164,19 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
     const text = goal.trim();
     if (commandMode === "ask") {
       setGoal("");
-      return gomez.ask(text);
+      return jeff.ask(text);
     }
     if (commandMode === "run") {
-      gomez.openModal(
+      jeff.openModal(
         <>
           <ModalHeader title="Approved runs are gated." desc="Running a task needs an approved mission, a verified session, and an enabled worker." eyebrow="EXECUTION" />
           <div className="modal-body">
             <div className="callout">Nothing runs from this box. Create a draft, review it in Missions, and approve the exact version before any worker executes it.</div>
             <div className="modal-actions">
-              <button className="button secondary" type="button" onClick={gomez.closeModal}>
+              <button className="button secondary" type="button" onClick={jeff.closeModal}>
                 Close
               </button>
-              <Link className="button primary" href="/connections" onClick={gomez.closeModal}>
+              <Link className="button primary" href="/connections" onClick={jeff.closeModal}>
                 Worker setup
               </Link>
             </div>
@@ -185,8 +185,8 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
       );
       return;
     }
-    if (!text) return gomez.toast("Describe what you want Gomez to accomplish.");
-    if (looksSensitiveClient(text)) return gomez.toast("Possible secret or private access link detected. Use a non-sensitive description.");
+    if (!text) return jeff.toast("Describe what you want Jeff to accomplish.");
+    if (looksSensitiveClient(text)) return jeff.toast("Possible secret or private access link detected. Use a non-sensitive description.");
     setSubmitting(true);
     try {
       const res = await fetch("/api/missions", {
@@ -196,11 +196,11 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as { error?: string } | null;
-        return gomez.toast(`Could not create the draft (${data?.error ?? res.status}).`);
+        return jeff.toast(`Could not create the draft (${data?.error ?? res.status}).`);
       }
       setGoal("");
-      gomez.toast("Task draft created. Nothing runs until you approve it.");
-      gomez.navigate("/missions");
+      jeff.toast("Task draft created. Nothing runs until you approve it.");
+      jeff.navigate("/missions");
     } finally {
       setSubmitting(false);
     }
@@ -211,7 +211,7 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
       <div className="preview-banner">
         <Icon name="info" />
         <span>
-          {gomez.mode === "demo" ? (
+          {jeff.mode === "demo" ? (
             <>
               <strong>Demo workspace.</strong> Sample data only. Switch to Live in the header to see your real connections.
             </>
@@ -222,15 +222,15 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
           )}
         </span>
       </div>
-      {gomez.mode === "live" ? <PushPrompt /> : null}
-      {gomez.mode === "live" ? (
-        <section className="jobs-strip" aria-label="Gomez's Jobs">
+      {jeff.mode === "live" ? <PushPrompt /> : null}
+      {jeff.mode === "live" ? (
+        <section className="jobs-strip" aria-label="Jeff's Jobs">
           <JobsStatusLine summary={jobs} />
           <BlindSpotScanButton disabled={jobs?.scannerStatus === "disabled"} />
         </section>
       ) : null}
 
-      {gomez.mode === "live" && focus ? (
+      {jeff.mode === "live" && focus ? (
         <section className="focus-grid" aria-label="Operating focus">
           <div className="focus-col">
             <div className="section-label">WHAT NEEDS YOUR ATTENTION</div>
@@ -358,7 +358,7 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
         </section>
       ) : null}
 
-      <section className="command-card" aria-label="Command Gomez">
+      <section className="command-card" aria-label="Command Jeff">
         <div className="command-card-title">
           <Icon name="sparkles" />
           <strong>What should we accomplish?</strong>
@@ -366,7 +366,7 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
         </div>
         <form onSubmit={submitCommand}>
           <label className="sr-only" htmlFor="missionInput">
-            Describe a task for Gomez
+            Describe a task for Jeff
           </label>
           <textarea
             id="missionInput"
@@ -392,7 +392,7 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
             </div>
             <button className="button primary" type="submit" disabled={submitting}>
               <Icon name="arrowUp" />
-              <span>{commandMode === "prepare" ? "Create draft" : commandMode === "ask" ? "Ask Gomez" : "Check availability"}</span>
+              <span>{commandMode === "prepare" ? "Create draft" : commandMode === "ask" ? "Ask Jeff" : "Check availability"}</span>
             </button>
           </div>
         </form>
@@ -401,11 +401,11 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
       <div className="mission-pulse">
         <Link href="/missions">
           <Icon name="compose" />
-          <strong>{gomez.missionCount}</strong> missions
+          <strong>{jeff.missionCount}</strong> missions
         </Link>
         <Link href="/approvals">
           <span className="review-dot small" />
-          <strong>{gomez.approvalCount}</strong> needs review
+          <strong>{jeff.approvalCount}</strong> needs review
         </Link>
         <Link href="/security">
           <Icon name="lock" />
@@ -443,13 +443,13 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
             <span>{ids.length}</span>
             <small>
               <span className="health-dot" />
-              <span>{gomez.mode === "demo" ? "in your orbit" : "connected"}</span>
+              <span>{jeff.mode === "demo" ? "in your orbit" : "connected"}</span>
             </small>
           </div>
         </div>
       </section>
 
-      {goalsAtRisk.length && !(gomez.mode === "live" && focus) ? (
+      {goalsAtRisk.length && !(jeff.mode === "live" && focus) ? (
         <section className="signal-strip goals-risk-strip" aria-label="Goals at risk">
           <div>
             <span className="mini-eyebrow">GOALS AT RISK</span>
@@ -473,10 +473,10 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
           <div>
             <span className="graph-title">
               <Icon name="network" />
-              Gomez&apos;s neural network
+              Jeff&apos;s neural network
             </span>
             <span className="graph-description">
-              {ids.length} {gomez.mode === "demo" ? "sample" : "connected"} sources. One connected workspace.
+              {ids.length} {jeff.mode === "demo" ? "sample" : "connected"} sources. One connected workspace.
             </span>
           </div>
           <button
@@ -497,20 +497,20 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
             docs={all}
             connected={ids}
             focus={focused}
-            motion={gomez.motion}
+            motion={jeff.motion}
             anchors={anchors}
             active
             brain={brainLite}
-            activity={gomez.brainActivity}
+            activity={jeff.brainActivity}
             onOpen={(id) => {
               const d = all.find((x) => x.id === id);
-              if (d) gomez.openModal(<DocModal doc={d} />);
+              if (d) jeff.openModal(<DocModal doc={d} />);
             }}
-            onCenter={openWhatGomezSees}
+            onCenter={openWhatJeffSees}
             onZoom={setZoom}
             onHover={setHover}
           />
-          <button type="button" className="brain-center-button" aria-label={`What Gomez sees: ${brainState.primaryStatus}`} title="What Gomez sees" onClick={openWhatGomezSees} />
+          <button type="button" className="brain-center-button" aria-label={`What Jeff sees: ${brainState.primaryStatus}`} title="What Jeff sees" onClick={openWhatJeffSees} />
           <div id="graphAnchors">
             {anchors.map((a) => {
               const s = sourceDef(a.id);
@@ -520,10 +520,10 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
                   key={a.id}
                   type="button"
                   className={`graph-anchor ${focused === a.id ? "highlighted" : focused ? "dimmed" : ""}`}
-                  style={{ left: `${a.x * 100}%`, top: `${a.y * 100}%`, ["--source-color" as string]: s.color, display: gomez.labels ? undefined : "none" }}
+                  style={{ left: `${a.x * 100}%`, top: `${a.y * 100}%`, ["--source-color" as string]: s.color, display: jeff.labels ? undefined : "none" }}
                   aria-label={`Explore ${s.name}; ${count} memories. ${anchorTip(a.id)}`}
-                  data-tone={brainState.affectedSources.find((x) => x.source === a.id)?.tone ?? (gomez.brainActivity.sources.includes(a.id) ? "active" : undefined)}
-                  onClick={() => gomez.setFocusSource(focused === a.id ? null : a.id)}
+                  data-tone={brainState.affectedSources.find((x) => x.source === a.id)?.tone ?? (jeff.brainActivity.sources.includes(a.id) ? "active" : undefined)}
+                  onClick={() => jeff.setFocusSource(focused === a.id ? null : a.id)}
                   onMouseEnter={(e) => {
                     const r = e.currentTarget.getBoundingClientRect();
                     const st = stage.current?.getBoundingClientRect();
@@ -555,27 +555,27 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
         </div>
         <div className="graph-bottom">
           <div className="graph-legend">
-            <span className="health-dot" data-tone={brainState.state === "attention" ? (brainState.urgency === "urgent" ? "danger" : "warning") : brainState.state === "opportunity" ? "opportunity" : brainState.state === "degraded" ? "warning" : gomez.brainActivity.kind ? "active" : undefined} />
+            <span className="health-dot" data-tone={brainState.state === "attention" ? (brainState.urgency === "urgent" ? "danger" : "warning") : brainState.state === "opportunity" ? "opportunity" : brainState.state === "degraded" ? "warning" : jeff.brainActivity.kind ? "active" : undefined} />
             {focused ? (
               <span>{`${sourceDef(focused).name} / ${visible.length} memories`}</span>
             ) : (
-              <button type="button" className="brain-status" onClick={openWhatGomezSees} aria-label={`What Gomez sees: ${brainState.primaryStatus}`}>
+              <button type="button" className="brain-status" onClick={openWhatJeffSees} aria-label={`What Jeff sees: ${brainState.primaryStatus}`}>
                 <span className="brain-status-primary" aria-live="polite">
-                  {gomez.brainActivity.kind ? (gomez.brainActivity.kind === "ask" ? "Investigating…" : gomez.brainActivity.kind === "scan" ? "Scanning…" : "Running a job…") : brainState.primaryStatus}
+                  {jeff.brainActivity.kind ? (jeff.brainActivity.kind === "ask" ? "Investigating…" : jeff.brainActivity.kind === "scan" ? "Scanning…" : "Running a job…") : brainState.primaryStatus}
                 </span>
                 <span className="brain-status-secondary">
-                  {gomez.brainActivity.kind
-                    ? gomez.brainActivity.sources.length
-                      ? `${gomez.brainActivity.kind === "ask" ? "Reading" : "Looking at"} ${gomez.brainActivity.sources.length} source${gomez.brainActivity.sources.length === 1 ? "" : "s"}`
-                      : gomez.brainActivity.kind === "ask"
+                  {jeff.brainActivity.kind
+                    ? jeff.brainActivity.sources.length
+                      ? `${jeff.brainActivity.kind === "ask" ? "Reading" : "Looking at"} ${jeff.brainActivity.sources.length} source${jeff.brainActivity.sources.length === 1 ? "" : "s"}`
+                      : jeff.brainActivity.kind === "ask"
                         ? "Working on your question"
                         : "Preparing"
                     : (brainState.secondaryStatus ?? `${ids.length} sources, one connected mind`)}
                 </span>
               </button>
             )}
-            <button type="button" className="brain-sees-link" onClick={openWhatGomezSees}>
-              What Gomez sees
+            <button type="button" className="brain-sees-link" onClick={openWhatJeffSees}>
+              What Jeff sees
             </button>
           </div>
           <div className="graph-controls">
@@ -589,8 +589,8 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
               <Icon name="plus" />
             </button>
             <span className="control-divider" />
-            <button className="icon-button" type="button" aria-label={gomez.motion ? "Pause animation" : "Play animation"} onClick={() => gomez.setMotion(!gomez.motion)}>
-              <Icon name={gomez.motion ? "pause" : "play"} />
+            <button className="icon-button" type="button" aria-label={jeff.motion ? "Pause animation" : "Play animation"} onClick={() => jeff.setMotion(!jeff.motion)}>
+              <Icon name={jeff.motion ? "pause" : "play"} />
             </button>
           </div>
         </div>
@@ -599,7 +599,7 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
       {topInsight ? (
         <section className="signal-strip">
           <div>
-            <span className="mini-eyebrow">{gomez.mode === "demo" ? "EXAMPLE OPPORTUNITY" : "TOP FINDING"}</span>
+            <span className="mini-eyebrow">{jeff.mode === "demo" ? "EXAMPLE OPPORTUNITY" : "TOP FINDING"}</span>
             <h3>{topInsight.title}</h3>
             <p>{topInsight.body}</p>
           </div>
@@ -630,7 +630,7 @@ export function MissionControl({ topInsight, goalsAtRisk = [], focus = null, job
       </section>
       <div className="bottom-note">
         <Icon name="lock" />
-        <span>{gomez.mode === "demo" ? "Sample data only. No live source is connected in demo mode." : "Live workspace. Credentials stay encrypted server-side; Gomez only sees narrow tool results."}</span>
+        <span>{jeff.mode === "demo" ? "Sample data only. No live source is connected in demo mode." : "Live workspace. Credentials stay encrypted server-side; Jeff only sees narrow tool results."}</span>
       </div>
     </div>
   );

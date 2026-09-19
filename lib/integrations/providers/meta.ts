@@ -7,7 +7,7 @@ import { requireEnv, publicEnv } from "@/lib/env";
 
 /**
  * Meta: one app authorization exposing Ads, Pages and Instagram as separate
- * Gomez capabilities. Read-only permissions verified against the current
+ * Jeff capabilities. Read-only permissions verified against the current
  * permissions reference (Graph API v26.0).
  */
 export const META_GRAPH_VERSION = "v26.0";

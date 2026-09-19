@@ -7,7 +7,7 @@ vi.mock("@/lib/audit", () => ({ audit: vi.fn(async () => {}) }));
 
 /**
  * Minimal in-memory stand-in for the service-role client covering the query
- * shapes used by lib/gomez/rules/store.ts and apply.ts. Enough to exercise the
+ * shapes used by lib/jeff/rules/store.ts and apply.ts. Enough to exercise the
  * create → reprocess → undo → delete lifecycle without a database.
  */
 interface Row extends Record<string, unknown> {
@@ -87,7 +87,7 @@ const ruleRoute = await import("@/app/api/rules/[id]/route");
 const undoRoute = await import("@/app/api/rules/[id]/undo/route");
 const memoriesRoute = await import("@/app/api/memories/route");
 const feedbackRoute = await import("@/app/api/findings/[id]/feedback/route");
-const { runMemoryRuleTool } = await import("@/lib/gomez/rules/tools");
+const { runMemoryRuleTool } = await import("@/lib/jeff/rules/tools");
 
 const GITHUB_ROW = { id: "11111111-1111-4111-8111-aaaaaaaaaaaa", owner_id: OWNER_ID, provider: "google", capability: "gmail", resource_type: "email", external_id: "gh", title: "[BizGrips-Site-Builds/site-bathroom-phoenix-smartchoice] change webhook destination to n8n and structure", summary: "noah pushed 1 commit", author: "noah-bizgrips <notifications@github.com>", source_url: null, source_timestamp: "2026-09-08T12:00:00Z", tags: [], metadata: { threadId: "gh", labelIds: ["INBOX"] } };
 const HUMAN_ROW = { id: "11111111-1111-4111-8111-bbbbbbbbbbbb", owner_id: OWNER_ID, provider: "google", capability: "gmail", resource_type: "email", external_id: "cl", title: "Re: Atlas proposal", summary: "I'll send the signed proposal Thursday.", author: "Oliver Chen <oliver@atlasclient.com>", source_url: null, source_timestamp: "2026-09-08T12:00:00Z", tags: [], metadata: { threadId: "cl", labelIds: ["INBOX"] } };

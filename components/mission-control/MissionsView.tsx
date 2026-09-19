@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Icon, SourceIcon } from "@/components/gomez/icons";
-import { useGomez } from "@/components/gomez/store";
-import { EmptyState, ModalHeader } from "@/components/gomez/shared";
+import { Icon, SourceIcon } from "@/components/jeff/icons";
+import { useJeff } from "@/components/jeff/store";
+import { EmptyState, ModalHeader } from "@/components/jeff/shared";
 
 export interface MissionItem {
   id: string;
@@ -99,7 +99,7 @@ export function MissionCard({ m, onOpen }: { m: MissionItem; onOpen: (m: Mission
 }
 
 function MissionModal({ m, onChange }: { m: MissionItem; onChange: (id: string, status: string) => Promise<void> }) {
-  const { closeModal, mode } = useGomez();
+  const { closeModal, mode } = useJeff();
   const [busy, setBusy] = useState(false);
   async function set(status: string) {
     setBusy(true);
@@ -210,7 +210,7 @@ function MissionModal({ m, onChange }: { m: MissionItem; onChange: (id: string, 
 }
 
 export function MissionsView({ initial }: { initial: MissionItem[] }) {
-  const gomez = useGomez();
+  const jeff = useJeff();
   const [missions, setMissions] = useState(initial);
   const [filter, setFilter] = useState("all");
   const list = missions.filter((m) => filter === "all" || m.status === filter);
@@ -219,10 +219,10 @@ export function MissionsView({ initial }: { initial: MissionItem[] }) {
     const target = missions.find((m) => m.id === id);
     if (!target || target.isSample) return;
     const res = await fetch(`/api/missions/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
-    if (!res.ok) return gomez.toast("Could not update the mission.");
+    if (!res.ok) return jeff.toast("Could not update the mission.");
     const data = (await res.json().catch(() => null)) as { outcome?: MissionOutcome | null } | null;
     setMissions((ms) => ms.map((m) => (m.id === id ? { ...m, status, outcome: data?.outcome ?? m.outcome } : m)));
-    gomez.toast(status === "queued" ? "Queued. The sandbox worker is not enabled yet; nothing will run until it is." : status === "completed" ? (data?.outcome ? "Marked completed. Baseline recorded; Gomez measures the outcome after 14 days." : "Marked completed.") : "Mission updated.");
+    jeff.toast(status === "queued" ? "Queued. The sandbox worker is not enabled yet; nothing will run until it is." : status === "completed" ? (data?.outcome ? "Marked completed. Baseline recorded; Jeff measures the outcome after 14 days." : "Marked completed.") : "Mission updated.");
   }
 
   return (
@@ -230,7 +230,7 @@ export function MissionsView({ initial }: { initial: MissionItem[] }) {
       <div className="preview-banner">
         <Icon name="info" />
         <span>
-          {gomez.mode === "demo" ? (
+          {jeff.mode === "demo" ? (
             <>
               Sample missions. <strong>No worker, queue, or live execution is connected in demo mode.</strong>
             </>
@@ -262,7 +262,7 @@ export function MissionsView({ initial }: { initial: MissionItem[] }) {
       </div>
       <div className="mission-list">
         {list.length ? (
-          list.map((m) => <MissionCard key={m.id} m={m} onOpen={(mm) => gomez.openModal(<MissionModal m={mm} onChange={change} />)} />)
+          list.map((m) => <MissionCard key={m.id} m={m} onOpen={(mm) => jeff.openModal(<MissionModal m={mm} onChange={change} />)} />)
         ) : (
           <EmptyState title="Nothing in this lane.">Create a task draft from Mission control or choose another filter.</EmptyState>
         )}
@@ -272,7 +272,7 @@ export function MissionsView({ initial }: { initial: MissionItem[] }) {
 }
 
 export function ApprovalsView({ initial, reviewMissions }: { initial: ApprovalItem[]; reviewMissions: MissionItem[] }) {
-  const gomez = useGomez();
+  const jeff = useJeff();
   const [approvals, setApprovals] = useState(initial);
   const pending = approvals.filter((a) => a.status === "pending");
 
@@ -282,14 +282,14 @@ export function ApprovalsView({ initial, reviewMissions }: { initial: ApprovalIt
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ decision, artifactRef: a.artifactRef ?? undefined }),
     });
-    if (!res.ok) return gomez.toast("Could not record the decision.");
+    if (!res.ok) return jeff.toast("Could not record the decision.");
     setApprovals((list) => list.map((x) => (x.id === a.id ? { ...x, status: decision } : x)));
-    gomez.closeModal();
-    gomez.toast(decision === "granted" ? "Approval granted for this exact version. Valid for 60 minutes." : "Approval denied.");
+    jeff.closeModal();
+    jeff.toast(decision === "granted" ? "Approval granted for this exact version. Valid for 60 minutes." : "Approval denied.");
   }
 
   function open(a: ApprovalItem) {
-    gomez.openModal(<ApprovalModal a={a} onDecide={decide} />);
+    jeff.openModal(<ApprovalModal a={a} onDecide={decide} />);
   }
 
   return (
@@ -328,7 +328,7 @@ export function ApprovalsView({ initial, reviewMissions }: { initial: ApprovalIt
           </article>
         ))}
         {reviewMissions.map((m) => (
-          <MissionCard key={m.id} m={m} onOpen={(mm) => gomez.openModal(<MissionModal m={mm} onChange={async () => {}} />)} />
+          <MissionCard key={m.id} m={m} onOpen={(mm) => jeff.openModal(<MissionModal m={mm} onChange={async () => {}} />)} />
         ))}
         {!pending.length && !reviewMissions.length ? <EmptyState title="Your review queue is clear.">No production change is waiting on you.</EmptyState> : null}
       </div>
@@ -337,7 +337,7 @@ export function ApprovalsView({ initial, reviewMissions }: { initial: ApprovalIt
 }
 
 function ApprovalModal({ a, onDecide }: { a: ApprovalItem; onDecide: (a: ApprovalItem, d: "granted" | "denied") => Promise<void> }) {
-  const { closeModal } = useGomez();
+  const { closeModal } = useJeff();
   const [checked, setChecked] = useState(false);
   return (
     <>

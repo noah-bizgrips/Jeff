@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
-import type { ExtendedContext, SourceRow } from "@/lib/gomez/monitors/types";
-import { contactResurfaced, importantDate, referralSourceDeclining, relationshipQuiet } from "@/lib/gomez/monitors/relationship-radar";
-import { goalFocusCategory, timeAllocationMismatch } from "@/lib/gomez/monitors/time-allocation";
-import { attentionFragmentation, dayStats } from "@/lib/gomez/monitors/attention-cost";
-import { calendarEvents } from "@/lib/gomez/monitors/calendar-shared";
-import { annualRenewalUpcoming, duplicateTool, newRecurringCharge, priceIncrease, unusedSoftware } from "@/lib/gomez/monitors/expense-creep";
-import { manualRepetition, repeatedError, webhookBroken } from "@/lib/gomez/monitors/automation-audit";
-import { clientEngagementDrop, clientMissedMeeting, clientNegativeSignal } from "@/lib/gomez/monitors/client-health";
-import { personalProjectStalled, personalRenewalDue } from "@/lib/gomez/monitors/personal-projects";
-import { ANALYSTS, DETECTOR_SPECS, getDetector } from "@/lib/gomez/jobs/detectors";
-import { SYSTEM_JOBS } from "@/lib/gomez/jobs/registry";
-import { MONITOR_IDS, MONITOR_LABELS } from "@/lib/gomez/rules/schema";
-import { detectBlindSpots } from "@/lib/gomez/blindspots/detect";
-import { applyNovelty } from "@/lib/gomez/blindspots/index";
+import type { ExtendedContext, SourceRow } from "@/lib/jeff/monitors/types";
+import { contactResurfaced, importantDate, referralSourceDeclining, relationshipQuiet } from "@/lib/jeff/monitors/relationship-radar";
+import { goalFocusCategory, timeAllocationMismatch } from "@/lib/jeff/monitors/time-allocation";
+import { attentionFragmentation, dayStats } from "@/lib/jeff/monitors/attention-cost";
+import { calendarEvents } from "@/lib/jeff/monitors/calendar-shared";
+import { annualRenewalUpcoming, duplicateTool, newRecurringCharge, priceIncrease, unusedSoftware } from "@/lib/jeff/monitors/expense-creep";
+import { manualRepetition, repeatedError, webhookBroken } from "@/lib/jeff/monitors/automation-audit";
+import { clientEngagementDrop, clientMissedMeeting, clientNegativeSignal } from "@/lib/jeff/monitors/client-health";
+import { personalProjectStalled, personalRenewalDue } from "@/lib/jeff/monitors/personal-projects";
+import { ANALYSTS, DETECTOR_SPECS, getDetector } from "@/lib/jeff/jobs/detectors";
+import { SYSTEM_JOBS } from "@/lib/jeff/jobs/registry";
+import { MONITOR_IDS, MONITOR_LABELS } from "@/lib/jeff/rules/schema";
+import { detectBlindSpots } from "@/lib/jeff/blindspots/detect";
+import { applyNovelty } from "@/lib/jeff/blindspots/index";
 
 const NOW = new Date("2026-09-12T12:00:00Z"); // Saturday
 const DAY = 86_400_000;

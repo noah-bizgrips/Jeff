@@ -10,7 +10,7 @@ import type { SourceItemInput } from "./types";
  * `direction` ("outflow" | "inflow") for readability.
  *
  * Never stored: account numbers, routing numbers, owner names/addresses,
- * or anything from Plaid's Auth/Identity products (which Gomez never requests).
+ * or anything from Plaid's Auth/Identity products (which Jeff never requests).
  */
 
 const PROVIDER = "plaid";

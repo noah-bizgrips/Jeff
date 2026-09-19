@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { describeSchedule, dueJobs, nextCustom, nextRunAt, parseExpression, zonedToUtc } from "@/lib/gomez/jobs/schedule";
-import { localTime } from "@/lib/gomez/settings";
+import { describeSchedule, dueJobs, nextCustom, nextRunAt, parseExpression, zonedToUtc } from "@/lib/jeff/jobs/schedule";
+import { localTime } from "@/lib/jeff/settings";
 
 const TZ = "America/Denver";
 const job = (schedule_type: Parameters<typeof nextRunAt>[0]["schedule_type"], schedule_expression: string | null = null, status = "active") => ({ schedule_type, schedule_expression, status: status as "active" });

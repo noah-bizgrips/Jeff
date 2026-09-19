@@ -3,11 +3,11 @@ import { apiError, json, parseBody, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
 import { audit } from "@/lib/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { inferNarrowRule, loadFindingForRule } from "@/lib/gomez/rules/feedback";
-import { createRule } from "@/lib/gomez/rules/store";
-import { reprocessFindingsForRule } from "@/lib/gomez/rules/apply";
-import { presentRule } from "@/lib/gomez/rules/present";
-import { describeRule } from "@/lib/gomez/rules/schema";
+import { inferNarrowRule, loadFindingForRule } from "@/lib/jeff/rules/feedback";
+import { createRule } from "@/lib/jeff/rules/store";
+import { reprocessFindingsForRule } from "@/lib/jeff/rules/apply";
+import { presentRule } from "@/lib/jeff/rules/present";
+import { describeRule } from "@/lib/jeff/rules/schema";
 
 export const dynamic = "force-dynamic";
 

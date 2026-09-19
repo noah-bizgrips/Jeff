@@ -1,6 +1,6 @@
 import { json, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
-import { loadJobsMetrics, METRICS_WINDOW_DAYS } from "@/lib/gomez/jobs/metrics";
+import { loadJobsMetrics, METRICS_WINDOW_DAYS } from "@/lib/jeff/jobs/metrics";
 
 export const dynamic = "force-dynamic";
 

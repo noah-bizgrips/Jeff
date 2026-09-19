@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Generates public/icons/icon-192.png and icon-512.png with pure Node (zlib):
-// a navy rounded-square background with a white "G" drawn from a tiny bitmap
+// a navy rounded-square background with a white "J" drawn from a tiny bitmap
 // font, so no image tooling is needed. Run: node scripts/generate-icons.mjs
 import { deflateSync } from "node:zlib";
 import { writeFileSync, mkdirSync } from "node:fs";
@@ -8,8 +8,8 @@ import { writeFileSync, mkdirSync } from "node:fs";
 const BG = [10, 10, 12]; // #0a0a0c
 const FG = [245, 245, 247]; // #f5f5f7
 
-// 5x7 glyph for "G" (1 = filled)
-const G = ["01110", "10001", "10000", "10111", "10001", "10001", "01110"];
+// 5x7 glyph for "J" (1 = filled)
+const J = ["11111", "00100", "00100", "00100", "00100", "10100", "01100"];
 
 function crc32(buf) {
   let c;
@@ -48,7 +48,7 @@ function png(size) {
       let alpha = outside ? 0 : 255;
       const gxi = Math.floor((x - gx0) / cell);
       const gyi = Math.floor((y - gy0) / cell);
-      if (!outside && gxi >= 0 && gxi < 5 && gyi >= 0 && gyi < 7 && G[gyi][gxi] === "1") rgb = FG;
+      if (!outside && gxi >= 0 && gxi < 5 && gyi >= 0 && gyi < 7 && J[gyi][gxi] === "1") rgb = FG;
       const o = y * (size * 4 + 1) + 1 + x * 4;
       raw[o] = rgb[0];
       raw[o + 1] = rgb[1];

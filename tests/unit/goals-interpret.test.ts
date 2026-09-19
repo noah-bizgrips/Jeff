@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/gomez/budget", () => ({ budgetStatus: vi.fn(async () => ({ spentUsd: 0, budgetUsd: 2, exhausted: false })), recordUsage: vi.fn(async () => 0) }));
+vi.mock("@/lib/jeff/budget", () => ({ budgetStatus: vi.fn(async () => ({ spentUsd: 0, budgetUsd: 2, exhausted: false })), recordUsage: vi.fn(async () => 0) }));
 
-const { preParseGoal, preParseCoverage, interpretGoal, mergeInterpretations } = await import("@/lib/gomez/goals/interpret");
-const { GoalInterpretationSchema } = await import("@/lib/gomez/goals/schema");
+const { preParseGoal, preParseCoverage, interpretGoal, mergeInterpretations } = await import("@/lib/jeff/goals/interpret");
+const { GoalInterpretationSchema } = await import("@/lib/jeff/goals/schema");
 
 const SENTENCE = "Onboard 10 new clients in the next 60 days with a CAC under $1000 and a sign date to first payment date in under 14 days.";
 const NOW = new Date("2026-09-12T12:00:00Z");
