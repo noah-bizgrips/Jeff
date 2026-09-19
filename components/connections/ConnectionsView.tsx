@@ -553,8 +553,12 @@ function PlaidLinkButton({ configured }: { configured: boolean }) {
     setBusy(true);
     try {
       const res = await fetch("/api/plaid/link-token", { method: "POST" });
-      const data = (await res.json().catch(() => null)) as { linkToken?: string; error?: string; env?: string } | null;
-      if (!res.ok || !data?.linkToken) return jeff.toast(`Could not start Plaid Link (${data?.error ?? res.status}).`);
+      const data = (await res.json().catch(() => null)) as { linkToken?: string; error?: string; env?: string; error_code?: string | null } | null;
+      if (!res.ok || !data?.linkToken) {
+        const code = data?.error_code ? ` · Plaid: ${data.error_code}` : "";
+        const hint = data?.error_code === "INVALID_API_KEYS" ? " — PLAID_SECRET does not match PLAID_ENV; paste the Production secret in Vercel and redeploy." : "";
+        return jeff.toast(`Could not start Plaid Link (${data?.error ?? res.status}${code})${hint}`);
+      }
       const handler = window.Plaid.create({
         token: data.linkToken,
         onSuccess: async (publicToken, metadata) => {
