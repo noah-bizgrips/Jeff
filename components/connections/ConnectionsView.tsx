@@ -506,7 +506,7 @@ function MetaTokenForm() {
   return (
     <form className="form-grid" onSubmit={onSubmit} autoComplete="off">
       <div className="callout">
-        <strong>Alternative to the login dialog:</strong> a Business Manager <em>system user</em> token with only <code>ads_read</code>. business.facebook.com → Settings → Users → System users → Add → assign the app and the ad account (View performance) → Generate token → app, expiry <em>Never</em>, permission <code>ads_read</code>. Paste it once here — it is encrypted immediately and never displayed again.
+        <strong>Alternative to the login dialog:</strong> a Business Manager <em>system user</em> token. business.facebook.com → Settings → Users → System users → Add (role <em>Admin</em> so Jeff can discover and read every ad account the business is granted, now and later) → assign the app → Generate token → app, expiry <em>Never</em>, permissions <code>ads_read</code> + <code>business_management</code>. Paste it once here — it is encrypted immediately and never displayed again.
       </div>
       <label className="field">
         Label (optional)
@@ -599,6 +599,9 @@ interface MetaAssets {
   adAccounts: { id: string; name: string }[];
   pages: { id: string; name: string }[];
   instagramAccounts: { id: string; name: string; pageId: string }[];
+  /** Business-wide discovery (owned + client-shared); null when the token lacks business_management. */
+  discovered?: { id: string; name: string; relation: "owned" | "client" | "direct"; accessible: boolean }[] | null;
+  discoveryLimitations?: string[];
 }
 interface GithubAssets {
   installation: { id: number; account: string };
@@ -616,6 +619,7 @@ function PermissionsModal({ p, c }: { p: CatalogEntry; c: ConnectionSummary }) {
     selected_repositories: (c.metadata.selected_repositories as string[]) ?? [],
   });
   const [installationId, setInstallationId] = useState<number | undefined>(c.metadata.installation_id as number | undefined);
+  const [adMode, setAdMode] = useState<"selected" | "all">(c.metadata.ad_account_mode === "all" ? "all" : "selected");
 
   useEffect(() => {
     fetch(`/api/connections/${c.id}/permissions`)
@@ -637,7 +641,7 @@ function PermissionsModal({ p, c }: { p: CatalogEntry; c: ConnectionSummary }) {
     const res = await fetch(`/api/connections/${c.id}/permissions`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...selected, installation_id: installationId }),
+      body: JSON.stringify({ ...selected, installation_id: installationId, ...(p.id === "meta" ? { ad_account_mode: adMode } : {}) }),
     });
     if (!res.ok) return jeff.toast("Could not save the selection.");
     await jeff.refreshConnections();
@@ -672,7 +676,36 @@ function PermissionsModal({ p, c }: { p: CatalogEntry; c: ConnectionSummary }) {
         ) : p.id === "meta" && assets && !Array.isArray(assets) ? (
           <>
             <div className="section-label">AD ACCOUNTS</div>
-            {list("selected_ad_accounts", assets.adAccounts)}
+            <div className="goal-options">
+              <label className={`goal-option ${adMode === "all" ? "selected" : ""}`}>
+                <input type="radio" name="ad_account_mode" checked={adMode === "all"} onChange={() => setAdMode("all")} />
+                <span>
+                  Every ad account BizGrips can access — including client accounts shared later
+                  <small className="muted"> · Jeff discovers owned and client-shared accounts on each sync and provisions read access for itself</small>
+                </span>
+              </label>
+              <label className={`goal-option ${adMode === "selected" ? "selected" : ""}`}>
+                <input type="radio" name="ad_account_mode" checked={adMode === "selected"} onChange={() => setAdMode("selected")} />
+                <span>Only the accounts I tick below</span>
+              </label>
+            </div>
+            {adMode === "all" ? (
+              <div className="checkbox-list">
+                {(assets.discovered ?? assets.adAccounts.map((a) => ({ ...a, relation: "direct", accessible: true }))).map((a) => (
+                  <label key={a.id}>
+                    <input type="checkbox" checked readOnly disabled />
+                    <span>{a.name}</span>
+                    <small className="muted">
+                      {a.id} · {a.relation === "client" ? "shared by client" : a.relation === "owned" ? "owned" : "assigned"}
+                      {a.accessible ? "" : " · access will be provisioned on next sync"}
+                    </small>
+                  </label>
+                ))}
+                {assets.discoveryLimitations?.length ? <p className="muted">{assets.discoveryLimitations.join(" ")}</p> : null}
+              </div>
+            ) : (
+              list("selected_ad_accounts", assets.adAccounts)
+            )}
             <div className="section-label">FACEBOOK PAGES</div>
             {list("selected_pages", assets.pages)}
             <div className="section-label">INSTAGRAM PROFESSIONAL ACCOUNTS</div>

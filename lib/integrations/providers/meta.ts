@@ -139,3 +139,74 @@ export async function listMetaAssets(secret: MetaSecret) {
       .map((p) => ({ id: p.instagram_business_account!.id, name: p.instagram_business_account!.username ?? p.instagram_business_account!.id, pageId: p.id })),
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* Business-wide ad account discovery ("every account BizGrips can access") */
+/* ------------------------------------------------------------------ */
+
+export interface DiscoveredAdAccount {
+  id: string; // act_…
+  name: string;
+  businessId: string | null;
+  /** owned by the business, or shared by a client (partner access). */
+  relation: "owned" | "client" | "direct";
+  /** The token can already read this account. */
+  accessible: boolean;
+}
+
+/**
+ * Every ad account the business can see: accounts directly assigned to the
+ * token's user plus the business's owned and client (partner-shared)
+ * accounts. Needs business_management for the business edges; without it
+ * only the directly assigned accounts are returned.
+ */
+export async function discoverAdAccounts(secret: MetaSecret): Promise<{ accounts: DiscoveredAdAccount[]; businessIds: string[]; limitations: string[] }> {
+  const q = `access_token=${encodeURIComponent(secret.user_token)}`;
+  const limitations: string[] = [];
+  const direct = await fetchJson<{ data?: { id: string; name?: string; account_id?: string }[] }>(`${GRAPH}/me/adaccounts?fields=id,name,account_id&limit=200&${q}`);
+  const byId = new Map<string, DiscoveredAdAccount>();
+  for (const a of direct.body?.data ?? []) byId.set(a.id, { id: a.id, name: a.name ?? a.account_id ?? a.id, businessId: null, relation: "direct", accessible: true });
+
+  const biz = await fetchJson<{ data?: { id: string; name?: string }[] }>(`${GRAPH}/me/businesses?fields=id,name&limit=50&${q}`);
+  const businessIds = (biz.body?.data ?? []).map((b) => b.id);
+  if (biz.status !== 200) limitations.push("business_management permission missing: only directly assigned ad accounts are visible; new client accounts will not be discovered automatically.");
+  for (const b of businessIds) {
+    for (const [edge, relation] of [["owned_ad_accounts", "owned"], ["client_ad_accounts", "client"]] as const) {
+      const res = await fetchJson<{ data?: { id: string; name?: string; account_id?: string }[] }>(`${GRAPH}/${b}/${edge}?fields=id,name,account_id&limit=200&${q}`);
+      if (res.status !== 200) {
+        limitations.push(`Could not list ${relation} ad accounts for business ${b}.`);
+        continue;
+      }
+      for (const a of res.body?.data ?? []) {
+        const existing = byId.get(a.id);
+        if (existing) {
+          if (!existing.businessId) existing.businessId = b;
+          if (existing.relation === "direct") existing.relation = relation;
+        } else byId.set(a.id, { id: a.id, name: a.name ?? a.account_id ?? a.id, businessId: b, relation, accessible: false });
+      }
+    }
+  }
+  return { accounts: Array.from(byId.values()), businessIds, limitations };
+}
+
+/**
+ * Gives the token's own (system) user the ANALYZE task on an ad account so
+ * insights become readable. Self-provisioning only — never grants anyone
+ * else access, never more than read/analyze. Requires an Admin system user
+ * with business_management. Returns false (with a reason) when Meta refuses.
+ */
+export async function ensureAnalyzeAccess(secret: MetaSecret, account: DiscoveredAdAccount): Promise<{ ok: boolean; reason?: string }> {
+  if (!account.businessId) return { ok: false, reason: "no_business" };
+  const q = `access_token=${encodeURIComponent(secret.user_token)}`;
+  const me = await fetchJson<{ id?: string }>(`${GRAPH}/me?fields=id&${q}`);
+  if (!me.body?.id) return { ok: false, reason: "me_failed" };
+  const res = await fetch(`${GRAPH}/${account.id}/assigned_users`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ user: me.body.id, tasks: JSON.stringify(["ANALYZE"]), business: account.businessId, access_token: secret.user_token }),
+    cache: "no-store",
+  });
+  const body = (await res.json().catch(() => null)) as { success?: boolean; error?: { code?: number; message?: string } } | null;
+  if (res.ok && body?.success !== false) return { ok: true };
+  return { ok: false, reason: `assign_failed:${res.status}:${body?.error?.code ?? ""}` };
+}

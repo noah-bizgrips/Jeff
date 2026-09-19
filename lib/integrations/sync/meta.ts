@@ -1,5 +1,5 @@
 import "server-only";
-import { META_GRAPH_VERSION, type MetaSecret } from "@/lib/integrations/providers/meta";
+import { discoverAdAccounts, ensureAnalyzeAccess, META_GRAPH_VERSION, type MetaSecret } from "@/lib/integrations/providers/meta";
 import { readSecret, setConnectionStatus } from "@/lib/integrations/store";
 import type { ConnectionSummary } from "@/lib/integrations/types";
 import { redactString } from "@/lib/security/redact";
@@ -161,10 +161,40 @@ async function withTokenGuard<T>(conn: ConnectionSummary, fn: () => Promise<T>):
   }
 }
 
+/**
+ * Which ad accounts to read. Mode "all": every account the business can see
+ * (owned + client-shared), self-provisioning read access on new ones so a
+ * client who grants BizGrips access is picked up on the next run. Otherwise
+ * the owner's explicit selection.
+ */
+export async function resolveAdAccounts(conn: ConnectionSummary, secret: MetaSecret): Promise<{ ids: string[]; discovered?: number; provisioned?: number; limitations: string[] }> {
+  if (conn.metadata.ad_account_mode !== "all") return { ids: selected(conn, "selected_ad_accounts"), limitations: [] };
+  const { accounts, limitations } = await discoverAdAccounts(secret);
+  let provisioned = 0;
+  for (const a of accounts) {
+    if (a.accessible) continue;
+    const r = await ensureAnalyzeAccess(secret, a);
+    if (r.ok) {
+      a.accessible = true;
+      provisioned++;
+      log.info("meta_ad_account_provisioned", { account: a.id, relation: a.relation });
+    } else limitations.push(`No read access to ${a.name} (${a.id}): ${r.reason ?? "unknown"}.`);
+  }
+  const ids = accounts.filter((a) => a.accessible).map((a) => a.id);
+  const known = selected(conn, "selected_ad_accounts");
+  const added = ids.filter((id) => !known.includes(id));
+  if (added.length || limitations.length) {
+    // Keep the selection in sync so the UI shows what is actually being read; the limitation list is visible on the connection.
+    await setConnectionStatus(conn.id, { metadata: { ...conn.metadata, selected_ad_accounts: ids, ad_account_discovery: { at: new Date().toISOString(), discovered: accounts.length, provisioned, limitations: limitations.slice(0, 10) } } });
+  }
+  return { ids, discovered: accounts.length, provisioned, limitations };
+}
+
 const ads: CapabilityFetch = async (conn, cursor) => {
-  const accounts = selected(conn, "selected_ad_accounts");
-  if (!accounts.length) return { items: [], seen: 0, cursor: cursor ?? null };
   const secret = await secretFor(conn);
+  const resolved = await withTokenGuard(conn, () => resolveAdAccounts(conn, secret));
+  const accounts = resolved.ids;
+  if (!accounts.length) return { items: [], seen: 0, cursor: cursor ?? null };
   const token = secret.user_token;
   const now = new Date();
   const win = insightsWindow(cursor, now, { initialDays: INITIAL_DAYS, overlapDays: OVERLAP_DAYS });

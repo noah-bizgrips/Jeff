@@ -2,7 +2,7 @@ import { z } from "zod";
 import { apiError, json, parseBody, withErrorBoundary } from "@/lib/api";
 import { requireOwnerAal2 } from "@/lib/auth/guard";
 import { getConnection, readSecret, setConnectionStatus } from "@/lib/integrations/store";
-import { listMetaAssets, type MetaSecret } from "@/lib/integrations/providers/meta";
+import { discoverAdAccounts, listMetaAssets, type MetaSecret } from "@/lib/integrations/providers/meta";
 import { listInstallations, listInstallationRepos, githubConfigured } from "@/lib/integrations/providers/github";
 import { audit } from "@/lib/audit";
 
@@ -11,6 +11,8 @@ export const dynamic = "force-dynamic";
 const Id = z.string().uuid();
 const Body = z.object({
   selected_ad_accounts: z.array(z.string().max(100)).max(50).optional(),
+  /** "all": every ad account the business can access, including ones shared later. */
+  ad_account_mode: z.enum(["selected", "all"]).optional(),
   selected_pages: z.array(z.string().max(100)).max(50).optional(),
   selected_instagram_accounts: z.array(z.string().max(100)).max(50).optional(),
   selected_repositories: z.array(z.string().max(200)).max(100).optional(),
@@ -30,7 +32,8 @@ export const GET = withErrorBoundary(async (req, ctx) => {
     const secret = await readSecret<MetaSecret>(conn.id);
     if (!secret) return apiError("secret_missing", 409);
     const assets = await listMetaAssets(secret);
-    return json({ provider: "meta", assets, selected: conn.metadata });
+    const discovery = await discoverAdAccounts(secret).catch(() => null);
+    return json({ provider: "meta", assets: { ...assets, discovered: discovery?.accounts ?? null, discoveryLimitations: discovery?.limitations ?? [] }, selected: conn.metadata });
   }
   if (conn.provider === "github") {
     if (!githubConfigured()) return apiError("provider_not_configured", 409);
